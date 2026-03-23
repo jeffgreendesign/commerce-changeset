@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+# Quality gates — must pass before commit
+# For full test suite, rely on CI. Pre-commit runs fast checks only.
+
+# Version floor check (if configured)
+if [ -f "config/version-floors.json" ] && [ -f "scripts/version-floor-check.sh" ]; then
+  bash scripts/version-floor-check.sh
+fi
+
+bash scripts/security-check.sh --strict
+
+npm run lint
+npm run typecheck

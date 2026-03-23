@@ -1,0 +1,72 @@
+# CI Pipeline
+# ============================================================================
+# Runs quality gates on every push to main and on pull requests targeting main.
+#
+# Design choices:
+# - Uses dorny/paths-filter to skip CI on docs-only changes (saves minutes)
+# - Reads Node version from .node-version (single source of truth for runtime)
+# - Final step runs `npm run verify` for full CI validation
+# - 10-minute timeout prevents hung processes from burning Actions minutes
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Determine what changed to skip unnecessary work
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.jsx'
+              - '**/*.json'
+              - '**/*.yaml'
+              - '**/*.yml'
+              - 'package.json'
+              - 'package-lock.json'
+
+  quality:
+    needs: changes
+    # Skip quality checks if only docs changed
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Read Node version from .node-version — enforces the compatibility matrix.
+      - name: Read Node version
+        id: node-version
+        run: echo "version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run verify gate
+        run: npm run verify

@@ -1,0 +1,59 @@
+# Changelog Enforcement
+# ============================================================================
+# Ensures every PR that changes code also updates CHANGELOG.md.
+# Prevents changelog drift — the #1 source of "what changed in this release?"
+#
+# Escape hatches:
+# - Add the `skip-changelog` label for refactors, CI changes, etc.
+# - Docs-only PRs (only .md files changed) are automatically skipped.
+# ============================================================================
+
+name: Changelog Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  changelog:
+    # Skip if PR has the skip-changelog label
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-changelog')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for changelog update
+        run: |
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+
+          # Check if only markdown files changed (docs-only PR)
+          NON_MD_FILES=$(echo "$CHANGED_FILES" | grep -v '\.md$' || true)
+
+          if [ -z "$NON_MD_FILES" ]; then
+            echo "✓ Docs-only PR — changelog update not required."
+            exit 0
+          fi
+
+          # Code files changed — CHANGELOG.md must be updated
+          if echo "$CHANGED_FILES" | grep -q '^CHANGELOG.md$'; then
+            echo "✓ CHANGELOG.md was updated."
+            exit 0
+          fi
+
+          echo "✗ CHANGELOG.md was not updated."
+          echo ""
+          echo "This PR changes code files but doesn't update CHANGELOG.md."
+          echo ""
+          echo "What to do:"
+          echo "  1. Add an entry under '## [Unreleased]' in CHANGELOG.md"
+          echo "  2. Use the format: '- Description of what changed'"
+          echo "  3. Group under: Added, Changed, Fixed, Removed"
+          echo ""
+          echo "If this change doesn't need a changelog entry (refactor, CI, etc.):"
+          echo "  Add the 'skip-changelog' label to this PR."
+          exit 1
