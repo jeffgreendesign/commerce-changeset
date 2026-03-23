@@ -1,9 +1,11 @@
 /**
- * Spike route: Connected Accounts flow via My Account API.
+ * Spike route: Connected Accounts flow for Token Vault.
  *
- * Step 1: If no session with My Account scope, redirect to login with /me/ audience
- * Step 2: Use the JWT to call My Account connected-accounts/connect
- * Step 3: Redirect to Google consent via the ticket
+ * Links the user's Google account via Auth0 Connected Accounts so that
+ * Token Vault stores the Google refresh token for federated token exchange.
+ *
+ * Requires: own Google OAuth credentials (not Auth0 dev keys) on the
+ * google-oauth2 connection.
  *
  * NOT production code — throwaway spike.
  */
@@ -26,8 +28,8 @@ export async function GET(request: Request) {
   const issuer = `https://${domain}`;
   const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
 
-  // Step 1: Check if we already have a Google token in Token Vault
-  if (session) {
+  // Check if already connected
+  if (session && !step) {
     try {
       await auth0.getAccessTokenForConnection({ connection: "google-oauth2" });
       return NextResponse.redirect(new URL("/api/spike/token-vault", appBaseUrl));
@@ -36,53 +38,24 @@ export async function GET(request: Request) {
     }
   }
 
-  // Step 2: After login with /me/ audience, call the Connected Accounts API
-  if (step === "connect" && session) {
-    const tokenResult = await auth0.getAccessToken({
-      audience: `${issuer}/me/`,
-      scope: "create:me:connected_accounts",
+  // Step "do-connect": Use the SDK's connectAccount() now that we have
+  // a session with the /me/ audience and create:me:connected_accounts scope
+  if (step === "do-connect" && session) {
+    // The SDK's connectAccount() will:
+    // 1. Get an access token for the /me/ audience
+    // 2. Call /me/v1/connected-accounts/connect
+    // 3. Store transaction state with CONNECT_CODE response type
+    // 4. Redirect to Google
+    // 5. On callback, complete the connect flow and store the refresh token
+    return auth0.connectAccount({
+      connection: "google-oauth2",
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      returnTo: "/api/spike/token-vault",
     });
-
-    console.error("[connect-google] Token scope:", tokenResult.scope);
-
-    const connectRes = await fetch(
-      `${issuer}/me/v1/connected-accounts/connect`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tokenResult.token}`,
-        },
-        body: JSON.stringify({
-          connection: "google-oauth2",
-          redirect_uri: `${appBaseUrl}/auth/callback`,
-          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-        }),
-      }
-    );
-
-    const connectBody = await connectRes.text();
-    console.error("[connect-google] Connect API:", connectRes.status, connectBody.substring(0, 300));
-
-    if (!connectRes.ok) {
-      return NextResponse.json(
-        {
-          error: "connect_failed",
-          status: connectRes.status,
-          body: JSON.parse(connectBody),
-          tokenScope: tokenResult.scope,
-        },
-        { status: connectRes.status }
-      );
-    }
-
-    const { connect_uri, connect_params } = JSON.parse(connectBody);
-    const redirectUrl = `${connect_uri}?ticket=${encodeURIComponent(connect_params.ticket)}`;
-    console.error("[connect-google] Redirecting to:", redirectUrl);
-    return NextResponse.redirect(redirectUrl);
   }
 
-  // Step 0: Login with My Account audience to get create:me:connected_accounts scope
+  // Step 0: Login with My Account audience so the session has the right scope
+  // for connectAccount() to get a proper JWT
   const loginUrl = new URL("/auth/login", appBaseUrl);
   loginUrl.searchParams.set("audience", `${issuer}/me/`);
   loginUrl.searchParams.set(
@@ -90,7 +63,7 @@ export async function GET(request: Request) {
     "openid profile email offline_access create:me:connected_accounts"
   );
   loginUrl.searchParams.set("connection", "google-oauth2");
-  loginUrl.searchParams.set("returnTo", "/api/spike/connect-google?step=connect");
+  loginUrl.searchParams.set("returnTo", "/api/spike/connect-google?step=do-connect");
 
   return NextResponse.redirect(loginUrl.toString());
 }
