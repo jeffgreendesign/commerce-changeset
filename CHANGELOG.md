@@ -19,6 +19,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - Auth0 Token Vault → Google Sheets spike route (`/api/spike/token-vault`)
 - Google Connected Accounts spike route (`/api/spike/connect-google`) for Token Vault account linking
 - CIBA + Guardian spike route (`/api/spike/ciba`) for push notification approval flow
+- Policy engine (`lib/policy/`) with json-rules-engine: risk tier evaluation (Tier 0–3), 5 rules, typed `evaluatePolicy()` function
+- Reader Agent (`lib/agents/reader.ts`) with Token Vault OBO delegation: `get_products`, `get_pricing`, `get_launch_schedule`, `get_launch_windows` tools
+- `/api/reader` POST route: authenticated natural-language product queries via Reader Agent + Vercel AI SDK
 - Quality gates: `npm run gates` runs lint + typecheck + build
 - CI workflow with GitHub Actions
 - Changelog enforcement CI check

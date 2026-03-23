@@ -23,11 +23,18 @@ app/
     route.ts          — Google Connected Accounts linking spike (GET, env-gated)
   api/spike/ciba/
     route.ts          — CIBA + Guardian push notification approval spike (GET, env-gated)
+  api/reader/
+    route.ts          — Reader Agent POST route (authenticated, production)
 components/ui/
   button.tsx          — shadcn Button wrapping Base UI ButtonPrimitive + CVA
 lib/
   auth0.ts            — Auth0Client singleton (server-only, offline_access + Connected Accounts)
   utils.ts            — cn() utility (clsx + tailwind-merge)
+  policy/
+    types.ts          — Risk tier, PolicyFact, PolicyDecision types
+    engine.ts         — json-rules-engine rules + evaluatePolicy()
+  agents/
+    reader.ts         — Reader Agent: 4 read-only Google Sheets tools + generateText runner
 proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
 ```
