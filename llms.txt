@@ -1,0 +1,33 @@
+# commerce-changeset llms.txt
+
+## Stack
+Next.js 16.2.1 (App Router), React 19, TypeScript
+Tailwind CSS v4 (CSS-based config, no JS config file)
+Base UI + shadcn/ui + CVA for components
+Auth0 v4 (@auth0/nextjs-auth0) for authentication
+Vercel AI SDK (ai ^6.0.134) for model integration
+@auth0/ai-vercel for Auth0-aware AI interactions
+zod for schema validation
+json-rules-engine for business rule evaluation
+
+## Models
+Vercel AI SDK provides the model integration layer.
+@auth0/ai-vercel connects Auth0 sessions to AI interactions.
+An Anthropic API key is configured for Claude model access.
+
+## Endpoints
+/auth/login        — Initiate Auth0 login (handled by middleware)
+/auth/logout       — Initiate Auth0 logout (handled by middleware)
+/auth/callback     — Auth0 callback after authentication (handled by middleware)
+/api/auth/[auth0]  — Auth0 route handler (GET)
+
+## Agent Instructions
+AGENTS.md      — Comprehensive coding conventions, architecture, and examples
+CONTRIBUTING.md — Branching, PR process, coding standards, review checklist
+CLAUDE.md       — References @AGENTS.md for Claude Code agent behavior
+
+## Prompt Conventions
+Use zod schemas for all AI input/output validation.
+Use json-rules-engine for business rule evaluation.
+Validate AI-generated outputs with zod before use.
+Server-side only for Auth0 session access (never in client components).
