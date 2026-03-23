@@ -38,13 +38,16 @@ Open [http://localhost:3000](http://localhost:3000).
 | Variable | Description |
 |----------|-------------|
 | `AUTH0_SECRET` | Random 64-char hex string for session encryption |
+| `AUTH0_DOMAIN` | Auth0 tenant domain (`your-tenant.auth0.com`) |
 | `AUTH0_BASE_URL` | App base URL (`http://localhost:3000` for dev) |
 | `AUTH0_ISSUER_BASE_URL` | Auth0 tenant URL (`https://your-tenant.auth0.com`) |
 | `AUTH0_CLIENT_ID` | Auth0 application client ID |
 | `AUTH0_CLIENT_SECRET` | Auth0 application client secret |
 | `AUTH0_AUDIENCE` | Auth0 API audience identifier |
+| `APP_BASE_URL` | App base URL for Connected Accounts flow |
 | `GOOGLE_SHEET_ID` | Google Sheet ID for token-vault integration |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude model access |
+| `ENABLE_SPIKE` | Set to `true` to enable spike routes in production |
 
 ## Scripts
 
@@ -69,6 +72,8 @@ app/
     route.ts              — Auth0 route handler
   api/spike/token-vault/
     route.ts              — Token Vault → Google Sheets spike
+  api/spike/connect-google/
+    route.ts              — Google Connected Accounts linking spike
 components/ui/
   button.tsx              — shadcn Button (Base UI + CVA)
 config/

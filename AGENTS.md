@@ -17,10 +17,14 @@ app/
   globals.css         — Tailwind v4 theme config (@theme inline, oklch colors)
   api/auth/[auth0]/
     route.ts          — Auth0 route handler (login, logout, callback)
+  api/spike/token-vault/
+    route.ts          — Token Vault → Google Sheets spike (GET, env-gated)
+  api/spike/connect-google/
+    route.ts          — Google Connected Accounts linking spike (GET, env-gated)
 components/ui/
   button.tsx          — shadcn Button wrapping Base UI ButtonPrimitive + CVA
 lib/
-  auth0.ts            — Auth0Client singleton (server-only)
+  auth0.ts            — Auth0Client singleton (server-only, offline_access + Connected Accounts)
   utils.ts            — cn() utility (clsx + tailwind-merge)
 proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
