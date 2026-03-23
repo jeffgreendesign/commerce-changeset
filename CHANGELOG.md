@@ -26,6 +26,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - Change Set builder (`lib/changeset/builder.ts`): per-operation policy evaluation, diff computation, rollback generation
 - Orchestrator Agent (`lib/agents/orchestrator.ts`): 3-tool workflow (gather → analyze → build) for natural-language change set assembly
 - `POST /api/orchestrator` route: authenticated change set assembly from natural-language prompts
+- Writer Agent (`lib/agents/writer.ts`) with Token Vault OBO delegation: `update_price`, `set_promo_status` tools for Google Sheets writes
+- CIBA approval module (`lib/changeset/approval.ts`): reusable CIBA + Guardian approval flow with dynamic binding messages from change sets
+- Change Set executor (`lib/changeset/executor.ts`): full execution pipeline with CIBA approval, writer execution, verification read-back, and receipt generation
+- `POST /api/orchestrator/execute` route: authenticated change set execution with CIBA approval and execution receipts
 - Quality gates: `npm run gates` runs lint + typecheck + build
 - CI workflow with GitHub Actions
 - Changelog enforcement CI check

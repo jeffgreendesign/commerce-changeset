@@ -27,6 +27,8 @@ app/
     route.ts          — Reader Agent POST route (authenticated, production)
   api/orchestrator/
     route.ts          — Orchestrator Agent POST route (authenticated, production)
+    execute/
+      route.ts        — Execute route: CIBA approval + writer execution + receipt (POST, authenticated)
 components/ui/
   button.tsx          — shadcn Button wrapping Base UI ButtonPrimitive + CVA
 lib/
@@ -38,9 +40,12 @@ lib/
   changeset/
     types.ts          — ChangeSet, Operation, RiskSummary, ExecutionReceipt types
     builder.ts        — buildChangeSet(): policy evaluation + diff + rollback assembly
+    approval.ts       — CIBA approval: dynamic binding messages, RAR authorization details
+    executor.ts       — Execution pipeline: approve → write → verify → receipt
   agents/
     reader.ts         — Reader Agent: 4 read-only Google Sheets tools + generateText runner
     orchestrator.ts   — Orchestrator Agent: 3-tool workflow (gather → analyze → build)
+    writer.ts         — Writer Agent: update_price, set_promo_status via Google Sheets write API
 proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
 ```
