@@ -25,6 +25,7 @@ An Anthropic API key is configured for Claude model access.
 /api/spike/connect-google — Google Connected Accounts linking flow (GET, env-gated)
 /api/spike/ciba           — CIBA + Guardian push notification approval (GET, env-gated)
 /api/reader               — Reader Agent: natural-language product/pricing/launch queries (POST, authenticated)
+/api/orchestrator         — Orchestrator Agent: decomposes prompts into change sets with diffs and policy decisions (POST, authenticated)
 
 ## Agent Instructions
 AGENTS.md      — Comprehensive coding conventions, architecture, and examples

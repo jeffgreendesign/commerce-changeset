@@ -25,6 +25,8 @@ app/
     route.ts          — CIBA + Guardian push notification approval spike (GET, env-gated)
   api/reader/
     route.ts          — Reader Agent POST route (authenticated, production)
+  api/orchestrator/
+    route.ts          — Orchestrator Agent POST route (authenticated, production)
 components/ui/
   button.tsx          — shadcn Button wrapping Base UI ButtonPrimitive + CVA
 lib/
@@ -33,8 +35,12 @@ lib/
   policy/
     types.ts          — Risk tier, PolicyFact, PolicyDecision types
     engine.ts         — json-rules-engine rules + evaluatePolicy()
+  changeset/
+    types.ts          — ChangeSet, Operation, RiskSummary, ExecutionReceipt types
+    builder.ts        — buildChangeSet(): policy evaluation + diff + rollback assembly
   agents/
     reader.ts         — Reader Agent: 4 read-only Google Sheets tools + generateText runner
+    orchestrator.ts   — Orchestrator Agent: 3-tool workflow (gather → analyze → build)
 proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
 ```

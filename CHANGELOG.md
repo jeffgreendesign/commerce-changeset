@@ -22,6 +22,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - Policy engine (`lib/policy/`) with json-rules-engine: risk tier evaluation (Tier 0–3), 5 rules, typed `evaluatePolicy()` function
 - Reader Agent (`lib/agents/reader.ts`) with Token Vault OBO delegation: `get_products`, `get_pricing`, `get_launch_schedule`, `get_launch_windows` tools
 - `/api/reader` POST route: authenticated natural-language product queries via Reader Agent + Vercel AI SDK
+- Change Set data model (`lib/changeset/types.ts`): ChangeSet, Operation, RiskSummary, ExecutionReceipt types
+- Change Set builder (`lib/changeset/builder.ts`): per-operation policy evaluation, diff computation, rollback generation
+- Orchestrator Agent (`lib/agents/orchestrator.ts`): 3-tool workflow (gather → analyze → build) for natural-language change set assembly
+- `POST /api/orchestrator` route: authenticated change set assembly from natural-language prompts
 - Quality gates: `npm run gates` runs lint + typecheck + build
 - CI workflow with GitHub Actions
 - Changelog enforcement CI check
