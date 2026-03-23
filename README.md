@@ -47,6 +47,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `APP_BASE_URL` | App base URL for Connected Accounts flow |
 | `GOOGLE_SHEET_ID` | Google Sheet ID for token-vault integration |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude model access |
+| `AUTH0_CIBA_AUDIENCE` | (Optional) API audience for CIBA + RAR requests |
 | `ENABLE_SPIKE` | Set to `true` to enable spike routes in production |
 
 ## Scripts
@@ -74,6 +75,8 @@ app/
     route.ts              — Token Vault → Google Sheets spike
   api/spike/connect-google/
     route.ts              — Google Connected Accounts linking spike
+  api/spike/ciba/
+    route.ts              — CIBA + Guardian push notification approval spike
 components/ui/
   button.tsx              — shadcn Button (Base UI + CVA)
 config/

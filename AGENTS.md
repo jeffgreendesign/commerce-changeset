@@ -21,6 +21,8 @@ app/
     route.ts          — Token Vault → Google Sheets spike (GET, env-gated)
   api/spike/connect-google/
     route.ts          — Google Connected Accounts linking spike (GET, env-gated)
+  api/spike/ciba/
+    route.ts          — CIBA + Guardian push notification approval spike (GET, env-gated)
 components/ui/
   button.tsx          — shadcn Button wrapping Base UI ButtonPrimitive + CVA
 lib/

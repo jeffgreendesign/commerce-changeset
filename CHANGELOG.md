@@ -18,6 +18,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - Tailwind CSS v4 with CSS-based theme config (oklch colors, dark mode)
 - Auth0 Token Vault → Google Sheets spike route (`/api/spike/token-vault`)
 - Google Connected Accounts spike route (`/api/spike/connect-google`) for Token Vault account linking
+- CIBA + Guardian spike route (`/api/spike/ciba`) for push notification approval flow
 - Quality gates: `npm run gates` runs lint + typecheck + build
 - CI workflow with GitHub Actions
 - Changelog enforcement CI check

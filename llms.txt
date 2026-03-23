@@ -23,6 +23,7 @@ An Anthropic API key is configured for Claude model access.
 /api/auth/[auth0]  — Auth0 route handler (GET)
 /api/spike/token-vault    — Auth0 Token Vault → Google Sheets integration (GET, env-gated)
 /api/spike/connect-google — Google Connected Accounts linking flow (GET, env-gated)
+/api/spike/ciba           — CIBA + Guardian push notification approval (GET, env-gated)
 
 ## Agent Instructions
 AGENTS.md      — Comprehensive coding conventions, architecture, and examples
