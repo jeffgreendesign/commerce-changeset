@@ -20,6 +20,7 @@ An Anthropic API key is configured for Claude model access.
 /auth/logout       — Initiate Auth0 logout (handled by middleware)
 /auth/callback     — Auth0 callback after authentication (handled by middleware)
 /api/auth/[auth0]  — Auth0 route handler (GET)
+/api/spike/token-vault — Auth0 Token Vault → Google Sheets integration (POST, scoped)
 
 ## Agent Instructions
 AGENTS.md      — Comprehensive coding conventions, architecture, and examples

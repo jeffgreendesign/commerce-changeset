@@ -9,7 +9,11 @@
    ```
    If you encounter peer dependency conflicts, see the [README](README.md#peer-dependencies) for workarounds.
 3. Copy `.env.local` and fill in your Auth0 credentials (see `.env.local` for required variables)
-4. Start the development server:
+4. Run all quality gates to verify your setup:
+   ```bash
+   npm run gates
+   ```
+5. Start the development server:
    ```bash
    npm run dev
    ```
@@ -47,5 +51,5 @@
 
 ## CI Requirements
 
-- `npm run lint` must pass
-- `npm run build` must succeed
+- `npm run gates` must pass (runs lint + typecheck + build)
+- Equivalent to running `npm run lint`, `npm run typecheck`, and `npm run build` individually
