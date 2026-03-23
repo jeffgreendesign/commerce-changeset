@@ -1,0 +1,45 @@
+{
+  "_comment": "Minimum safe versions for dependencies with known critical CVEs. Update when new advisories drop.",
+  "_updated": "2026-03-22",
+  "floors": {
+    "next": {
+      "reason": "CVE-2025-66478 (RCE), CVE-2025-29927 (auth bypass), CVE-2025-55184 (DoS), CVE-2026-23864 (DoS)",
+      "minimums": {
+        "14": "14.2.35",
+        "15.0": "15.0.8",
+        "15.1": "15.1.12",
+        "15.2": "15.2.9",
+        "15.3": "15.3.9",
+        "15.4": "15.4.11",
+        "15.5": "15.5.10",
+        "16.0": "16.0.11",
+        "16.1": "16.1.5",
+        "16.2": "16.2.1"
+      }
+    },
+    "react-server-dom-webpack": {
+      "reason": "CVE-2025-55182 (RCE, CVSS 10.0), CVE-2026-23864 (DoS)",
+      "minimums": {
+        "19.0": "19.0.4",
+        "19.1": "19.1.5",
+        "19.2": "19.2.4"
+      }
+    },
+    "react-server-dom-parcel": {
+      "reason": "CVE-2025-55182 (RCE, CVSS 10.0), CVE-2026-23864 (DoS)",
+      "minimums": {
+        "19.0": "19.0.4",
+        "19.1": "19.1.5",
+        "19.2": "19.2.4"
+      }
+    },
+    "react-server-dom-turbopack": {
+      "reason": "CVE-2025-55182 (RCE, CVSS 10.0), CVE-2026-23864 (DoS)",
+      "minimums": {
+        "19.0": "19.0.4",
+        "19.1": "19.1.5",
+        "19.2": "19.2.4"
+      }
+    }
+  }
+}
