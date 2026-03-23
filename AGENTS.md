@@ -22,7 +22,7 @@ components/ui/
 lib/
   auth0.ts            — Auth0Client singleton (server-only)
   utils.ts            — cn() utility (clsx + tailwind-merge)
-middleware.ts         — Auth0 middleware intercepting all non-static routes
+proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
 ```
 
@@ -49,7 +49,7 @@ public/               — Static assets (SVGs)
 Auth0 v4 uses a middleware-based pattern (not the legacy `handleAuth()` route handler).
 
 - **Client:** `lib/auth0.ts` exports a singleton `Auth0Client` from `@auth0/nextjs-auth0/server`. This is server-only — never import it in client components.
-- **Middleware:** `middleware.ts` calls `auth0.middleware(request)` to handle `/auth/login`, `/auth/logout`, `/auth/callback`, and session cookie management. It intercepts all routes except static assets.
+- **Proxy:** `proxy.ts` calls `auth0.middleware(request)` to handle `/auth/login`, `/auth/logout`, `/auth/callback`, and session cookie management. It intercepts all routes except static assets.
 - **Route handler:** `app/api/auth/[auth0]/route.ts` delegates to `auth0.middleware()` for the `/api/auth/*` path.
 - **Session access:** In server components and route handlers, call `await auth0.getSession()` to get the current user session. Returns `null` if unauthenticated.
 - **Environment variables:** `AUTH0_SECRET`, `AUTH0_BASE_URL`, `AUTH0_ISSUER_BASE_URL`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_AUDIENCE` must all be set in `.env.local`.
