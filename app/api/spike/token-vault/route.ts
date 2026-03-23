@@ -15,14 +15,20 @@ import { auth0 } from "@/lib/auth0";
 import { Auth0AI, getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 
+class SheetsApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: string
+  ) {
+    super(`Google Sheets API ${status}`);
+  }
+}
+
 const auth0AI = new Auth0AI();
 
 const withGoogleToken = auth0AI.withTokenVault({
   connection: "google-oauth2",
-  scopes: [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/calendar.events",
-  ],
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   refreshToken: async () => {
     const session = await auth0.getSession();
     return session?.tokenSet.refreshToken;
@@ -38,7 +44,7 @@ const fetchSheetTool = withGoogleToken({
 
     const sheetId = process.env.GOOGLE_SHEET_ID;
     if (!sheetId) {
-      return { error: "GOOGLE_SHEET_ID env var is not set" };
+      throw new Error("GOOGLE_SHEET_ID env var is not set");
     }
 
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Products`;
@@ -48,7 +54,7 @@ const fetchSheetTool = withGoogleToken({
 
     if (!res.ok) {
       const body = await res.text();
-      return { error: `Google Sheets API ${res.status}`, body };
+      throw new SheetsApiError(res.status, body);
     }
 
     return await res.json();
@@ -56,6 +62,13 @@ const fetchSheetTool = withGoogleToken({
 });
 
 export async function GET() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ENABLE_SPIKE !== "true"
+  ) {
+    return new Response(null, { status: 404 });
+  }
+
   try {
     // The wrapper replaces execute with protect(), which needs (input, ctx).
     // Cast to bypass the original Tool type that doesn't expose the ctx arg.
@@ -81,6 +94,15 @@ export async function GET() {
         },
         { status: 403 }
       );
+    }
+    if (err instanceof SheetsApiError) {
+      return NextResponse.json(
+        { error: err.message, body: err.body },
+        { status: err.status }
+      );
+    }
+    if (err instanceof Error && err.message.includes("GOOGLE_SHEET_ID")) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
     }
     throw err;
   }
