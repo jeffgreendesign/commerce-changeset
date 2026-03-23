@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
+import type { Tool } from "ai";
 import { Auth0AI, getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 
@@ -24,42 +25,52 @@ class SheetsApiError extends Error {
   }
 }
 
-const auth0AI = new Auth0AI();
+// Lazy-init: Auth0AI.withTokenVault validates Auth0 client config via Zod at
+// call time, which crashes during Next.js build when env vars aren't set.
+// Deferring to first request avoids the build-time module evaluation error.
+let fetchSheetTool: Tool;
 
-const withGoogleToken = auth0AI.withTokenVault({
-  connection: "google-oauth2",
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  refreshToken: async () => {
-    const session = await auth0.getSession();
-    return session?.tokenSet.refreshToken;
-  },
-});
+function getFetchSheetTool() {
+  if (!fetchSheetTool) {
+    const auth0AI = new Auth0AI();
 
-const fetchSheetTool = withGoogleToken({
-  description: "Fetch product data from Google Sheets",
-  inputSchema: z.object({}),
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  execute: async (_input: Record<string, never>) => {
-    const accessToken = getAccessTokenFromTokenVault();
-
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    if (!sheetId) {
-      throw new Error("GOOGLE_SHEET_ID env var is not set");
-    }
-
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Products`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+    const withGoogleToken = auth0AI.withTokenVault({
+      connection: "google-oauth2",
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      refreshToken: async () => {
+        const session = await auth0.getSession();
+        return session?.tokenSet.refreshToken;
+      },
     });
 
-    if (!res.ok) {
-      const body = await res.text();
-      throw new SheetsApiError(res.status, body);
-    }
+    fetchSheetTool = withGoogleToken({
+      description: "Fetch product data from Google Sheets",
+      inputSchema: z.object({}),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: async (_input: Record<string, never>) => {
+        const accessToken = getAccessTokenFromTokenVault();
 
-    return await res.json();
-  },
-});
+        const sheetId = process.env.GOOGLE_SHEET_ID;
+        if (!sheetId) {
+          throw new Error("GOOGLE_SHEET_ID env var is not set");
+        }
+
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Products`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!res.ok) {
+          const body = await res.text();
+          throw new SheetsApiError(res.status, body);
+        }
+
+        return await res.json();
+      },
+    });
+  }
+  return fetchSheetTool;
+}
 
 export async function GET() {
   if (
@@ -70,9 +81,11 @@ export async function GET() {
   }
 
   try {
+    const tool = getFetchSheetTool();
+
     // The wrapper replaces execute with protect(), which needs (input, ctx).
     // Cast to bypass the original Tool type that doesn't expose the ctx arg.
-    const execute = fetchSheetTool.execute as (
+    const execute = tool.execute as (
       input: Record<string, never>,
       ctx: { toolCallId: string; messages: unknown[] }
     ) => Promise<unknown>;
