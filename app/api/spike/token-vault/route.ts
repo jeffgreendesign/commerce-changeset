@@ -13,7 +13,11 @@ import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
 import type { Tool } from "ai";
-import { Auth0AI, getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
+import {
+  Auth0AI,
+  getAccessTokenFromTokenVault,
+  setAIContext,
+} from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 
 class SheetsApiError extends Error {
@@ -81,6 +85,7 @@ export async function GET() {
   }
 
   try {
+    setAIContext({ threadID: `spike-${crypto.randomUUID()}` });
     const tool = getFetchSheetTool();
 
     // The wrapper replaces execute with protect(), which needs (input, ctx).
