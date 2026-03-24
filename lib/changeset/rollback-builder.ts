@@ -48,7 +48,8 @@ function maxPriceChangePercent(
  * the normal execution pipeline (including CIBA approval for writes).
  */
 export async function buildRollbackChangeSet(
-  original: ChangeSet
+  original: ChangeSet,
+  initiator: string,
 ): Promise<ChangeSet> {
   if (original.status !== "completed" && original.status !== "partial_failure") {
     throw new RollbackValidationError(
@@ -117,7 +118,7 @@ export async function buildRollbackChangeSet(
   );
 
   const reversal = await buildChangeSet({
-    requestedBy: original.requestedBy,
+    requestedBy: initiator,
     originalPrompt: `Rollback of changeset ${original.id.slice(0, 8)}`,
     operations: reversedOps,
   });

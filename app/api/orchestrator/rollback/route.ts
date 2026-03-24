@@ -82,7 +82,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body: unknown = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request", message: "Malformed JSON in request body" },
+      { status: 400 }
+    );
+  }
+
   const parsed = RequestBody.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -132,7 +141,12 @@ export async function POST(request: Request) {
     // Zod validates structure; cast to ChangeSet for the enum types
     // (tier: RiskTier, policyExplanation: PolicyDecision) that Zod
     // cannot express without duplicating the full domain schema.
-    const reversal = await buildRollbackChangeSet(changeSet as unknown as ChangeSet);
+    const initiator =
+      session.user.email ?? session.user.name ?? session.user.sub;
+    const reversal = await buildRollbackChangeSet(
+      changeSet as unknown as ChangeSet,
+      initiator,
+    );
 
     console.log(
       `[rollback] Built reversal ${reversal.id.slice(0, 8)} in ${Math.round(performance.now() - routeStart)}ms — ` +

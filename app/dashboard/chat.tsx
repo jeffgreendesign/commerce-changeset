@@ -46,7 +46,6 @@ export function Chat() {
   const [error, setError] = useState("");
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
   const [draftReasoning, setDraftReasoning] = useState("");
-  const [rollbackSourceIndex, setRollbackSourceIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -167,12 +166,18 @@ export function Chat() {
   };
 
   const handleRollback = async (messageIndex: number) => {
+    if (isBusy) return;
+
     const sourceMessage = messages[messageIndex];
     const sourceChangeSet = sourceMessage?.changeSet;
     if (!sourceChangeSet) return;
 
+    // Capture stable identifiers in the closure — do not rely on state
+    // indices which can shift if messages update concurrently.
+    const sourceId = sourceChangeSet.id;
+
     setPhase("rolling_back");
-    setRollbackSourceIndex(messageIndex);
+
     setError("");
     scrollToBottom();
 
@@ -228,22 +233,24 @@ export function Chat() {
         throw new Error(execData.error.message);
       }
 
-      // Step 4: Update messages — mark original as rolled_back, show executed rollback
+      // Step 4: Update messages — conditionally mark original, replace draft
       setMessages((prev) => {
         const updated = [...prev];
 
-        // Mark the original changeset as rolled back
-        if (
-          rollbackSourceIndex !== null &&
-          updated[rollbackSourceIndex]?.changeSet
-        ) {
-          updated[rollbackSourceIndex] = {
-            ...updated[rollbackSourceIndex],
-            changeSet: {
-              ...updated[rollbackSourceIndex].changeSet!,
-              status: "rolled_back" as const,
-            },
-          };
+        // Only mark the original as rolled_back if the rollback fully succeeded
+        if (execData.changeSet.status === "completed") {
+          const sourceIdx = updated.findIndex(
+            (m) => m.changeSet?.id === sourceId
+          );
+          if (sourceIdx !== -1 && updated[sourceIdx].changeSet) {
+            updated[sourceIdx] = {
+              ...updated[sourceIdx],
+              changeSet: {
+                ...updated[sourceIdx].changeSet!,
+                status: "rolled_back" as const,
+              },
+            };
+          }
         }
 
         // Find the draft message by its tagged ID, not array position
@@ -257,7 +264,6 @@ export function Chat() {
             changeSet: execData.changeSet,
           };
         } else {
-          // Fallback: append if the draft message was not found
           updated.push({
             role: "assistant",
             content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
@@ -269,12 +275,12 @@ export function Chat() {
       });
 
       setPhase("complete");
-      setRollbackSourceIndex(null);
+
       scrollToBottom();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("error");
-      setRollbackSourceIndex(null);
+
       scrollToBottom();
     }
   };
@@ -359,7 +365,7 @@ export function Chat() {
                 <ChangeSetView
                   changeSet={msg.changeSet}
                   onRollback={() => handleRollback(i)}
-                  isRollingBack={phase === "rolling_back" && rollbackSourceIndex === i}
+                  isRollingBack={isBusy}
                 />
               </div>
             )}
