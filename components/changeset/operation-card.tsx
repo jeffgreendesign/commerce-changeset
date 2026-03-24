@@ -10,6 +10,7 @@ import type {
   OperationResult,
   VerificationCheck,
 } from "@/lib/changeset/types";
+import { AgentBadge } from "./agent-badge";
 import { RiskBadge } from "./risk-badge";
 import { DiffView } from "./diff-view";
 
@@ -73,19 +74,15 @@ export function OperationCard({
     <Card size="sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
+          <AgentBadge agent={operation.agent} />
           <span className="font-mono text-sm">{operation.action}</span>
           <span className="text-muted-foreground">&rarr;</span>
           <span className="text-sm">{operation.target}</span>
-          <RiskBadge tier={operation.tier} />
+          <RiskBadge tier={operation.tier} policyExplanation={operation.policyExplanation} />
           {result && <StatusBadge status={result.status} />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium">{operation.policyExplanation.ruleName}:</span>{" "}
-          {operation.policyExplanation.reason}
-        </p>
-
         <DiffView diffs={operation.diff} />
 
         {result?.error && (

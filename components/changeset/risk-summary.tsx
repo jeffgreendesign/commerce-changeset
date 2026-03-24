@@ -30,10 +30,15 @@ export function RiskSummary({ summary }: { summary: RiskSummaryType }) {
             </Badge>
           )}
 
-          <span className="text-xs text-muted-foreground">
-            {summary.autonomousOps} auto-approved &middot;{" "}
-            {summary.approvalRequiredOps} require approval
-          </span>
+          <Badge className="border-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+            &#10003; {summary.autonomousOps} auto-approved
+          </Badge>
+
+          {summary.approvalRequiredOps > 0 && (
+            <Badge className="border-0 bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400">
+              {summary.approvalRequiredOps} require approval
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>

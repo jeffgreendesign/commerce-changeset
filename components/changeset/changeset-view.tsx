@@ -72,7 +72,7 @@ export function ChangeSetView({ changeSet }: { changeSet: ChangeSet }) {
 
       {/* Execution receipt */}
       {execution?.receipt && (
-        <ExecutionReceipt receipt={execution.receipt} />
+        <ExecutionReceipt receipt={execution.receipt} summary={changeSet.riskSummary} />
       )}
     </div>
   );

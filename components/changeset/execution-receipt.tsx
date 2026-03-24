@@ -6,9 +6,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { ExecutionReceipt as ReceiptType } from "@/lib/changeset/types";
+import type {
+  ExecutionReceipt as ReceiptType,
+  RiskSummary,
+} from "@/lib/changeset/types";
+import { AgentBadge } from "./agent-badge";
 
-export function ExecutionReceipt({ receipt }: { receipt: ReceiptType }) {
+export function ExecutionReceipt({
+  receipt,
+  summary,
+}: {
+  receipt: ReceiptType;
+  summary?: RiskSummary;
+}) {
   const checksTotal = receipt.verification.checksRun;
   const checksPassed = receipt.verification.checksPassed;
   const allPassed = checksPassed === checksTotal;
@@ -29,7 +39,7 @@ export function ExecutionReceipt({ receipt }: { receipt: ReceiptType }) {
             {receipt.oboChain.delegatedTo.map((agent) => (
               <span key={agent} className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">&rarr;</span>
-                <Badge variant="outline">{agent}</Badge>
+                <AgentBadge agent={agent} />
               </span>
             ))}
           </div>
@@ -49,7 +59,7 @@ export function ExecutionReceipt({ receipt }: { receipt: ReceiptType }) {
                 className="rounded-md border border-border/50 p-3 text-xs"
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="font-medium">{d.agent}</span>
+                  <AgentBadge agent={d.agent} />
                   <span className="text-muted-foreground">
                     {d.duration.toFixed(0)}ms
                   </span>
@@ -88,6 +98,23 @@ export function ExecutionReceipt({ receipt }: { receipt: ReceiptType }) {
             {checksPassed}/{checksTotal} checks passed
           </Badge>
         </div>
+
+        {/* Autonomy Breakdown */}
+        {summary && (
+          <>
+            <Separator />
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Autonomy Breakdown
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {summary.autonomousOps} of{" "}
+                {summary.autonomousOps + summary.approvalRequiredOps} operations
+                executed autonomously
+              </p>
+            </div>
+          </>
+        )}
 
         <Separator />
 
