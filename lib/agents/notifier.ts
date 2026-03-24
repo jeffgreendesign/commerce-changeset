@@ -7,7 +7,7 @@
  * it via the Gmail API using the authenticated user's Google account.
  */
 
-import { tool } from "ai";
+import { tool, type ModelMessage } from "ai";
 import {
   Auth0AI,
   getAccessTokenFromTokenVault,
@@ -33,7 +33,8 @@ function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // ── Email builder ────────────────────────────────────────────────────
@@ -330,7 +331,7 @@ async function executeGmailTool(
 
   const executeFn = gmailTool.execute as (
     input: Record<string, never>,
-    ctx: { toolCallId: string; messages: unknown[] }
+    ctx: { toolCallId: string; messages: ModelMessage[] }
   ) => Promise<{ messageId: string }>;
 
   const { messageId } = await executeFn(
