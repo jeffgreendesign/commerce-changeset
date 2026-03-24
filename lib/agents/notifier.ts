@@ -83,7 +83,7 @@ function buildNotificationEmail(
 
   const checksTotal = receipt.verification.checksRun;
   const checksPassed = receipt.verification.checksPassed;
-  const verifyColor = checksPassed === checksTotal ? "#16a34a" : "#dc2626";
+  const verifyColor = checksTotal > 0 && checksPassed === checksTotal ? "#16a34a" : "#dc2626";
 
   const delegations = receipt.agentDelegations
     .map(
@@ -152,7 +152,7 @@ function buildReceiptEmail(
   const idPrefix = receipt.changeSetId.slice(0, 8);
   const subject = `[Commerce ChangeSet] Execution Receipt: ${idPrefix}`;
 
-  const allPassed = receipt.verification.checksPassed === receipt.verification.checksRun;
+  const allPassed = receipt.verification.checksRun > 0 && receipt.verification.checksPassed === receipt.verification.checksRun;
   const verifyColor = allPassed ? "#16a34a" : "#dc2626";
 
   const checkRows = receipt.verification.results
@@ -245,16 +245,27 @@ function buildReceiptEmail(
 
 // ── Gmail API helper ─────────────────────────────────────────────────
 
+function sanitizeHeader(value: string): string {
+  return value.replace(/[\r\n\0]/g, "");
+}
+
 async function sendEmail(
   to: string,
   subject: string,
   htmlBody: string
 ): Promise<string> {
+  const safeTo = sanitizeHeader(to);
+  const safeSubject = sanitizeHeader(subject);
+
+  if (!safeTo) {
+    throw new Error("Invalid recipient email: empty after sanitization");
+  }
+
   const accessToken = getAccessTokenFromTokenVault();
 
   const message = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
+    `To: ${safeTo}`,
+    `Subject: ${safeSubject}`,
     `Content-Type: text/html; charset=utf-8`,
     `MIME-Version: 1.0`,
     "",
@@ -336,10 +347,10 @@ export async function runNotifierAgent(
   recipientEmail: string,
   refreshToken: string
 ): Promise<NotifierAgentResult> {
-  console.log(`[notifier] Sending to ${recipientEmail}`);
+  const start = performance.now();
 
   try {
-    const { messageId, duration } = await executeGmailTool(
+    const { messageId } = await executeGmailTool(
       refreshToken,
       "Send execution summary email via Gmail",
       "notifier",
@@ -354,14 +365,13 @@ export async function runNotifierAgent(
       }
     );
 
-    console.log(`[notifier] ✓ Sent messageId: ${messageId} in ${Math.round(duration)}ms`);
-    return { success: true, messageId, duration };
+    return { success: true, messageId, duration: performance.now() - start };
   } catch (err) {
     console.error("[notifier] Failed to send notification:", err instanceof Error ? err.message : err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),
-      duration: 0,
+      duration: performance.now() - start,
     };
   }
 }
@@ -373,10 +383,10 @@ export async function sendExecutionReceipt(
   recipientEmail: string,
   refreshToken: string
 ): Promise<NotifierAgentResult> {
-  console.log(`[notifier] Sending receipt to ${recipientEmail}`);
+  const start = performance.now();
 
   try {
-    const { messageId, duration } = await executeGmailTool(
+    const { messageId } = await executeGmailTool(
       refreshToken,
       "Send execution receipt email via Gmail",
       "notifier-receipt",
@@ -390,14 +400,13 @@ export async function sendExecutionReceipt(
       }
     );
 
-    console.log(`[notifier] ✓ Receipt sent messageId: ${messageId} in ${Math.round(duration)}ms`);
-    return { success: true, messageId, duration };
+    return { success: true, messageId, duration: performance.now() - start };
   } catch (err) {
     console.error("[notifier] Failed to send receipt:", err instanceof Error ? err.message : err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),
-      duration: 0,
+      duration: performance.now() - start,
     };
   }
 }
