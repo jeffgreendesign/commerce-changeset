@@ -34,7 +34,7 @@ const OperationDiffSchema = z.object({
 
 const ParsedOperationSchema = z.object({
   agent: z.enum(["reader", "writer", "notifier"]),
-  action: z.string(),
+  action: z.enum(["update_price", "set_promo_status"]),
   target: z.string(),
   diff: z.array(OperationDiffSchema),
   operationType: z.enum(["read", "notify", "write"]),
@@ -45,6 +45,11 @@ const ParsedOperationSchema = z.object({
 // ── Decomposition prompt ────────────────────────────────────────────
 
 const DECOMPOSITION_SYSTEM = `You are an operation decomposer for Stride Athletics commerce data. Given a user request and current product/schedule state, decompose it into discrete operations.
+
+Allowed writer actions (use EXACTLY these names):
+- "update_price" — modifies the Promo Price for a SKU
+- "set_promo_status" — modifies the Promo Active flag for a SKU
+Do not invent other action names. Every write operation must use one of these two actions.
 
 Rules:
 - Each operation modifies exactly ONE field on ONE target.
@@ -70,10 +75,12 @@ export async function runOrchestratorAgent(
   const anthropic = createAnthropic();
 
   // Step 1: Gather current state via Reader Agent
+  const readerStart = performance.now();
   const readerResult = await runReaderAgent(
     "Show me all products with their full pricing details and the complete launch schedule.",
     refreshToken
   );
+  console.log(`[orchestrator] Reader agent returned ${readerResult.toolResults.length} tool results in ${Math.round(performance.now() - readerStart)}ms`);
 
   // Combine the reader's text summary and raw tool results for maximum context.
   const currentState = [
@@ -86,6 +93,7 @@ export async function runOrchestratorAgent(
 
   // Step 2: Analyze request — LLM decomposes into discrete operations
   // Wrapped in an object because Anthropic requires top-level type: 'object'.
+  const decompStart = performance.now();
   const { object: decomposition } = await generateObject({
     model: anthropic("claude-sonnet-4-20250514"),
     schema: z.object({
@@ -95,6 +103,7 @@ export async function runOrchestratorAgent(
     prompt: `User request: "${message}"\n\nCurrent state:\n${currentState}`,
   });
   const operations = decomposition.operations;
+  console.log(`[orchestrator] Decomposed into ${operations.length} operations in ${Math.round(performance.now() - decompStart)}ms: ${operations.map((o) => o.action).join(", ")}`);
 
   // Step 3: Build the change set with policy evaluation + rollback
   const changeSet = await buildChangeSet({
@@ -102,6 +111,7 @@ export async function runOrchestratorAgent(
     originalPrompt: message,
     operations: operations as ParsedOperation[],
   });
+  console.log(`[orchestrator] ChangeSet ${changeSet.id.slice(0, 8)} built — ${changeSet.operations.length} ops, max tier ${changeSet.riskSummary.maxTier}, CIBA: ${changeSet.riskSummary.requiresCIBA}`);
 
   return {
     changeSet,
