@@ -1,12 +1,12 @@
 # commerce-changeset llms.txt
 
 ## Stack
-Next.js 16.2.1 (App Router), React 19, TypeScript
-Tailwind CSS v4 (CSS-based config, no JS config file)
+Next.js 16.2.1 (App Router), React 19, TypeScript (strict mode)
+Tailwind CSS v4 (CSS-based config in globals.css, no JS config file)
 Base UI + shadcn/ui + CVA for components
 Auth0 v4 (@auth0/nextjs-auth0) for authentication
 Vercel AI SDK (ai ^6.0.134) for model integration
-@auth0/ai-vercel for Auth0-aware AI interactions
+@auth0/ai-vercel for Auth0-aware AI interactions (Token Vault, CIBA)
 zod for schema validation
 json-rules-engine for business rule evaluation
 
@@ -15,22 +15,92 @@ Vercel AI SDK provides the model integration layer.
 @auth0/ai-vercel connects Auth0 sessions to AI interactions.
 An Anthropic API key is configured for Claude model access.
 
+## Agent Architecture
+Four-agent system with OAuth 2.0 On-Behalf-Of (OBO) delegation:
+
+Orchestrator Agent (lib/agents/orchestrator.ts)
+- Receives natural-language request, gathers current state via Reader Agent
+- LLM decomposes prompt into discrete operations with diffs
+- Policy engine classifies each operation's risk tier
+- Assembles change set; delegates execution to Writer Agent post-approval
+
+Reader Agent (lib/agents/reader.ts)
+- LLM-driven agent with 4 Google Sheets tools via Token Vault OBO
+- Tools: get_products, get_pricing, get_launch_schedule, get_launch_windows
+- Used for initial data gathering and post-execution verification read-back
+
+Writer Agent (lib/agents/writer.ts)
+- Deterministic (not LLM-driven); loops over approved operations
+- Tools: update_price (column E), set_promo_status (column F)
+- Only activated after change set approval via CIBA
+
+Notifier Agent (lib/agents/notifier.ts)
+- Deterministic; builds HTML email from change set and receipt
+- Tool: send_launch_notification via Gmail API + Token Vault OBO
+- Non-blocking in executor pipeline
+
+## Policy Engine
+json-rules-engine evaluates each operation against 4 risk tiers:
+- Tier 0 READ: auto-approve (no user interaction)
+- Tier 1 NOTIFY: auto-approve with notification
+- Tier 2 WRITE: requires CIBA approval via Guardian push notification
+- Tier 3 BULK: escalated CIBA (price change >25% or affectedRecords >1)
+Default-deny fallback for unmatched operations.
+PolicyDecision includes: decision, tier, reason, ruleName, scopeRequested.
+
+## Change Set Lifecycle
+Status state machine: draft -> pending_approval -> approved -> executing -> completed
+Additional statuses: partial_failure, expired, rolled_back
+Each operation carries: id, agent, action, target, tier, policyExplanation, diff, rollback.
+RiskSummary aggregates: maxTier, operationsByTier, requiresCIBA, autonomousOps, approvalRequiredOps.
+
+## CIBA Approval Flow
+CIBA via Auth0 Guardian push notifications (lib/changeset/approval.ts).
+Dynamic binding message built from change set content (64-char limit).
+Block mode: polls internally, resolves on approve/deny/expire.
+Skipped when requiresCIBA is false or 0 writer operations.
+
+## Execution Pipeline (lib/changeset/executor.ts)
+1. CIBA approval step (if required)
+2. Writer Agent executes approved write operations
+3. Verification read-back via Reader Agent (expected vs actual)
+4. Execution receipt: OBO chain, agent delegations, verification, audit hash (SHA-256)
+5. Notifier Agent dispatch (non-blocking)
+6. Final status: completed | partial_failure
+
 ## Endpoints
 /auth/login        — Initiate Auth0 login (handled by middleware)
 /auth/logout       — Initiate Auth0 logout (handled by middleware)
 /auth/callback     — Auth0 callback after authentication (handled by middleware)
 /auth/connect      — Connected Accounts endpoint (enabled via SDK)
 /api/auth/[auth0]  — Auth0 route handler (GET)
-/api/spike/token-vault    — Auth0 Token Vault → Google Sheets integration (GET, env-gated)
+/api/spike/token-vault    — Auth0 Token Vault -> Google Sheets integration (GET, env-gated)
 /api/spike/connect-google — Google Connected Accounts linking flow (GET, env-gated)
 /api/spike/ciba           — CIBA + Guardian push notification approval (GET, env-gated)
 /api/reader               — Reader Agent: natural-language product/pricing/launch queries (POST, authenticated)
 /api/orchestrator         — Orchestrator Agent: decomposes prompts into change sets with diffs and policy decisions (POST, authenticated)
 /api/orchestrator/execute — Execute approved change set: CIBA approval, write execution, verification, notification, receipt (POST, authenticated)
-/dashboard             — Chat dashboard for interacting with agents and viewing change sets (authenticated)
+/dashboard                — Chat dashboard for interacting with agents and viewing change sets (authenticated)
+
+## UI Components
+Chat interface (app/dashboard/chat.tsx): state machine (idle/loading/draft/executing/complete/error), suggested prompts, inline tool call indicators, execute button for CIBA changesets.
+ChangeSet view (components/changeset/changeset-view.tsx): composite header, risk summary, operations, rollback, receipt.
+Operation card (components/changeset/operation-card.tsx): agent badge, action, target, clickable risk badge, diff, result.
+Risk badge (components/changeset/risk-badge.tsx): click to expand full policy explanation (decision, rule, reason, scope).
+Agent badge (components/changeset/agent-badge.tsx): color-coded by agent (Reader=blue, Writer=amber, Notifier=green).
+Risk summary (components/changeset/risk-summary.tsx): aggregate risk, CIBA badge, autonomy indicators.
+Diff view (components/changeset/diff-view.tsx): two-column before/after per field.
+Execution receipt (components/changeset/execution-receipt.tsx): OBO chain, agent delegations with status indicators, context boundary indicators, verification, autonomy breakdown, audit hash.
+Rollback section (components/changeset/rollback-section.tsx): collapsible rollback instructions per operation.
+
+## Google Workspace Integration
+Google Sheets: Products sheet (SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory)
+Google Sheets: Launch Schedule sheet
+Read/write via Auth0 Token Vault OBO (RFC 8693 token exchange)
+Gmail: send notifications via Token Vault OBO
 
 ## Agent Instructions
-AGENTS.md      — Comprehensive coding conventions, architecture, and examples
+AGENTS.md       — Comprehensive coding conventions, architecture, and examples
 CONTRIBUTING.md — Branching, PR process, coding standards, review checklist
 CLAUDE.md       — References @AGENTS.md for Claude Code agent behavior
 

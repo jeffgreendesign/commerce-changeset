@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
+import { AgentBadge } from "@/components/changeset/agent-badge";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 
@@ -210,6 +211,29 @@ export function Chat() {
                 {msg.content}
               </div>
             </div>
+
+            {msg.changeSet && msg.changeSet.operations.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span>Tools invoked:</span>
+                {Array.from(
+                  new Set(
+                    msg.changeSet.operations.map(
+                      (op) => `${op.agent}:${op.action}`,
+                    ),
+                  ),
+                ).map((key) => {
+                  const [agent, action] = key.split(":");
+                  return (
+                    <span key={key} className="inline-flex items-center gap-1">
+                      <AgentBadge agent={agent} />
+                      <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+                        {action}
+                      </code>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
 
             {msg.changeSet && (
               <div className="ml-0 max-w-full">

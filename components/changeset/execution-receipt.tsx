@@ -7,10 +7,37 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type {
+  AgentDelegation,
   ExecutionReceipt as ReceiptType,
   RiskSummary,
 } from "@/lib/changeset/types";
 import { AgentBadge } from "./agent-badge";
+
+// ── Status helpers ──────────────────────────────────────────────────
+
+function deriveDelegationStatus(d: AgentDelegation): "completed" | "failed" | "pending" {
+  const hasFailed = d.operationsPerformed.some(
+    (op) => op.toLowerCase().includes("fail") || op.toLowerCase().includes("error"),
+  );
+  if (hasFailed) return "failed";
+  if (d.duration > 0 && d.operationsPerformed.length > 0) return "completed";
+  return "pending";
+}
+
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  completed: {
+    label: "\u2713 Completed",
+    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  },
+  failed: {
+    label: "\u2717 Failed",
+    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  },
+  pending: {
+    label: "\u2022 Pending",
+    className: "bg-muted text-muted-foreground",
+  },
+};
 
 export function ExecutionReceipt({
   receipt,
@@ -59,7 +86,18 @@ export function ExecutionReceipt({
                 className="rounded-md border border-border/50 p-3 text-xs"
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <AgentBadge agent={d.agent} />
+                  <div className="flex items-center gap-1.5">
+                    <AgentBadge agent={d.agent} />
+                    {(() => {
+                      const status = deriveDelegationStatus(d);
+                      const cfg = STATUS_CONFIG[status];
+                      return (
+                        <Badge className={`border-0 text-[10px] px-1.5 py-0 ${cfg.className}`}>
+                          {cfg.label}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
                   <span className="text-muted-foreground">
                     {d.duration.toFixed(0)}ms
                   </span>
@@ -70,9 +108,12 @@ export function ExecutionReceipt({
                 <p className="text-muted-foreground">
                   Tools: {d.toolsGranted.join(", ")}
                 </p>
-                <p className="text-muted-foreground">
-                  Context: {d.contextReceived}
-                </p>
+                <div className="mt-1 flex items-center gap-1.5 rounded border border-dashed border-border/80 px-2 py-1 text-muted-foreground">
+                  <svg className="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z" />
+                  </svg>
+                  <span>Scoped: {d.contextReceived}</span>
+                </div>
                 <p className="text-muted-foreground">
                   Operations: {d.operationsPerformed.join(", ")}
                 </p>
