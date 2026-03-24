@@ -39,6 +39,61 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
 };
 
+// ── Delegation Tree ─────────────────────────────────────────────────
+
+function DelegationTree({ delegations }: { delegations: AgentDelegation[] }) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">
+        Agent Delegation Tree
+      </p>
+      <div className="flex flex-col items-center">
+        {/* Root node: Orchestrator */}
+        <div className="rounded-md border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium">
+          Orchestrator
+        </div>
+        {/* Vertical connector */}
+        <div className="h-5 w-px bg-border" />
+        {/* Horizontal branch line */}
+        <div className="relative flex items-start">
+          {/* Spanning horizontal line across all children */}
+          {delegations.length > 1 && (
+            <div
+              className="absolute top-0 border-t border-border"
+              style={{
+                left: `calc(${100 / (delegations.length * 2)}% )`,
+                right: `calc(${100 / (delegations.length * 2)}% )`,
+              }}
+            />
+          )}
+          {/* Child nodes */}
+          {delegations.map((d) => {
+            const status = deriveDelegationStatus(d);
+            const cfg = STATUS_CONFIG[status];
+            return (
+              <div key={`${d.agent}-${d.tokenExchangeId}`} className="flex flex-col items-center px-4">
+                {/* Vertical connector from branch to node */}
+                <div className="h-4 w-px bg-border" />
+                <div className="flex flex-col items-center gap-1 rounded-md border border-border/50 bg-background px-3 py-2">
+                  <AgentBadge agent={d.agent} />
+                  <Badge className={`border-0 text-[10px] px-1.5 py-0 ${cfg.className}`}>
+                    {cfg.label}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    {d.duration.toFixed(0)}ms
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ──────────────────────────────────────────────────
+
 export function ExecutionReceipt({
   receipt,
   summary,
@@ -56,6 +111,14 @@ export function ExecutionReceipt({
         <CardTitle>Execution Receipt</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Delegation Tree */}
+        {receipt.agentDelegations.length > 0 && (
+          <>
+            <DelegationTree delegations={receipt.agentDelegations} />
+            <Separator />
+          </>
+        )}
+
         {/* OBO Chain */}
         <div>
           <p className="mb-1 text-xs font-medium text-muted-foreground">

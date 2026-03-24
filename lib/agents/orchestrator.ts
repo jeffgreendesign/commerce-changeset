@@ -34,7 +34,7 @@ const OperationDiffSchema = z.object({
 
 const ParsedOperationSchema = z.object({
   agent: z.enum(["reader", "writer", "notifier"]),
-  action: z.enum(["update_price", "set_promo_status"]),
+  action: z.enum(["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change"]),
   target: z.string(),
   diff: z.array(OperationDiffSchema),
   operationType: z.enum(["read", "notify", "write"]),
@@ -47,21 +47,24 @@ const ParsedOperationSchema = z.object({
 const DECOMPOSITION_SYSTEM = `You are an operation decomposer for Stride Athletics commerce data. Given a user request and current product/schedule state, decompose it into discrete operations.
 
 Allowed writer actions (use EXACTLY these names):
-- "update_price" — modifies the Promo Price for a SKU
-- "set_promo_status" — modifies the Promo Active flag for a SKU
-Do not invent other action names. Every write operation must use one of these two actions.
+- "update_price" — modifies the Promo Price for a single SKU
+- "set_promo_status" — modifies the Promo Active flag for a single SKU
+- "update_inventory_flag" — modifies the Inventory flag for a single SKU
+- "bulk_price_change" — batch price update across multiple SKUs (use when same discount applies to 2+ products)
+Do not invent other action names. Every write operation must use one of these actions.
 
 Rules:
-- Each operation modifies exactly ONE field on ONE target.
+- For single-record actions (update_price, set_promo_status, update_inventory_flag): each operation modifies exactly ONE field on ONE target. Include the product name in the target (e.g., "STR-001 Classic Runner"). Set affectedRecords: 1.
+- For bulk_price_change: create ONE operation with multiple diff entries, one per SKU. Each diff field must encode the SKU: "Promo Price (STR-001)". Set target to a summary like "3 products". Set affectedRecords to the number of SKUs (this triggers Tier 3 escalation). Compute priceChangePercent from the largest individual change.
 - For a promotion launch, you typically need:
   - set_promo_status for each SKU (Promo Active: FALSE → TRUE)
-  - update_price for each SKU (Base Price → discounted Promo Price)
+  - A single bulk_price_change with diffs for all affected SKUs (or individual update_price ops for 1 SKU)
 - Use the launch schedule data to determine discount percentages and which SKUs are involved.
 - Calculate promo prices by applying the discount % to each product's base price. Round to 2 decimal places.
 - Compute priceChangePercent as the absolute percentage decrease from the base price.
-- All write operations should have agent: "writer", operationType: "write", affectedRecords: 1.
+- All write operations should have agent: "writer", operationType: "write".
 - Notification operations should have agent: "notifier", operationType: "notify".
-- Include the product name in the target (e.g., "STR-001 Classic Runner").
+- Include the product name in the target for single-record ops (e.g., "STR-001 Classic Runner").
 
 Return a JSON array of operations.`;
 
