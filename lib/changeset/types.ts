@@ -140,4 +140,6 @@ export interface ChangeSet {
   riskSummary: RiskSummary;
   approval?: ChangeSetApproval;
   execution?: ChangeSetExecution;
+  /** When set, this changeset is a reversal of the referenced original. */
+  rollbackOf?: string;
 }

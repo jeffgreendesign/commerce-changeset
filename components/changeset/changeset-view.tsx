@@ -21,7 +21,17 @@ const STATUS_STYLE: Record<string, string> = {
   rolled_back: "bg-muted text-muted-foreground",
 };
 
-export function ChangeSetView({ changeSet }: { changeSet: ChangeSet }) {
+interface ChangeSetViewProps {
+  changeSet: ChangeSet;
+  onRollback?: () => void;
+  isRollingBack?: boolean;
+}
+
+export function ChangeSetView({
+  changeSet,
+  onRollback,
+  isRollingBack,
+}: ChangeSetViewProps) {
   const execution = changeSet.execution;
 
   return (
@@ -68,7 +78,13 @@ export function ChangeSetView({ changeSet }: { changeSet: ChangeSet }) {
       </div>
 
       {/* Rollback */}
-      <RollbackSection operations={changeSet.operations} />
+      <RollbackSection
+        operations={changeSet.operations}
+        changeSetStatus={changeSet.status}
+        isRollback={!!changeSet.rollbackOf}
+        onRollback={onRollback}
+        isRollingBack={isRollingBack}
+      />
 
       {/* Execution receipt */}
       {execution?.receipt && (

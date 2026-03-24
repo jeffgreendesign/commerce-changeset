@@ -22,6 +22,7 @@ type Phase =
   | "loading"
   | "draft"
   | "executing"
+  | "rolling_back"
   | "complete"
   | "error";
 
@@ -43,6 +44,7 @@ export function Chat() {
   const [error, setError] = useState("");
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
   const [draftReasoning, setDraftReasoning] = useState("");
+  const [rollbackSourceIndex, setRollbackSourceIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -56,7 +58,7 @@ export function Chat() {
 
   const handleSubmit = async () => {
     const prompt = input.trim();
-    if (!prompt || phase === "loading" || phase === "executing") return;
+    if (!prompt || phase === "loading" || phase === "executing" || phase === "rolling_back") return;
 
     setInput("");
     setError("");
@@ -162,12 +164,113 @@ export function Chat() {
     }
   };
 
+  const handleRollback = async (messageIndex: number) => {
+    const sourceMessage = messages[messageIndex];
+    const sourceChangeSet = sourceMessage?.changeSet;
+    if (!sourceChangeSet) return;
+
+    setPhase("rolling_back");
+    setRollbackSourceIndex(messageIndex);
+    setError("");
+    scrollToBottom();
+
+    try {
+      // Step 1: Build reversal changeset
+      const buildRes = await fetch("/api/orchestrator/rollback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changeSet: sourceChangeSet }),
+      });
+
+      if (!buildRes.ok) {
+        const body = await buildRes.json().catch(() => ({ error: buildRes.statusText }));
+        throw new Error(
+          body.message ?? body.error ?? `Rollback build failed (${buildRes.status})`
+        );
+      }
+
+      const { changeSet: rollbackDraft } = (await buildRes.json()) as {
+        changeSet: ChangeSet;
+      };
+
+      // Step 2: Show the reversal draft
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Reversal changeset generated for ${sourceChangeSet.id.slice(0, 8)}. Executing rollback\u2026`,
+          changeSet: rollbackDraft,
+        },
+      ]);
+      scrollToBottom();
+
+      // Step 3: Execute the reversal through the standard pipeline
+      const execRes = await fetch("/api/orchestrator/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changeSet: rollbackDraft }),
+      });
+
+      if (!execRes.ok) {
+        const body = await execRes.json().catch(() => ({ error: execRes.statusText }));
+        throw new Error(
+          body.message ?? body.error ?? `Rollback execution failed (${execRes.status})`
+        );
+      }
+
+      const execData: ExecuteChangeSetResult = await execRes.json();
+
+      if (execData.error) {
+        throw new Error(execData.error.message);
+      }
+
+      // Step 4: Update messages — mark original as rolled_back, show executed rollback
+      setMessages((prev) => {
+        const updated = [...prev];
+
+        // Mark the original changeset as rolled back
+        if (
+          rollbackSourceIndex !== null &&
+          updated[rollbackSourceIndex]?.changeSet
+        ) {
+          updated[rollbackSourceIndex] = {
+            ...updated[rollbackSourceIndex],
+            changeSet: {
+              ...updated[rollbackSourceIndex].changeSet!,
+              status: "rolled_back" as const,
+            },
+          };
+        }
+
+        // Replace the last message (reversal draft) with the executed result
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
+          changeSet: execData.changeSet,
+        };
+
+        return updated;
+      });
+
+      setPhase("complete");
+      setRollbackSourceIndex(null);
+      scrollToBottom();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setPhase("error");
+      setRollbackSourceIndex(null);
+      scrollToBottom();
+    }
+  };
+
   const handleReset = () => {
     setPhase("idle");
     setError("");
     setDraftChangeSet(null);
     setDraftReasoning("");
   };
+
+  const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -237,7 +340,11 @@ export function Chat() {
 
             {msg.changeSet && (
               <div className="ml-0 max-w-full">
-                <ChangeSetView changeSet={msg.changeSet} />
+                <ChangeSetView
+                  changeSet={msg.changeSet}
+                  onRollback={() => handleRollback(i)}
+                  isRollingBack={phase === "rolling_back" && rollbackSourceIndex === i}
+                />
               </div>
             )}
           </div>
@@ -255,6 +362,13 @@ export function Chat() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             Waiting for Guardian approval&hellip;
+          </div>
+        )}
+
+        {phase === "rolling_back" && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Executing rollback &mdash; waiting for Guardian approval&hellip;
           </div>
         )}
 
@@ -307,14 +421,12 @@ export function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe a commerce change..."
-            disabled={phase === "loading" || phase === "executing"}
+            disabled={isBusy}
             className="flex-1"
           />
           <Button
             type="submit"
-            disabled={
-              !input.trim() || phase === "loading" || phase === "executing"
-            }
+            disabled={!input.trim() || isBusy}
           >
             Send
           </Button>
