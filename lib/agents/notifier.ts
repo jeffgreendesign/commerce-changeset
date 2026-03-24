@@ -26,6 +26,16 @@ export interface NotifierAgentResult {
   duration: number;
 }
 
+// ── HTML escaping ────────────────────────────────────────────────────
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 // ── Email builder ────────────────────────────────────────────────────
 
 function tierLabel(tier: number): string {
@@ -59,12 +69,12 @@ function buildNotificationEmail(
       const status = result?.status ?? "unknown";
       const statusIcon = status === "success" ? "&#9989;" : "&#10060;";
       const diffs = op.diff
-        .map((d) => `${d.field}: ${String(d.before)} &rarr; ${String(d.after)}`)
+        .map((d) => `${escapeHtml(d.field)}: ${escapeHtml(String(d.before))} &rarr; ${escapeHtml(String(d.after))}`)
         .join(", ");
       return `<tr>
-        <td style="padding:6px 12px;border:1px solid #e5e7eb">${statusIcon} ${status}</td>
-        <td style="padding:6px 12px;border:1px solid #e5e7eb">${op.action}</td>
-        <td style="padding:6px 12px;border:1px solid #e5e7eb">${op.target}</td>
+        <td style="padding:6px 12px;border:1px solid #e5e7eb">${statusIcon} ${escapeHtml(status)}</td>
+        <td style="padding:6px 12px;border:1px solid #e5e7eb">${escapeHtml(op.action)}</td>
+        <td style="padding:6px 12px;border:1px solid #e5e7eb">${escapeHtml(op.target)}</td>
         <td style="padding:6px 12px;border:1px solid #e5e7eb">${tierLabel(op.tier)}</td>
         <td style="padding:6px 12px;border:1px solid #e5e7eb">${diffs}</td>
       </tr>`;
@@ -78,7 +88,7 @@ function buildNotificationEmail(
   const delegations = receipt.agentDelegations
     .map(
       (d) =>
-        `<li><strong>${d.agent}</strong> (on behalf of ${d.actingOnBehalfOf}): ${d.toolsGranted.join(", ")} &mdash; ${d.operationsPerformed.join(", ")}</li>`
+        `<li><strong>${escapeHtml(d.agent)}</strong> (on behalf of ${escapeHtml(d.actingOnBehalfOf)}): ${d.toolsGranted.map(escapeHtml).join(", ")} &mdash; ${d.operationsPerformed.map(escapeHtml).join(", ")}</li>`
     )
     .join("\n");
 
@@ -88,10 +98,10 @@ function buildNotificationEmail(
 <head><meta charset="utf-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#1f2937">
   <h2 style="margin:0 0 8px">Commerce ChangeSet Execution Complete</h2>
-  <p style="color:#6b7280;margin:0 0 24px">Change set <code>${changeSet.id}</code></p>
+  <p style="color:#6b7280;margin:0 0 24px">Change set <code>${escapeHtml(changeSet.id)}</code></p>
 
   <h3 style="margin:0 0 8px">Original Request</h3>
-  <p style="background:#f9fafb;padding:12px;border-radius:6px;margin:0 0 24px">${changeSet.originalPrompt}</p>
+  <p style="background:#f9fafb;padding:12px;border-radius:6px;margin:0 0 24px">${escapeHtml(changeSet.originalPrompt)}</p>
 
   <h3 style="margin:0 0 8px">Operations</h3>
   <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px">
@@ -115,17 +125,17 @@ function buildNotificationEmail(
   </p>
 
   <h3 style="margin:0 0 8px">OBO Delegation Chain</h3>
-  <p style="margin:0 0 4px">${receipt.oboChain.user} &rarr; ${receipt.oboChain.delegatedTo.join(" &rarr; ")}</p>
+  <p style="margin:0 0 4px">${escapeHtml(receipt.oboChain.user)} &rarr; ${receipt.oboChain.delegatedTo.map(escapeHtml).join(" &rarr; ")}</p>
   <ul style="margin:0 0 24px">${delegations}</ul>
 
   <h3 style="margin:0 0 8px">Rollback Instructions</h3>
-  <p style="background:#fef2f2;padding:12px;border-radius:6px;margin:0 0 24px;font-size:13px">${receipt.rollbackInstructions}</p>
+  <p style="background:#fef2f2;padding:12px;border-radius:6px;margin:0 0 24px;font-size:13px">${escapeHtml(receipt.rollbackInstructions)}</p>
 
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
   <p style="color:#9ca3af;font-size:12px;margin:0">
-    Receipt ID: <code>${receipt.changeSetId}</code> &bull;
-    Audit hash: <code>${receipt.auditHash.slice(0, 20)}...</code> &bull;
-    Executed at: ${receipt.executedAt}
+    Receipt ID: <code>${escapeHtml(receipt.changeSetId)}</code> &bull;
+    Audit hash: <code>${escapeHtml(receipt.auditHash.slice(0, 20))}...</code> &bull;
+    Executed at: ${escapeHtml(receipt.executedAt)}
   </p>
 </body>
 </html>`.trim();
@@ -149,10 +159,10 @@ function buildReceiptEmail(
     .map((c) => {
       const icon = c.status === "pass" ? "&#9989;" : c.status === "fail" ? "&#10060;" : "&#9888;";
       return `<tr>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${icon} ${c.status}</td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${c.field}</td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${String(c.expected)}</td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${String(c.actual)}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${icon} ${escapeHtml(c.status)}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${escapeHtml(c.field)}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${escapeHtml(String(c.expected))}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${escapeHtml(String(c.actual))}</td>
       </tr>`;
     })
     .join("\n");
@@ -160,12 +170,12 @@ function buildReceiptEmail(
   const delegationRows = receipt.agentDelegations
     .map(
       (d) => `<tr>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb"><strong>${d.agent}</strong></td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.actingOnBehalfOf}</td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.toolsGranted.join(", ")}</td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.contextReceived}</td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb"><code>${d.tokenExchangeId}</code></td>
-        <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.operationsPerformed.join(", ")}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb"><strong>${escapeHtml(d.agent)}</strong></td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${escapeHtml(d.actingOnBehalfOf)}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.toolsGranted.map(escapeHtml).join(", ")}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${escapeHtml(d.contextReceived)}</td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb"><code>${escapeHtml(d.tokenExchangeId)}</code></td>
+        <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.operationsPerformed.map(escapeHtml).join(", ")}</td>
         <td style="padding:4px 8px;border:1px solid #e5e7eb">${d.duration.toFixed(0)}ms</td>
       </tr>`
     )
@@ -177,11 +187,11 @@ function buildReceiptEmail(
 <head><meta charset="utf-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:720px;margin:0 auto;padding:24px;color:#1f2937">
   <h2 style="margin:0 0 8px">Execution Receipt</h2>
-  <p style="color:#6b7280;margin:0 0 24px">Change set <code>${receipt.changeSetId}</code></p>
+  <p style="color:#6b7280;margin:0 0 24px">Change set <code>${escapeHtml(receipt.changeSetId)}</code></p>
 
   <h3 style="margin:0 0 8px">OBO Delegation Chain</h3>
   <p style="background:#f9fafb;padding:12px;border-radius:6px;margin:0 0 24px">
-    ${receipt.oboChain.user} &rarr; ${receipt.oboChain.delegatedTo.join(" &rarr; ")}
+    ${escapeHtml(receipt.oboChain.user)} &rarr; ${receipt.oboChain.delegatedTo.map(escapeHtml).join(" &rarr; ")}
   </p>
 
   <h3 style="margin:0 0 8px">Agent Delegations</h3>
@@ -217,15 +227,15 @@ function buildReceiptEmail(
   </table>
 
   <h3 style="margin:0 0 8px">Rollback Instructions</h3>
-  <p style="background:#fef2f2;padding:12px;border-radius:6px;margin:0 0 24px;font-size:13px">${receipt.rollbackInstructions}</p>
+  <p style="background:#fef2f2;padding:12px;border-radius:6px;margin:0 0 24px;font-size:13px">${escapeHtml(receipt.rollbackInstructions)}</p>
 
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
   <p style="color:#9ca3af;font-size:12px;margin:0">
-    Executed by: <strong>${receipt.executedBy}</strong> &bull;
-    Executed at: ${receipt.executedAt}
+    Executed by: <strong>${escapeHtml(receipt.executedBy)}</strong> &bull;
+    Executed at: ${escapeHtml(receipt.executedAt)}
   </p>
   <p style="color:#9ca3af;font-size:11px;font-family:monospace;margin:4px 0 0;word-break:break-all">
-    Audit hash: ${receipt.auditHash}
+    Audit hash: ${escapeHtml(receipt.auditHash)}
   </p>
 </body>
 </html>`.trim();
@@ -313,7 +323,7 @@ async function executeGmailTool(
   ) => Promise<{ messageId: string }>;
 
   const { messageId } = await executeFn(
-    {} as Record<string, never>,
+    {},
     { toolCallId: `${toolCallIdPrefix}-${crypto.randomUUID()}`, messages: [] }
   );
 
