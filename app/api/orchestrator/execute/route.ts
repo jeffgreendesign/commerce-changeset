@@ -67,10 +67,13 @@ export async function POST(request: Request) {
   });
 
   try {
+    const userEmail =
+      session.user.email ?? session.user.name ?? session.user.sub;
     const result = await executeChangeSet(
       changeSet,
       refreshToken,
-      session.user.sub
+      session.user.sub,
+      userEmail
     );
     return NextResponse.json(result);
   } catch (err) {

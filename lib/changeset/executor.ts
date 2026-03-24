@@ -12,6 +12,7 @@
 
 import { runWriterAgent } from "@/lib/agents/writer";
 import { runReaderAgent } from "@/lib/agents/reader";
+import { runNotifierAgent } from "@/lib/agents/notifier";
 import { requestApproval } from "./approval";
 import type {
   ChangeSet,
@@ -186,7 +187,8 @@ async function buildExecutionReceipt(
 export async function executeChangeSet(
   changeSet: ChangeSet,
   refreshToken: string,
-  userId: string
+  userId: string,
+  userEmail?: string
 ): Promise<ExecuteChangeSetResult> {
   if (changeSet.status !== "draft") {
     throw new Error(
@@ -247,6 +249,35 @@ export async function executeChangeSet(
     verificationChecks,
     verificationDuration
   );
+
+  // Step 6: Send notification via Notifier Agent (non-blocking)
+  if (userEmail) {
+    try {
+      const notifierResult = await runNotifierAgent(
+        cs,
+        receipt,
+        userEmail,
+        refreshToken
+      );
+      receipt.oboChain.delegatedTo.push("notifier");
+      receipt.agentDelegations.push({
+        agent: "notifier",
+        actingOnBehalfOf: userId,
+        toolsGranted: ["send_launch_notification"],
+        contextReceived: "execution summary and receipt",
+        tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
+        operationsPerformed: notifierResult.success
+          ? [`sent notification: ${notifierResult.messageId ?? "unknown"}`]
+          : [`notification failed: ${notifierResult.error ?? "unknown"}`],
+        duration: notifierResult.duration,
+      });
+      // Recompute audit hash with notifier delegation included
+      receipt.auditHash = "";
+      receipt.auditHash = await computeAuditHash(JSON.stringify(receipt));
+    } catch (err) {
+      console.error("Notifier agent failed:", err);
+    }
+  }
 
   const allSucceeded = writerResult.results.every(
     (r) => r.status === "success"
