@@ -30,6 +30,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - CIBA approval module (`lib/changeset/approval.ts`): reusable CIBA + Guardian approval flow with dynamic binding messages from change sets
 - Change Set executor (`lib/changeset/executor.ts`): full execution pipeline with CIBA approval, writer execution, verification read-back, and receipt generation
 - `POST /api/orchestrator/execute` route: authenticated change set execution with CIBA approval and execution receipts
+- Notifier Agent (`lib/agents/notifier.ts`) with Token Vault OBO delegation: `send_launch_notification` tool for Gmail API sends
+- Notifier integration in executor pipeline: non-blocking email notification after verification, with delegation recorded in execution receipt
+- Dashboard page (`/dashboard`) with auth gate and chat interface for interacting with agents
+- Chat client component with state machine: idle → loading → draft → executing → complete
+- Change Set diff view components (`components/changeset/`): operation cards, risk badges, diff tables, risk summary, execution receipt display, collapsible rollback instructions
+- shadcn/ui components: Card, Badge, Collapsible, Separator, Input
 - Quality gates: `npm run gates` runs lint + typecheck + build
 - CI workflow with GitHub Actions
 - Changelog enforcement CI check

@@ -29,8 +29,24 @@ app/
     route.ts          — Orchestrator Agent POST route (authenticated, production)
     execute/
       route.ts        — Execute route: CIBA approval + writer execution + receipt (POST, authenticated)
+  dashboard/
+    page.tsx          — Dashboard (server component, auth gate, user session)
+    chat.tsx          — Chat interface (client component, fetch-based state machine)
 components/ui/
   button.tsx          — shadcn Button wrapping Base UI ButtonPrimitive + CVA
+  card.tsx            — shadcn Card (header, title, content, footer)
+  badge.tsx           — shadcn Badge (variants: default, secondary, destructive, outline)
+  collapsible.tsx     — shadcn Collapsible wrapping Base UI CollapsiblePrimitive
+  separator.tsx       — shadcn Separator
+  input.tsx           — shadcn Input
+components/changeset/
+  changeset-view.tsx  — Composite view: header, risk summary, operations, rollback, receipt
+  operation-card.tsx  — Single operation: action, target, risk badge, diff, result, checks
+  risk-badge.tsx      — Color-coded risk tier badge (green/blue/amber/red)
+  risk-summary.tsx    — Aggregate risk: ops by tier, CIBA badge, approval counts
+  diff-view.tsx       — Field-level before/after diff table
+  execution-receipt.tsx — Receipt: OBO chain, delegations, verification, audit hash
+  rollback-section.tsx — Collapsible rollback instructions per operation
 lib/
   auth0.ts            — Auth0Client singleton (server-only, offline_access + Connected Accounts)
   utils.ts            — cn() utility (clsx + tailwind-merge)
@@ -41,11 +57,12 @@ lib/
     types.ts          — ChangeSet, Operation, RiskSummary, ExecutionReceipt types
     builder.ts        — buildChangeSet(): policy evaluation + diff + rollback assembly
     approval.ts       — CIBA approval: dynamic binding messages, RAR authorization details
-    executor.ts       — Execution pipeline: approve → write → verify → receipt
+    executor.ts       — Execution pipeline: approve → write → verify → notify → receipt
   agents/
     reader.ts         — Reader Agent: 4 read-only Google Sheets tools + generateText runner
     orchestrator.ts   — Orchestrator Agent: 3-tool workflow (gather → analyze → build)
     writer.ts         — Writer Agent: update_price, set_promo_status via Google Sheets write API
+    notifier.ts       — Notifier Agent: send_launch_notification via Gmail API + Token Vault OBO
 proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
 ```
