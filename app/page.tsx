@@ -19,8 +19,14 @@ export default async function Home() {
               </span>
             </p>
             <a
-              href="/auth/logout"
+              href="/dashboard"
               className="inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              Go to Dashboard
+            </a>
+            <a
+              href="/auth/logout"
+              className="text-sm text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
             >
               Log out
             </a>
