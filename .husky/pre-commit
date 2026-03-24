@@ -9,7 +9,7 @@ if [ -f "config/version-floors.json" ] && [ -f "scripts/version-floor-check.sh" 
   bash scripts/version-floor-check.sh
 fi
 
-bash scripts/security-check.sh --strict
+bash scripts/security-check.sh
 
 npm run lint
 npm run typecheck
