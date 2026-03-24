@@ -43,13 +43,18 @@ const ALLOWED_CHARS = /[^a-zA-Z0-9\s+\-_.,:#]/g;
 const MAX_BINDING_LENGTH = 64;
 
 function sanitizeBindingMessage(msg: string): string {
-  return msg.replace(ALLOWED_CHARS, "").slice(0, MAX_BINDING_LENGTH);
+  return msg.replace(ALLOWED_CHARS, "").slice(0, MAX_BINDING_LENGTH).trim();
 }
 
 function buildBindingMessage(changeSet: ChangeSet): string {
   const writerOps = changeSet.operations.filter(
     (op) => op.agent === "writer"
   );
+
+  if (writerOps.length === 0) {
+    return sanitizeBindingMessage("Approve change set execution");
+  }
+
   const products = [...new Set(writerOps.map((op) => op.target))];
 
   // Must fit in 64 chars. Use short format.
@@ -114,6 +119,9 @@ export async function requestApproval(
   _currentUserId = userId;
   _currentBindingMessage = buildBindingMessage(changeSet);
 
+  const requireApproval = changeSet.operations.filter((op) => op.tier >= 2).length;
+  console.log(`[approval] Requesting CIBA for ${requireApproval} operations requiring approval — binding: "${_currentBindingMessage}"`);
+
   setAIContext({
     threadID: `ciba-approval-${changeSet.id}`,
   });
@@ -154,6 +162,7 @@ export async function requestApproval(
       };
     }
 
+    console.log(`[approval] CIBA result: approved`);
     const approval: ChangeSetApproval = {
       approvedBy: userId,
       approvedAt: new Date().toISOString(),
@@ -167,6 +176,7 @@ export async function requestApproval(
     return { success: true, approval };
   } catch (err) {
     if (err instanceof AccessDeniedInterrupt) {
+      console.log(`[approval] CIBA result: denied`);
       return {
         success: false,
         code: "access_denied",
@@ -174,6 +184,7 @@ export async function requestApproval(
       };
     }
     if (err instanceof AuthorizationRequestExpiredInterrupt) {
+      console.log(`[approval] CIBA result: expired`);
       return {
         success: false,
         code: "expired",

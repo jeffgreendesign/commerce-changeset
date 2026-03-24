@@ -112,8 +112,23 @@ function computeRiskSummary(operations: Operation[]): RiskSummary {
 export async function buildChangeSet(
   input: BuildChangeSetInput
 ): Promise<ChangeSet> {
+  // Filter out no-op operations where before === after for every diff entry.
+  const actionable = input.operations.filter((parsed) => {
+    const isNoOp = parsed.diff.every(
+      (d) =>
+        String(d.before).trim().toLowerCase() ===
+        String(d.after).trim().toLowerCase()
+    );
+    if (isNoOp) {
+      console.log(
+        `[builder] Skipping no-op: ${parsed.action} on ${parsed.target} (before === after)`
+      );
+    }
+    return !isNoOp;
+  });
+
   const operations: Operation[] = await Promise.all(
-    input.operations.map(async (parsed) => {
+    actionable.map(async (parsed) => {
       const fact: PolicyFact = {
         operationType: parsed.operationType,
         affectedRecords: parsed.affectedRecords ?? 1,
@@ -122,7 +137,7 @@ export async function buildChangeSet(
 
       const policyExplanation = await evaluatePolicy(fact);
 
-      return {
+      const op = {
         id: crypto.randomUUID(),
         agent: parsed.agent,
         action: parsed.action,
@@ -132,6 +147,8 @@ export async function buildChangeSet(
         diff: parsed.diff,
         rollback: generateRollback(parsed),
       };
+      console.log(`[builder] Op ${op.action} on ${op.target} → tier ${op.tier}, policy: ${policyExplanation.ruleName}`);
+      return op;
     })
   );
 

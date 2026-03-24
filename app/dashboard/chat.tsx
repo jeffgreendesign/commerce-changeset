@@ -24,6 +24,15 @@ type Phase =
   | "complete"
   | "error";
 
+// ── Suggested prompts ────────────────────────────────────────────────
+
+const SUGGESTIONS = [
+  { label: "Launch spring promo", prompt: "Launch the spring promo for all Stride products" },
+  { label: "Discount a product", prompt: "Set a 20% discount on STR-001 Classic Runner" },
+  { label: "Activate promo", prompt: "Set promo status to active for STR-002 Court Essential" },
+  { label: "Show current prices", prompt: "What are the current prices for all products?" },
+];
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function Chat() {
@@ -74,19 +83,32 @@ export function Chat() {
       const data: { changeSet: ChangeSet; reasoning: string } =
         await res.json();
 
-      setDraftChangeSet(data.changeSet);
-      setDraftReasoning(data.reasoning);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.reasoning,
-          changeSet: data.changeSet,
-          reasoning: data.reasoning,
-        },
-      ]);
-      setPhase("draft");
-      scrollToBottom();
+      if (data.changeSet.operations.length === 0) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "No changes needed \u2014 the current state already matches your request.",
+          },
+        ]);
+        setPhase("complete");
+        scrollToBottom();
+      } else {
+        setDraftChangeSet(data.changeSet);
+        setDraftReasoning(data.reasoning);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.reasoning,
+            changeSet: data.changeSet,
+            reasoning: data.reasoning,
+          },
+        ]);
+        setPhase("draft");
+        scrollToBottom();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("error");
@@ -151,13 +173,25 @@ export function Chat() {
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 && phase === "idle" && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 pt-24 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 pt-24 text-center">
             <p className="text-lg font-medium">
               What commerce changes would you like to make?
             </p>
             <p className="text-sm text-muted-foreground">
-              Try: &ldquo;Launch the spring promo on Stride this Friday&rdquo;
+              Pick a suggestion or type your own request
             </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {SUGGESTIONS.map((s) => (
+                <Button
+                  key={s.label}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInput(s.prompt)}
+                >
+                  {s.label}
+                </Button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -217,8 +251,8 @@ export function Chat() {
         )}
       </div>
 
-      {/* Execute bar */}
-      {phase === "draft" && draftChangeSet && (
+      {/* Execute bar — only show when CIBA approval is needed */}
+      {phase === "draft" && draftChangeSet && draftChangeSet.riskSummary.requiresCIBA && (
         <div className="border-t bg-muted/50 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="text-sm">
