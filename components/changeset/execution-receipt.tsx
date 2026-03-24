@@ -53,9 +53,9 @@ export function ExecutionReceipt({
             Agent Delegations
           </p>
           <div className="space-y-3">
-            {receipt.agentDelegations.map((d, i) => (
+            {receipt.agentDelegations.map((d) => (
               <div
-                key={i}
+                key={`${d.agent}-${d.tokenExchangeId}`}
                 className="rounded-md border border-border/50 p-3 text-xs"
               >
                 <div className="mb-1 flex items-center justify-between">

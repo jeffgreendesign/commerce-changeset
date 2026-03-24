@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { RiskTier } from "@/lib/policy/types";
 import type { PolicyDecision } from "@/lib/policy/types";
@@ -36,6 +36,7 @@ export function RiskBadge({
   policyExplanation?: PolicyDecision;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
   const config = TIER_CONFIG[tier] ?? {
     label: `Tier ${tier}`,
     className: "bg-muted text-muted-foreground",
@@ -57,11 +58,14 @@ export function RiskBadge({
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
         className="cursor-pointer"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        aria-label="Toggle risk details"
       >
         {badge}
       </button>
       {expanded && (
-        <span className="mt-1 rounded-md border border-border/50 bg-muted/50 p-2 text-xs text-muted-foreground">
+        <span id={panelId} className="mt-1 rounded-md border border-border/50 bg-muted/50 p-2 text-xs text-muted-foreground">
           <span className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
             <span className="font-medium">Decision:</span>
             <span>{policyExplanation.decision}</span>
