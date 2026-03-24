@@ -205,6 +205,9 @@ export async function runReaderAgent(
   const anthropic = createAnthropic();
   const tools = buildReaderTools(refreshToken);
 
+  console.log(`[reader] Starting — prompt: "${message.slice(0, 80)}${message.length > 80 ? "..." : ""}"`);
+  const readerStart = performance.now();
+
   const result = await generateText({
     model: anthropic("claude-sonnet-4-20250514"),
     tools,
@@ -213,18 +216,21 @@ export async function runReaderAgent(
     stopWhen: stepCountIs(10),
   });
 
+  const toolNames = result.steps.flatMap((step) => step.toolCalls.map((tc) => tc.toolName));
+  console.log(`[reader] Completed in ${Math.round(performance.now() - readerStart)}ms — ${toolNames.length} tool calls: ${toolNames.join(", ")}`);
+
   return {
     text: result.text,
     toolCalls: result.steps.flatMap((step) =>
       step.toolCalls.map((tc) => ({
         toolName: tc.toolName,
-        args: "args" in tc ? tc.args : undefined,
+        args: tc.input,
       }))
     ),
     toolResults: result.steps.flatMap((step) =>
       step.toolResults.map((tr) => ({
         toolName: tr.toolName,
-        result: "result" in tr ? tr.result : undefined,
+        result: tr.output,
       }))
     ),
   };

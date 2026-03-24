@@ -51,15 +51,14 @@ function buildVerificationChecks(
   writerOps: Operation[],
   readerToolResults: Array<{ toolName: string; result: unknown }>
 ): VerificationCheck[] {
-  // Find the get_products result from the reader's tool results.
+  // Find product data from reader's tool results (LLM may call get_products or get_pricing).
   const productsResult = readerToolResults.find(
-    (tr) => tr.toolName === "get_products"
+    (tr) => tr.toolName === "get_products" || tr.toolName === "get_pricing"
   );
-  // The reader result may be missing or structured differently.
   const rawResult = productsResult?.result as
-    | { products?: Record<string, string>[] }
+    | { products?: Record<string, string>[]; pricing?: Record<string, string>[] }
     | undefined;
-  const products = rawResult?.products;
+  const products = rawResult?.products ?? rawResult?.pricing;
 
   if (!products) {
     return writerOps.flatMap((op) =>
@@ -196,36 +195,55 @@ export async function executeChangeSet(
     );
   }
 
-  // Step 1: Request CIBA approval
-  let cs: ChangeSet = { ...changeSet, status: "pending_approval" };
+  let cs: ChangeSet = { ...changeSet };
 
-  const approvalResult = await requestApproval(cs, userId);
+  const writerOps = cs.operations.filter((op) => op.agent === "writer");
+  const needsCIBA = cs.riskSummary.requiresCIBA && writerOps.length > 0;
 
-  if (!approvalResult.success) {
-    return {
-      changeSet: {
-        ...cs,
-        status: approvalResult.code === "expired" ? "expired" : "draft",
-      },
-      error: {
-        code: approvalResult.code,
-        message: approvalResult.message,
-      },
+  // Step 1: Request CIBA approval (only when required)
+  if (needsCIBA) {
+    cs = { ...cs, status: "pending_approval" };
+
+    console.log(`[executor] Requesting CIBA approval for changeSet ${cs.id.slice(0, 8)}`);
+    const approvalStart = performance.now();
+    const approvalResult = await requestApproval(cs, userId);
+
+    if (!approvalResult.success) {
+      console.error(`[executor] CIBA approval failed: ${approvalResult.code} — ${approvalResult.message}`);
+      return {
+        changeSet: {
+          ...cs,
+          status: approvalResult.code === "expired" ? "expired" : "draft",
+        },
+        error: {
+          code: approvalResult.code,
+          message: approvalResult.message,
+        },
+      };
+    }
+
+    // Step 2: Mark approved
+    console.log(`[executor] CIBA approved in ${Math.round(performance.now() - approvalStart)}ms`);
+    cs = {
+      ...cs,
+      status: "approved",
+      approval: approvalResult.approval,
     };
+  } else {
+    console.log(`[executor] CIBA not required — skipping approval`);
+    cs = { ...cs, status: "approved" };
   }
-
-  // Step 2: Mark approved
-  cs = {
-    ...cs,
-    status: "approved",
-    approval: approvalResult.approval,
-  };
 
   // Step 3: Execute writer operations
   cs = { ...cs, status: "executing" };
-
-  const writerOps = cs.operations.filter((op) => op.agent === "writer");
   const writerResult = await runWriterAgent(writerOps, refreshToken);
+
+  const succeededOps = writerResult.results.filter((r) => r.status === "success").length;
+  const failedOps = writerResult.results.filter((r) => r.status === "failure");
+  console.log(`[executor] Writer completed — ${succeededOps}/${writerOps.length} succeeded in ${Math.round(writerResult.totalDuration)}ms`);
+  if (failedOps.length > 0) {
+    console.error(`[executor] Writer: ${failedOps.length}/${writerOps.length} operations failed`);
+  }
 
   // Step 4: Verification read-back
   const verifyStart = performance.now();
@@ -239,6 +257,17 @@ export async function executeChangeSet(
     writerOps,
     readerResult.toolResults
   );
+
+  for (const check of verificationChecks) {
+    const sku = writerOps.find((op) => op.id === check.operationId)?.target ?? "unknown";
+    console.log(`[executor] Check ${sku} ${check.field}: expected=${JSON.stringify(check.expected)}, actual=${JSON.stringify(check.actual)} → ${check.status}`);
+  }
+  const passedChecks = verificationChecks.filter((c) => c.status === "pass").length;
+  const failedChecks = verificationChecks.filter((c) => c.status === "fail");
+  console.log(`[executor] Verification: ${passedChecks}/${verificationChecks.length} checks passed`);
+  if (failedChecks.length > 0) {
+    console.error(`[executor] Verification: ${failedChecks.length}/${verificationChecks.length} checks failed`);
+  }
 
   // Step 5: Build receipt and determine final status
   const receipt = await buildExecutionReceipt(
@@ -283,6 +312,7 @@ export async function executeChangeSet(
     (r) => r.status === "success"
   );
   const finalStatus = allSucceeded ? "completed" : "partial_failure";
+  console.log(`[executor] ChangeSet ${cs.id.slice(0, 8)} final status: ${finalStatus}`);
 
   const execution: ChangeSetExecution = {
     executedAt: new Date().toISOString(),
