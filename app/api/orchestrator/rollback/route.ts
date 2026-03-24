@@ -13,11 +13,67 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
-import { buildRollbackChangeSet } from "@/lib/changeset/rollback-builder";
+import {
+  buildRollbackChangeSet,
+  RollbackValidationError,
+} from "@/lib/changeset/rollback-builder";
 import type { ChangeSet } from "@/lib/changeset/types";
 
+const OperationDiffSchema = z.object({
+  field: z.string(),
+  before: z.union([z.string(), z.number(), z.boolean()]),
+  after: z.union([z.string(), z.number(), z.boolean()]),
+});
+
+const OperationResultSchema = z.object({
+  operationId: z.string(),
+  status: z.enum(["success", "failure", "skipped"]),
+  error: z.string().optional(),
+  duration: z.number(),
+});
+
+const OperationSchema = z.object({
+  id: z.string(),
+  agent: z.enum(["reader", "writer", "notifier"]),
+  action: z.string(),
+  target: z.string(),
+  tier: z.number(),
+  policyExplanation: z.record(z.string(), z.unknown()),
+  diff: z.array(OperationDiffSchema),
+  rollback: z.object({
+    action: z.string(),
+    params: z.record(z.string(), z.unknown()),
+  }),
+});
+
 const RequestBody = z.object({
-  changeSet: z.record(z.string(), z.unknown()),
+  changeSet: z.object({
+    id: z.string(),
+    requestedBy: z.string(),
+    originalPrompt: z.string(),
+    createdAt: z.string(),
+    status: z.enum([
+      "draft",
+      "pending_approval",
+      "approved",
+      "executing",
+      "completed",
+      "partial_failure",
+      "expired",
+      "rolled_back",
+    ]),
+    operations: z.array(OperationSchema),
+    riskSummary: z.record(z.string(), z.unknown()),
+    approval: z.record(z.string(), z.unknown()).optional(),
+    execution: z
+      .object({
+        executedAt: z.string(),
+        results: z.array(OperationResultSchema),
+        receipt: z.record(z.string(), z.unknown()),
+      })
+      .optional(),
+    rollbackOf: z.string().optional(),
+  }),
 });
 
 export async function POST(request: Request) {
@@ -35,7 +91,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const changeSet = parsed.data.changeSet as unknown as ChangeSet;
+  const changeSet = parsed.data.changeSet;
 
   if (changeSet.status !== "completed" && changeSet.status !== "partial_failure") {
     return NextResponse.json(
@@ -73,7 +129,10 @@ export async function POST(request: Request) {
   );
 
   try {
-    const reversal = await buildRollbackChangeSet(changeSet);
+    // Zod validates structure; cast to ChangeSet for the enum types
+    // (tier: RiskTier, policyExplanation: PolicyDecision) that Zod
+    // cannot express without duplicating the full domain schema.
+    const reversal = await buildRollbackChangeSet(changeSet as unknown as ChangeSet);
 
     console.log(
       `[rollback] Built reversal ${reversal.id.slice(0, 8)} in ${Math.round(performance.now() - routeStart)}ms — ` +
@@ -82,12 +141,17 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ changeSet: reversal });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to build rollback changeset";
-    console.error("[rollback] Error:", message);
+    if (err instanceof RollbackValidationError) {
+      console.error("[rollback] Validation error:", err.message);
+      return NextResponse.json(
+        { error: "rollback_failed", message: err.message },
+        { status: 400 }
+      );
+    }
+    console.error("[rollback] Internal error:", err);
     return NextResponse.json(
-      { error: "rollback_failed", message },
-      { status: 400 }
+      { error: "internal_server_error", message: "Internal server error" },
+      { status: 500 }
     );
   }
 }

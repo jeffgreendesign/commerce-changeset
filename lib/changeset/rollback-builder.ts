@@ -9,7 +9,36 @@
 
 import { buildChangeSet } from "./builder";
 import type { ParsedOperation } from "./builder";
-import type { ChangeSet } from "./types";
+import type { ChangeSet, OperationDiff } from "./types";
+
+/** Thrown for known validation failures that should surface as 400. */
+export class RollbackValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RollbackValidationError";
+  }
+}
+
+/**
+ * Compute the maximum absolute price change percent across a set of
+ * inverted diffs. Returns undefined if no valid numeric pairs exist.
+ */
+function maxPriceChangePercent(
+  diffs: OperationDiff[]
+): number | undefined {
+  let max: number | undefined;
+  for (const d of diffs) {
+    const from = Number(d.before);
+    const to = Number(d.after);
+    if (from > 0) {
+      const pct = Math.abs(Math.round(((from - to) / from) * 100));
+      if (max === undefined || pct > max) {
+        max = pct;
+      }
+    }
+  }
+  return max;
+}
 
 /**
  * Build a reversal changeset from an executed original.
@@ -22,18 +51,22 @@ export async function buildRollbackChangeSet(
   original: ChangeSet
 ): Promise<ChangeSet> {
   if (original.status !== "completed" && original.status !== "partial_failure") {
-    throw new Error(
+    throw new RollbackValidationError(
       `Cannot roll back a changeset with status "${original.status}". ` +
         `Only "completed" or "partial_failure" changesets can be rolled back.`
     );
   }
 
   if (!original.execution) {
-    throw new Error("Cannot roll back a changeset with no execution data.");
+    throw new RollbackValidationError(
+      "Cannot roll back a changeset with no execution data."
+    );
   }
 
   if (original.rollbackOf) {
-    throw new Error("Cannot roll back a rollback changeset.");
+    throw new RollbackValidationError(
+      "Cannot roll back a rollback changeset."
+    );
   }
 
   const succeededIds = new Set(
@@ -47,7 +80,9 @@ export async function buildRollbackChangeSet(
   );
 
   if (writerOps.length === 0) {
-    throw new Error("No successfully-executed writer operations to roll back.");
+    throw new RollbackValidationError(
+      "No successfully-executed writer operations to roll back."
+    );
   }
 
   const reversedOps: ParsedOperation[] = writerOps.map((op) => {
@@ -62,16 +97,7 @@ export async function buildRollbackChangeSet(
 
     let priceChangePercent: number | undefined;
     if (op.action === "update_price" || op.action === "bulk_price_change") {
-      const firstDiff = invertedDiffs[0];
-      if (firstDiff) {
-        const from = Number(firstDiff.before);
-        const to = Number(firstDiff.after);
-        if (from > 0) {
-          priceChangePercent = Math.abs(
-            Math.round(((from - to) / from) * 100)
-          );
-        }
-      }
+      priceChangePercent = maxPriceChangePercent(invertedDiffs);
     }
 
     return {

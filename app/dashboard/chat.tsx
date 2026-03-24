@@ -15,6 +15,8 @@ interface Message {
   content: string;
   changeSet?: ChangeSet;
   reasoning?: string;
+  /** Unique key for locating rollback draft messages during state updates. */
+  rollbackDraftId?: string;
 }
 
 type Phase =
@@ -193,13 +195,15 @@ export function Chat() {
         changeSet: ChangeSet;
       };
 
-      // Step 2: Show the reversal draft
+      // Step 2: Show the reversal draft, tagged so we can find it later
+      const draftId = rollbackDraft.id;
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content: `Reversal changeset generated for ${sourceChangeSet.id.slice(0, 8)}. Executing rollback\u2026`,
           changeSet: rollbackDraft,
+          rollbackDraftId: draftId,
         },
       ]);
       scrollToBottom();
@@ -242,12 +246,24 @@ export function Chat() {
           };
         }
 
-        // Replace the last message (reversal draft) with the executed result
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
-          changeSet: execData.changeSet,
-        };
+        // Find the draft message by its tagged ID, not array position
+        const draftIdx = updated.findIndex(
+          (m) => m.rollbackDraftId === draftId
+        );
+        if (draftIdx !== -1) {
+          updated[draftIdx] = {
+            role: "assistant",
+            content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
+            changeSet: execData.changeSet,
+          };
+        } else {
+          // Fallback: append if the draft message was not found
+          updated.push({
+            role: "assistant",
+            content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
+            changeSet: execData.changeSet,
+          });
+        }
 
         return updated;
       });
