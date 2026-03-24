@@ -57,6 +57,24 @@ function generateRollback(op: ParsedOperation): RollbackInstruction {
           status: firstDiff?.before ?? false,
         },
       };
+    case "update_inventory_flag":
+      return {
+        action: "update_inventory_flag",
+        params: {
+          target: op.target,
+          inventory: firstDiff?.before ?? "",
+        },
+      };
+    case "bulk_price_change":
+      return {
+        action: "bulk_price_change",
+        params: {
+          target: op.target,
+          prices: Object.fromEntries(
+            op.diff.map((d) => [d.field, d.before])
+          ),
+        },
+      };
     default:
       return {
         action: "manual_review",

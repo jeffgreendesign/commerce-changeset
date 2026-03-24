@@ -12,7 +12,7 @@
 
 import { runWriterAgent } from "@/lib/agents/writer";
 import { runReaderAgent } from "@/lib/agents/reader";
-import { runNotifierAgent } from "@/lib/agents/notifier";
+import { runNotifierAgent, sendExecutionReceipt } from "@/lib/agents/notifier";
 import { requestApproval } from "./approval";
 import type {
   ChangeSet,
@@ -41,6 +41,8 @@ function extractSku(target: string): string | undefined {
 const ACTION_FIELD_MAP: Record<string, string> = {
   update_price: "Promo Price",
   set_promo_status: "Promo Active",
+  update_inventory_flag: "Inventory",
+  bulk_price_change: "Promo Price",
 };
 
 /**
@@ -75,6 +77,27 @@ function buildVerificationChecks(
   const checks: VerificationCheck[] = [];
 
   for (const op of writerOps) {
+    if (op.action === "bulk_price_change") {
+      // Bulk ops encode SKU in each diff field: "Promo Price (STR-001)"
+      for (const diff of op.diff) {
+        const skuMatch = diff.field.match(/\((STR-\d{3})\)/);
+        const product = skuMatch
+          ? products.find((p) => p["SKU"] === skuMatch[1])
+          : undefined;
+        const actual = product?.["Promo Price"] ?? "not_found";
+        const expectedStr = String(diff.after).trim().toUpperCase();
+        const actualStr = String(actual).trim().toUpperCase();
+        checks.push({
+          operationId: op.id,
+          field: diff.field,
+          expected: diff.after,
+          actual,
+          status: actualStr === expectedStr ? "pass" : "fail",
+        });
+      }
+      continue;
+    }
+
     const sku = extractSku(op.target);
     const product = products.find((p) => p["SKU"] === sku);
     const fieldName = ACTION_FIELD_MAP[op.action];
@@ -148,7 +171,7 @@ async function buildExecutionReceipt(
       {
         agent: "writer",
         actingOnBehalfOf: userId,
-        toolsGranted: ["update_price", "set_promo_status"],
+        toolsGranted: ["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change"],
         contextReceived: "approved change set operations only",
         tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
         operationsPerformed: writerResults
@@ -279,26 +302,33 @@ export async function executeChangeSet(
     verificationDuration
   );
 
-  // Step 6: Send notification via Notifier Agent (non-blocking)
+  // Step 6: Send notifications via Notifier Agent (non-blocking)
   if (userEmail) {
     try {
-      const notifierResult = await runNotifierAgent(
-        cs,
-        receipt,
-        userEmail,
-        refreshToken
-      );
+      const [notifierResult, receiptResult] = await Promise.all([
+        runNotifierAgent(cs, receipt, userEmail, refreshToken),
+        sendExecutionReceipt(receipt, userEmail, refreshToken),
+      ]);
       receipt.oboChain.delegatedTo.push("notifier");
+      const notifierOps: string[] = [];
+      if (notifierResult.success) {
+        notifierOps.push(`sent notification: ${notifierResult.messageId ?? "unknown"}`);
+      } else {
+        notifierOps.push(`notification failed: ${notifierResult.error ?? "unknown"}`);
+      }
+      if (receiptResult.success) {
+        notifierOps.push(`sent receipt: ${receiptResult.messageId ?? "unknown"}`);
+      } else {
+        notifierOps.push(`receipt failed: ${receiptResult.error ?? "unknown"}`);
+      }
       receipt.agentDelegations.push({
         agent: "notifier",
         actingOnBehalfOf: userId,
-        toolsGranted: ["send_launch_notification"],
+        toolsGranted: ["send_launch_notification", "send_execution_receipt"],
         contextReceived: "execution summary and receipt",
         tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
-        operationsPerformed: notifierResult.success
-          ? [`sent notification: ${notifierResult.messageId ?? "unknown"}`]
-          : [`notification failed: ${notifierResult.error ?? "unknown"}`],
-        duration: notifierResult.duration,
+        operationsPerformed: notifierOps,
+        duration: Math.max(notifierResult.duration, receiptResult.duration),
       });
       // Recompute audit hash with notifier delegation included
       receipt.auditHash = "";

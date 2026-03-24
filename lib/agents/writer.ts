@@ -29,6 +29,8 @@ export interface WriterAgentResult {
 const ACTION_COLUMN: Record<string, string> = {
   update_price: "E",
   set_promo_status: "F",
+  update_inventory_flag: "G",
+  bulk_price_change: "E",
 };
 
 // ── Google Sheets helpers ────────────────────────────────────────────
@@ -108,12 +110,33 @@ async function lookupSkuRow(sku: string): Promise<number> {
 async function executeOperation(op: Operation): Promise<OperationResult> {
   const start = performance.now();
   try {
-    const sku = extractSku(op.target);
-    const row = await lookupSkuRow(sku);
     const column = ACTION_COLUMN[op.action];
     if (!column) {
       throw new Error(`Unknown writer action: "${op.action}"`);
     }
+
+    if (op.action === "bulk_price_change") {
+      // Bulk operation: each diff encodes SKU in field "Promo Price (STR-001)"
+      for (const diff of op.diff) {
+        const skuMatch = diff.field.match(/\((STR-\d{3})\)/);
+        if (!skuMatch) {
+          throw new Error(`Cannot extract SKU from bulk diff field: "${diff.field}"`);
+        }
+        const row = await lookupSkuRow(skuMatch[1]);
+        await updateSheet(`Products!${column}${row}`, String(diff.after));
+        console.log(`[writer] ✓ bulk_price_change ${skuMatch[1]} (row ${row}, col ${column}) = "${diff.after}"`);
+      }
+      console.log(`[writer] ✓ bulk_price_change on ${op.target} — ${op.diff.length} updates in ${Math.round(performance.now() - start)}ms`);
+      return {
+        operationId: op.id,
+        status: "success",
+        duration: performance.now() - start,
+      };
+    }
+
+    // Single-record operations
+    const sku = extractSku(op.target);
+    const row = await lookupSkuRow(sku);
 
     const diff = op.diff[0];
     if (!diff) {
