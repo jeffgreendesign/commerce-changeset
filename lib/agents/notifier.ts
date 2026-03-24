@@ -281,12 +281,12 @@ async function sendEmail(
 
 let auth0AI: Auth0AI;
 
-export async function runNotifierAgent(
-  changeSet: ChangeSet,
-  receipt: ExecutionReceipt,
-  recipientEmail: string,
-  refreshToken: string
-): Promise<NotifierAgentResult> {
+async function executeGmailTool(
+  refreshToken: string,
+  toolDescription: string,
+  toolCallIdPrefix: string,
+  execute: () => Promise<{ messageId: string }>
+): Promise<{ messageId: string; duration: number }> {
   if (!auth0AI) {
     auth0AI = new Auth0AI();
   }
@@ -297,48 +297,61 @@ export async function runNotifierAgent(
     refreshToken: async () => refreshToken,
   });
 
-  const notifierTool = withGmailToken(
+  const gmailTool = withGmailToken(
     tool({
-      description: "Send execution summary email via Gmail",
+      description: toolDescription,
       inputSchema: z.object({}),
-      execute: async () => {
+      execute,
+    })
+  );
+
+  const start = performance.now();
+
+  const executeFn = gmailTool.execute as (
+    input: Record<string, never>,
+    ctx: { toolCallId: string; messages: unknown[] }
+  ) => Promise<{ messageId: string }>;
+
+  const { messageId } = await executeFn(
+    {} as Record<string, never>,
+    { toolCallId: `${toolCallIdPrefix}-${crypto.randomUUID()}`, messages: [] }
+  );
+
+  return { messageId, duration: performance.now() - start };
+}
+
+export async function runNotifierAgent(
+  changeSet: ChangeSet,
+  receipt: ExecutionReceipt,
+  recipientEmail: string,
+  refreshToken: string
+): Promise<NotifierAgentResult> {
+  console.log(`[notifier] Sending to ${recipientEmail}`);
+
+  try {
+    const { messageId, duration } = await executeGmailTool(
+      refreshToken,
+      "Send execution summary email via Gmail",
+      "notifier",
+      async () => {
         const { to, subject, htmlBody } = buildNotificationEmail(
           changeSet,
           receipt,
           recipientEmail
         );
-        const messageId = await sendEmail(to, subject, htmlBody);
-        return { messageId };
-      },
-    })
-  );
-
-  console.log(`[notifier] Sending to ${recipientEmail}`);
-  const start = performance.now();
-
-  try {
-    const execute = notifierTool.execute as (
-      input: Record<string, never>,
-      ctx: { toolCallId: string; messages: unknown[] }
-    ) => Promise<{ messageId: string }>;
-
-    const { messageId } = await execute(
-      {} as Record<string, never>,
-      { toolCallId: `notifier-${crypto.randomUUID()}`, messages: [] }
+        const msgId = await sendEmail(to, subject, htmlBody);
+        return { messageId: msgId };
+      }
     );
 
-    console.log(`[notifier] ✓ Sent messageId: ${messageId} in ${Math.round(performance.now() - start)}ms`);
-    return {
-      success: true,
-      messageId,
-      duration: performance.now() - start,
-    };
+    console.log(`[notifier] ✓ Sent messageId: ${messageId} in ${Math.round(duration)}ms`);
+    return { success: true, messageId, duration };
   } catch (err) {
     console.error("[notifier] Failed to send notification:", err instanceof Error ? err.message : err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),
-      duration: performance.now() - start,
+      duration: 0,
     };
   }
 }
@@ -350,57 +363,31 @@ export async function sendExecutionReceipt(
   recipientEmail: string,
   refreshToken: string
 ): Promise<NotifierAgentResult> {
-  if (!auth0AI) {
-    auth0AI = new Auth0AI();
-  }
+  console.log(`[notifier] Sending receipt to ${recipientEmail}`);
 
-  const withGmailToken = auth0AI.withTokenVault({
-    connection: "google-oauth2",
-    scopes: ["https://www.googleapis.com/auth/gmail.send"],
-    refreshToken: async () => refreshToken,
-  });
-
-  const receiptTool = withGmailToken(
-    tool({
-      description: "Send execution receipt email via Gmail",
-      inputSchema: z.object({}),
-      execute: async () => {
+  try {
+    const { messageId, duration } = await executeGmailTool(
+      refreshToken,
+      "Send execution receipt email via Gmail",
+      "notifier-receipt",
+      async () => {
         const { to, subject, htmlBody } = buildReceiptEmail(
           receipt,
           recipientEmail
         );
-        const messageId = await sendEmail(to, subject, htmlBody);
-        return { messageId };
-      },
-    })
-  );
-
-  console.log(`[notifier] Sending receipt to ${recipientEmail}`);
-  const start = performance.now();
-
-  try {
-    const execute = receiptTool.execute as (
-      input: Record<string, never>,
-      ctx: { toolCallId: string; messages: unknown[] }
-    ) => Promise<{ messageId: string }>;
-
-    const { messageId } = await execute(
-      {} as Record<string, never>,
-      { toolCallId: `notifier-receipt-${crypto.randomUUID()}`, messages: [] }
+        const msgId = await sendEmail(to, subject, htmlBody);
+        return { messageId: msgId };
+      }
     );
 
-    console.log(`[notifier] ✓ Receipt sent messageId: ${messageId} in ${Math.round(performance.now() - start)}ms`);
-    return {
-      success: true,
-      messageId,
-      duration: performance.now() - start,
-    };
+    console.log(`[notifier] ✓ Receipt sent messageId: ${messageId} in ${Math.round(duration)}ms`);
+    return { success: true, messageId, duration };
   } catch (err) {
     console.error("[notifier] Failed to send receipt:", err instanceof Error ? err.message : err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),
-      duration: performance.now() - start,
+      duration: 0,
     };
   }
 }
