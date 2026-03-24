@@ -47,15 +47,20 @@ export async function POST(request: Request) {
 
   setAIContext({ threadID: `orchestrator-${crypto.randomUUID()}` });
 
+  const routeStart = performance.now();
+  console.log(`[orchestrator] POST /api/orchestrator — user: ${session.user.sub}, message: "${parsed.data.message.slice(0, 80)}${parsed.data.message.length > 80 ? "..." : ""}"`);
+
   try {
     const result = await runOrchestratorAgent(
       parsed.data.message,
       refreshToken,
       session.user.sub
     );
+    console.log(`[orchestrator] Completed in ${Math.round(performance.now() - routeStart)}ms — ${result.changeSet.operations.length} operations`);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof TokenVaultInterrupt) {
+      console.error("[orchestrator] Token Vault interrupt — Google account not connected");
       return NextResponse.json(
         {
           error: "google_connection_required",
@@ -66,6 +71,7 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+    console.error("[orchestrator] Unhandled error:", err);
     throw err;
   }
 }

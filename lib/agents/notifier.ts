@@ -213,6 +213,7 @@ export async function runNotifierAgent(
     })
   );
 
+  console.log(`[notifier] Sending to ${recipientEmail}`);
   const start = performance.now();
 
   try {
@@ -226,12 +227,14 @@ export async function runNotifierAgent(
       { toolCallId: `notifier-${crypto.randomUUID()}`, messages: [] }
     );
 
+    console.log(`[notifier] ✓ Sent messageId: ${messageId} in ${Math.round(performance.now() - start)}ms`);
     return {
       success: true,
       messageId,
       duration: performance.now() - start,
     };
   } catch (err) {
+    console.error("[notifier] Failed to send notification:", err instanceof Error ? err.message : err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),

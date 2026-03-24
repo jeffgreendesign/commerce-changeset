@@ -66,6 +66,9 @@ export async function POST(request: Request) {
     threadID: `execute-${changeSet.id}`,
   });
 
+  const routeStart = performance.now();
+  console.log(`[execute] POST /api/orchestrator/execute — changeSet: ${changeSet.id.slice(0, 8)}, ${changeSet.operations.length} operations`);
+
   try {
     const userEmail =
       session.user.email ?? session.user.name ?? session.user.sub;
@@ -75,9 +78,11 @@ export async function POST(request: Request) {
       session.user.sub,
       userEmail
     );
+    console.log(`[execute] Completed in ${Math.round(performance.now() - routeStart)}ms — status: ${result.changeSet.status}`);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof TokenVaultInterrupt) {
+      console.error("[execute] Token Vault interrupt — Google account not connected");
       return NextResponse.json(
         {
           error: "google_connection_required",
@@ -88,6 +93,7 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+    console.error("[execute] Unhandled error:", err);
     throw err;
   }
 }

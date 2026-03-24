@@ -129,12 +129,14 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
 
     await updateSheet(`Products!${column}${row}`, value);
 
+    console.log(`[writer] ✓ ${op.action} on ${op.target} (row ${row}, col ${column}) = "${value}" in ${Math.round(performance.now() - start)}ms`);
     return {
       operationId: op.id,
       status: "success",
       duration: performance.now() - start,
     };
   } catch (err) {
+    console.error(`[writer] Operation ${op.id} failed (${op.action} on ${op.target}):`, err instanceof Error ? err.message : err);
     return {
       operationId: op.id,
       status: "failure",
@@ -179,6 +181,7 @@ export async function runWriterAgent(
     })
   );
 
+  console.log(`[writer] Starting ${operations.length} operations`);
   const start = performance.now();
 
   // Manually invoke the wrapped tool (same pattern as CIBA spike).
@@ -192,6 +195,9 @@ export async function runWriterAgent(
     {} as Record<string, never>,
     { toolCallId: `writer-${crypto.randomUUID()}`, messages: [] }
   );
+
+  const succeeded = results.filter((r) => r.status === "success").length;
+  console.log(`[writer] Done — ${succeeded}/${results.length} succeeded in ${Math.round(performance.now() - start)}ms`);
 
   return {
     results,

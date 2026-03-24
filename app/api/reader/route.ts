@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof TokenVaultInterrupt) {
+      console.error("[reader] Token Vault interrupt — Google account not connected");
       return NextResponse.json(
         {
           error: "google_connection_required",
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+    console.error("[reader] Unhandled error:", err);
     throw err;
   }
 }
