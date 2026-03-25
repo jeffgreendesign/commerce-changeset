@@ -11,7 +11,18 @@ import type {
   ExecutionReceipt as ReceiptType,
   RiskSummary,
 } from "@/lib/changeset/types";
+import { cn } from "@/lib/utils";
 import { AgentBadge } from "./agent-badge";
+
+// ── Shared icons ────────────────────────────────────────────────────
+
+function LockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn("h-3 w-3 shrink-0", className)} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z" />
+    </svg>
+  );
+}
 
 // ── Status helpers ──────────────────────────────────────────────────
 
@@ -72,8 +83,16 @@ function DelegationTree({ delegations }: { delegations: AgentDelegation[] }) {
             const cfg = STATUS_CONFIG[status];
             return (
               <div key={`${d.agent}-${d.tokenExchangeId}`} className="flex flex-col items-center px-4">
-                {/* Vertical connector from branch to node */}
-                <div className="h-4 w-px bg-border" />
+                {/* Vertical connector → context boundary → node */}
+                <div className="h-2 w-px bg-border" />
+                <span
+                  className="inline-flex max-w-[120px] items-center gap-1 rounded border border-dashed border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  title={d.contextReceived}
+                >
+                  <LockIcon className="h-2.5 w-2.5" />
+                  <span className="truncate">{d.contextReceived}</span>
+                </span>
+                <div className="h-2 w-px bg-border" />
                 <div className="flex flex-col items-center gap-1 rounded-md border border-border/50 bg-background px-3 py-2">
                   <AgentBadge agent={d.agent} />
                   <Badge className={`border-0 text-[10px] px-1.5 py-0 ${cfg.className}`}>
@@ -172,9 +191,7 @@ export function ExecutionReceipt({
                   Tools: {d.toolsGranted.join(", ")}
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 rounded border border-dashed border-border/80 px-2 py-1 text-muted-foreground">
-                  <svg className="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z" />
-                  </svg>
+                  <LockIcon />
                   <span>Scoped: {d.contextReceived}</span>
                 </div>
                 <p className="text-muted-foreground">

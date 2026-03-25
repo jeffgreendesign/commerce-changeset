@@ -10,6 +10,7 @@ import type {
   OperationResult,
   VerificationCheck,
 } from "@/lib/changeset/types";
+import type { PolicyDecision } from "@/lib/policy/types";
 import { AgentBadge } from "./agent-badge";
 import { RiskBadge } from "./risk-badge";
 import { DiffView } from "./diff-view";
@@ -37,6 +38,34 @@ function StatusBadge({ status }: { status: string }) {
     default:
       return null;
   }
+}
+
+function AutonomyBadge({ decision }: { decision: PolicyDecision["decision"] }) {
+  if (decision === "auto-approve") {
+    return (
+      <Badge className="border-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+        Auto
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="border-0 bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400">
+      CIBA
+    </Badge>
+  );
+}
+
+function ToolCallChip({ action, duration }: { action: string; duration: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded border border-dashed border-border/60 px-2 py-0.5 text-xs text-muted-foreground">
+      <svg className="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M4.708 5.578L2.061 8.224l2.647 2.646-.708.708L.94 8.224 4 5.164l.708.414zm6.584 0l2.647 2.646-2.647 2.646.708.708L15.06 8.224 12 5.164l-.708.414zM6.854 13.146l2-10 .98.196-2 10-.98-.196z" />
+      </svg>
+      <code className="font-mono">{action}</code>
+      <span>&middot;</span>
+      <span>{duration.toFixed(0)}ms</span>
+    </span>
+  );
 }
 
 function VerificationBadge({ status }: { status: string }) {
@@ -79,10 +108,14 @@ export function OperationCard({
           <span className="text-muted-foreground">&rarr;</span>
           <span className="text-sm">{operation.target}</span>
           <RiskBadge tier={operation.tier} policyExplanation={operation.policyExplanation} />
+          <AutonomyBadge decision={operation.policyExplanation.decision} />
           {result && <StatusBadge status={result.status} />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {result && (
+          <ToolCallChip action={operation.action} duration={result.duration} />
+        )}
         <DiffView diffs={operation.diff} />
 
         {result?.error && (
