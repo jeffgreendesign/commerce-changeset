@@ -53,12 +53,20 @@ Allowed writer actions (use EXACTLY these names):
 - "bulk_price_change" — batch price update across multiple SKUs (use when same discount applies to 2+ products)
 Do not invent other action names. Every write operation must use one of these actions.
 
+Diff semantics (CRITICAL):
+- "before" = the CURRENT value of that field exactly as it appears in the sheet data provided. Copy it verbatim. If the field is blank or empty in the sheet, use "" (empty string).
+- "after" = the NEW value you want to write to that field.
+- "before" and "after" MUST be different. If they are identical the operation is a no-op and will be discarded.
+- For update_price: the field is "Promo Price". "before" is the current Promo Price from the sheet (may be blank). "after" is the newly calculated discounted price.
+- For set_promo_status: the field is "Promo Active". "before" is the current value (e.g., "FALSE"). "after" is the desired value (e.g., "TRUE").
+
 Rules:
+- Setting a discount or launching a promo ALWAYS requires BOTH:
+  1. set_promo_status for each affected SKU (toggle Promo Active to the desired value)
+  2. update_price (1 SKU) or bulk_price_change (2+ SKUs) to set the computed Promo Price
+  Do NOT omit the status toggle. Do NOT omit the price update. Both are required.
 - For single-record actions (update_price, set_promo_status, update_inventory_flag): each operation modifies exactly ONE field on ONE target. Include the product name in the target (e.g., "STR-001 Classic Runner"). Set affectedRecords: 1.
 - For bulk_price_change: create ONE operation with multiple diff entries, one per SKU. Each diff field must encode the SKU: "Promo Price (STR-001)". Set target to a summary like "3 products". Set affectedRecords to the number of SKUs (this triggers Tier 3 escalation). Compute priceChangePercent from the largest individual change.
-- For a promotion launch, you typically need:
-  - set_promo_status for each SKU (Promo Active: FALSE → TRUE)
-  - A single bulk_price_change with diffs for all affected SKUs (or individual update_price ops for 1 SKU)
 - Use the launch schedule data to determine discount percentages and which SKUs are involved.
 - Calculate promo prices by applying the discount % to each product's base price. Round to 2 decimal places.
 - Compute priceChangePercent as the absolute percentage decrease from the base price.
@@ -66,6 +74,40 @@ Rules:
 - Notification operations should have agent: "notifier", operationType: "notify".
 - Include the product name in the target for single-record ops (e.g., "STR-001 Classic Runner").
 - If the user's request is purely informational (asking about current state, prices, schedule, etc.) and requires no changes, return an empty operations array. Do not fabricate operations for read-only queries.
+- If the requested change is already reflected in the current state (e.g., the discount is already applied, the promo is already active), return an empty operations array.
+- Always provide a "reasoning" field: 1-2 sentences explaining what changes you identified and why. If no changes are needed, explain clearly why (e.g., "STR-001 Classic Runner already has a 20% discount active at $71.99 promo price.").
+
+Examples:
+
+Single-SKU discount — "Set a 20% discount on STR-001 Classic Runner" (Base Price: 129.99, Promo Price currently blank, Promo Active: FALSE):
+[
+  { "agent": "writer", "action": "set_promo_status", "target": "STR-001 Classic Runner",
+    "diff": [{ "field": "Promo Active", "before": "FALSE", "after": "TRUE" }],
+    "operationType": "write", "affectedRecords": 1 },
+  { "agent": "writer", "action": "update_price", "target": "STR-001 Classic Runner",
+    "diff": [{ "field": "Promo Price", "before": "", "after": 103.99 }],
+    "operationType": "write", "affectedRecords": 1, "priceChangePercent": 20 }
+]
+
+Bulk discount — "Apply 15% off to all running shoes" (3 SKUs, Promo Active all FALSE):
+[
+  { "agent": "writer", "action": "set_promo_status", "target": "STR-001 Classic Runner",
+    "diff": [{ "field": "Promo Active", "before": "FALSE", "after": "TRUE" }],
+    "operationType": "write", "affectedRecords": 1 },
+  { "agent": "writer", "action": "set_promo_status", "target": "STR-002 Trail Blazer",
+    "diff": [{ "field": "Promo Active", "before": "FALSE", "after": "TRUE" }],
+    "operationType": "write", "affectedRecords": 1 },
+  { "agent": "writer", "action": "set_promo_status", "target": "STR-003 Speed Lite",
+    "diff": [{ "field": "Promo Active", "before": "FALSE", "after": "TRUE" }],
+    "operationType": "write", "affectedRecords": 1 },
+  { "agent": "writer", "action": "bulk_price_change", "target": "3 products",
+    "diff": [
+      { "field": "Promo Price (STR-001)", "before": "", "after": 110.49 },
+      { "field": "Promo Price (STR-002)", "before": "", "after": 144.49 },
+      { "field": "Promo Price (STR-003)", "before": "", "after": 84.99 }
+    ],
+    "operationType": "write", "affectedRecords": 3, "priceChangePercent": 15 }
+]
 
 Return a JSON array of operations.`;
 
@@ -102,6 +144,9 @@ export async function runOrchestratorAgent(
     model: anthropic("claude-sonnet-4-20250514"),
     schema: z.object({
       operations: z.array(ParsedOperationSchema),
+      reasoning: z.string().describe(
+        "1-2 sentence explanation of what changes are needed and why, or why no changes are needed if the current state already matches the request"
+      ),
     }),
     system: DECOMPOSITION_SYSTEM,
     prompt: `User request: "${message}"\n\nCurrent state:\n${currentState}`,
@@ -117,10 +162,12 @@ export async function runOrchestratorAgent(
   });
   console.log(`[orchestrator] ChangeSet ${changeSet.id.slice(0, 8)} built — ${changeSet.operations.length} ops, max tier ${changeSet.riskSummary.maxTier}, CIBA: ${changeSet.riskSummary.requiresCIBA}`);
 
-  const reasoning = operations.length === 0
-    ? readerResult.text
+  // Use the LLM's reasoning when the final changeset has 0 operations —
+  // covers "already applied", "informational query", and "builder filtered all ops".
+  const reasoning = changeSet.operations.length === 0
+    ? decomposition.reasoning
     : `Gathered current product catalog and launch schedule via Reader Agent. ` +
-      `Decomposed request into ${operations.length} operations. ` +
+      `Decomposed request into ${changeSet.operations.length} operations. ` +
       `Assembled draft change set with policy evaluation and rollback instructions.`;
 
   return { changeSet, reasoning };
