@@ -1,8 +1,18 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
 import { AgentBadge } from "@/components/changeset/agent-badge";
 import type { ChangeSet } from "@/lib/changeset/types";
@@ -15,6 +25,8 @@ interface Message {
   content: string;
   changeSet?: ChangeSet;
   reasoning?: string;
+  /** Markdown content from reader agent for read-only queries. */
+  readResult?: string;
   /** Unique key for locating rollback draft messages during state updates. */
   rollbackDraftId?: string;
 }
@@ -36,6 +48,41 @@ const SUGGESTIONS = [
   { label: "Activate promo", prompt: "Set promo status to active for STR-002 Court Essential" },
   { label: "Show current prices", prompt: "What are the current prices for all products?" },
 ];
+
+// ── Markdown → shadcn table mapping ──────────────────────────────────
+
+const mdComponents = {
+  // Tables → shadcn
+  table: ({ children }: React.ComponentProps<"table">) => (
+    <div className="my-4 rounded-md border">
+      <Table>{children}</Table>
+    </div>
+  ),
+  thead: ({ children }: React.ComponentProps<"thead">) => <TableHeader>{children}</TableHeader>,
+  tbody: ({ children }: React.ComponentProps<"tbody">) => <TableBody>{children}</TableBody>,
+  tr: ({ children }: React.ComponentProps<"tr">) => <TableRow>{children}</TableRow>,
+  th: ({ children }: React.ComponentProps<"th">) => <TableHead>{children}</TableHead>,
+  td: ({ children }: React.ComponentProps<"td">) => <TableCell>{children}</TableCell>,
+  // Typography
+  h2: ({ children }: React.ComponentProps<"h2">) => (
+    <h2 className="mt-6 mb-2 text-base font-semibold tracking-tight first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }: React.ComponentProps<"h3">) => (
+    <h3 className="mt-4 mb-2 text-sm font-semibold tracking-tight">{children}</h3>
+  ),
+  p: ({ children }: React.ComponentProps<"p">) => (
+    <p className="mb-2 leading-relaxed last:mb-0">{children}</p>
+  ),
+  ul: ({ children }: React.ComponentProps<"ul">) => (
+    <ul className="mb-2 list-disc pl-5 space-y-1">{children}</ul>
+  ),
+  ol: ({ children }: React.ComponentProps<"ol">) => (
+    <ol className="mb-2 list-decimal pl-5 space-y-1">{children}</ol>
+  ),
+  li: ({ children }: React.ComponentProps<"li">) => (
+    <li className="leading-relaxed">{children}</li>
+  ),
+};
 
 // ── Component ────────────────────────────────────────────────────────
 
@@ -93,8 +140,8 @@ export function Chat() {
           ...prev,
           {
             role: "assistant",
-            content:
-              "No changes needed \u2014 the current state already matches your request.",
+            content: "Here\u2019s what I found:",
+            readResult: data.reasoning,
           },
         ]);
         setPhase("complete");
@@ -359,6 +406,12 @@ export function Chat() {
                     </span>
                   );
                 })}
+              </div>
+            )}
+
+            {msg.readResult && (
+              <div className="ml-0 max-w-full rounded-lg border bg-card p-6 text-sm text-card-foreground">
+                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{msg.readResult}</Markdown>
               </div>
             )}
 

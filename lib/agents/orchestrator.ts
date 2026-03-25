@@ -65,6 +65,7 @@ Rules:
 - All write operations should have agent: "writer", operationType: "write".
 - Notification operations should have agent: "notifier", operationType: "notify".
 - Include the product name in the target for single-record ops (e.g., "STR-001 Classic Runner").
+- If the user's request is purely informational (asking about current state, prices, schedule, etc.) and requires no changes, return an empty operations array. Do not fabricate operations for read-only queries.
 
 Return a JSON array of operations.`;
 
@@ -116,11 +117,11 @@ export async function runOrchestratorAgent(
   });
   console.log(`[orchestrator] ChangeSet ${changeSet.id.slice(0, 8)} built — ${changeSet.operations.length} ops, max tier ${changeSet.riskSummary.maxTier}, CIBA: ${changeSet.riskSummary.requiresCIBA}`);
 
-  return {
-    changeSet,
-    reasoning:
-      `Gathered current product catalog and launch schedule via Reader Agent. ` +
+  const reasoning = operations.length === 0
+    ? readerResult.text
+    : `Gathered current product catalog and launch schedule via Reader Agent. ` +
       `Decomposed request into ${operations.length} operations. ` +
-      `Assembled draft change set with policy evaluation and rollback instructions.`,
-  };
+      `Assembled draft change set with policy evaluation and rollback instructions.`;
+
+  return { changeSet, reasoning };
 }
