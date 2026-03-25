@@ -21,7 +21,21 @@ const STATUS_STYLE: Record<string, string> = {
   rolled_back: "bg-muted text-muted-foreground",
 };
 
-export function ChangeSetView({ changeSet }: { changeSet: ChangeSet }) {
+interface ChangeSetViewProps {
+  changeSet: ChangeSet;
+  onRollback?: () => void;
+  /** True only on the card actively being rolled back — controls spinner. */
+  isRollingBack?: boolean;
+  /** True during any busy phase — disables rollback button on all cards. */
+  disabled?: boolean;
+}
+
+export function ChangeSetView({
+  changeSet,
+  onRollback,
+  isRollingBack,
+  disabled,
+}: ChangeSetViewProps) {
   const execution = changeSet.execution;
 
   return (
@@ -68,7 +82,14 @@ export function ChangeSetView({ changeSet }: { changeSet: ChangeSet }) {
       </div>
 
       {/* Rollback */}
-      <RollbackSection operations={changeSet.operations} />
+      <RollbackSection
+        operations={changeSet.operations}
+        changeSetStatus={changeSet.status}
+        isRollback={!!changeSet.rollbackOf}
+        onRollback={onRollback}
+        isRollingBack={isRollingBack}
+        disabled={disabled}
+      />
 
       {/* Execution receipt */}
       {execution?.receipt && (

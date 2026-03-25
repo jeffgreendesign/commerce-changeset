@@ -6,11 +6,35 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Operation } from "@/lib/changeset/types";
+import { Button } from "@/components/ui/button";
+import type { Operation, ChangeSetStatus } from "@/lib/changeset/types";
 
-export function RollbackSection({ operations }: { operations: Operation[] }) {
+interface RollbackSectionProps {
+  operations: Operation[];
+  changeSetStatus?: ChangeSetStatus;
+  isRollback?: boolean;
+  onRollback?: () => void;
+  /** True only on the card actively being rolled back — controls spinner. */
+  isRollingBack?: boolean;
+  /** True during any busy phase — disables button on all cards. */
+  disabled?: boolean;
+}
+
+export function RollbackSection({
+  operations,
+  changeSetStatus,
+  isRollback,
+  onRollback,
+  isRollingBack,
+  disabled,
+}: RollbackSectionProps) {
   const writerOps = operations.filter((op) => op.agent === "writer");
   if (writerOps.length === 0) return null;
+
+  const canRollback =
+    onRollback &&
+    !isRollback &&
+    (changeSetStatus === "completed" || changeSetStatus === "partial_failure");
 
   return (
     <Card size="sm">
@@ -36,6 +60,26 @@ export function RollbackSection({ operations }: { operations: Operation[] }) {
                 </span>
               </div>
             ))}
+
+            {canRollback && (
+              <div className="pt-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={onRollback}
+                  disabled={isRollingBack || disabled}
+                >
+                  {isRollingBack ? (
+                    <>
+                      <span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Rolling back&hellip;
+                    </>
+                  ) : (
+                    "Execute Rollback"
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>

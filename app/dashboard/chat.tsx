@@ -15,6 +15,8 @@ interface Message {
   content: string;
   changeSet?: ChangeSet;
   reasoning?: string;
+  /** Unique key for locating rollback draft messages during state updates. */
+  rollbackDraftId?: string;
 }
 
 type Phase =
@@ -22,6 +24,7 @@ type Phase =
   | "loading"
   | "draft"
   | "executing"
+  | "rolling_back"
   | "complete"
   | "error";
 
@@ -43,6 +46,7 @@ export function Chat() {
   const [error, setError] = useState("");
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
   const [draftReasoning, setDraftReasoning] = useState("");
+  const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -56,7 +60,7 @@ export function Chat() {
 
   const handleSubmit = async () => {
     const prompt = input.trim();
-    if (!prompt || phase === "loading" || phase === "executing") return;
+    if (!prompt || phase === "loading" || phase === "executing" || phase === "rolling_back") return;
 
     setInput("");
     setError("");
@@ -162,12 +166,135 @@ export function Chat() {
     }
   };
 
+  const handleRollback = async (messageIndex: number) => {
+    if (isBusy) return;
+
+    const sourceMessage = messages[messageIndex];
+    const sourceChangeSet = sourceMessage?.changeSet;
+    if (!sourceChangeSet) return;
+
+    // Capture stable identifiers in the closure — do not rely on state
+    // indices which can shift if messages update concurrently.
+    const sourceId = sourceChangeSet.id;
+
+    setPhase("rolling_back");
+    setActiveRollbackId(sourceId);
+    setError("");
+    scrollToBottom();
+
+    try {
+      // Step 1: Build reversal changeset
+      const buildRes = await fetch("/api/orchestrator/rollback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changeSet: sourceChangeSet }),
+      });
+
+      if (!buildRes.ok) {
+        const body = await buildRes.json().catch(() => ({ error: buildRes.statusText }));
+        throw new Error(
+          body.message ?? body.error ?? `Rollback build failed (${buildRes.status})`
+        );
+      }
+
+      const { changeSet: rollbackDraft } = (await buildRes.json()) as {
+        changeSet: ChangeSet;
+      };
+
+      // Step 2: Show the reversal draft, tagged so we can find it later
+      const draftId = rollbackDraft.id;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Reversal changeset generated for ${sourceChangeSet.id.slice(0, 8)}. Executing rollback\u2026`,
+          changeSet: rollbackDraft,
+          rollbackDraftId: draftId,
+        },
+      ]);
+      scrollToBottom();
+
+      // Step 3: Execute the reversal through the standard pipeline
+      const execRes = await fetch("/api/orchestrator/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changeSet: rollbackDraft }),
+      });
+
+      if (!execRes.ok) {
+        const body = await execRes.json().catch(() => ({ error: execRes.statusText }));
+        throw new Error(
+          body.message ?? body.error ?? `Rollback execution failed (${execRes.status})`
+        );
+      }
+
+      const execData: ExecuteChangeSetResult = await execRes.json();
+
+      if (execData.error) {
+        throw new Error(execData.error.message);
+      }
+
+      // Step 4: Update messages — conditionally mark original, replace draft
+      setMessages((prev) => {
+        const updated = [...prev];
+
+        // Only mark the original as rolled_back if the rollback fully succeeded
+        if (execData.changeSet.status === "completed") {
+          const sourceIdx = updated.findIndex(
+            (m) => m.changeSet?.id === sourceId
+          );
+          if (sourceIdx !== -1 && updated[sourceIdx].changeSet) {
+            updated[sourceIdx] = {
+              ...updated[sourceIdx],
+              changeSet: {
+                ...updated[sourceIdx].changeSet!,
+                status: "rolled_back" as const,
+              },
+            };
+          }
+        }
+
+        // Find the draft message by its tagged ID, not array position
+        const draftIdx = updated.findIndex(
+          (m) => m.rollbackDraftId === draftId
+        );
+        if (draftIdx !== -1) {
+          updated[draftIdx] = {
+            role: "assistant",
+            content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
+            changeSet: execData.changeSet,
+          };
+        } else {
+          updated.push({
+            role: "assistant",
+            content: `Rollback ${execData.changeSet.status === "completed" ? "completed successfully" : "finished with status: " + execData.changeSet.status}.`,
+            changeSet: execData.changeSet,
+          });
+        }
+
+        return updated;
+      });
+
+      setPhase("complete");
+      setActiveRollbackId(null);
+      scrollToBottom();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setPhase("error");
+      setActiveRollbackId(null);
+
+      scrollToBottom();
+    }
+  };
+
   const handleReset = () => {
     setPhase("idle");
     setError("");
     setDraftChangeSet(null);
     setDraftReasoning("");
   };
+
+  const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -237,7 +364,12 @@ export function Chat() {
 
             {msg.changeSet && (
               <div className="ml-0 max-w-full">
-                <ChangeSetView changeSet={msg.changeSet} />
+                <ChangeSetView
+                  changeSet={msg.changeSet}
+                  onRollback={() => handleRollback(i)}
+                  isRollingBack={phase === "rolling_back" && activeRollbackId === msg.changeSet.id}
+                  disabled={isBusy}
+                />
               </div>
             )}
           </div>
@@ -255,6 +387,13 @@ export function Chat() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             Waiting for Guardian approval&hellip;
+          </div>
+        )}
+
+        {phase === "rolling_back" && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Executing rollback &mdash; waiting for Guardian approval&hellip;
           </div>
         )}
 
@@ -307,14 +446,12 @@ export function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe a commerce change..."
-            disabled={phase === "loading" || phase === "executing"}
+            disabled={isBusy}
             className="flex-1"
           />
           <Button
             type="submit"
-            disabled={
-              !input.trim() || phase === "loading" || phase === "executing"
-            }
+            disabled={!input.trim() || isBusy}
           >
             Send
           </Button>
