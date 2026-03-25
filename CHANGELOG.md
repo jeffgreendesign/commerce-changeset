@@ -45,6 +45,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - `.env.example` with placeholder credentials
 - `llms.txt` for LLM-friendly project summary
 - Project docs: CLAUDE.md, AGENTS.md, CONTRIBUTING.md
+- Writer Agent tools: `update_inventory_flag` (inventory management) and `bulk_price_change` (batch price updates)
+- Rollback execution: `POST /api/orchestrator/rollback` route + `lib/changeset/rollback-builder.ts` for building reversal changesets
+- Rollback UI: execute button in receipt, `rolling_back` chat phase, spinner/disabled state separation
+- Read-only query support: Reader Agent responses rendered as formatted markdown with GFM tables
+- shadcn Table component (`components/ui/table.tsx`) for markdown table rendering in chat
+- Agent badge component (`components/changeset/agent-badge.tsx`): color-coded by agent type
+- Autonomy badges, tool call chips, and context boundary indicators in delegation tree
+- Clickable risk badges expanding to full policy explanation
+- `react-markdown` and `remark-gfm` dependencies for markdown rendering
 
 ### Changed
 
@@ -52,6 +61,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - Moved `shadcn` to devDependencies
 - Deferred Auth0AI initialization to request time (fixes Vercel build)
 - Auth0Client now requests `offline_access` scope and enables Connected Accounts endpoint
+- Orchestrator action enum expanded: added `update_inventory_flag`, `bulk_price_change`
+- Chat state machine: added `rolling_back` phase
+- Chat Message type: added `readResult` and `rollbackDraftId` fields
 
 ### Fixed
 
@@ -60,6 +72,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - `.gitignore` updated to exclude `.env*.local` files
 - Added `setAIContext()` call in token-vault route (fixes "No AI context found" error)
 - Connected Accounts flow: login with `/me/` audience to get JWT with `create:me:connected_accounts` scope
+- Rollback flow hardening: JSON parse guard, phase guard, stable IDs, initiator propagation
+- Rollback spinner separated from disabled state across operation cards
 
 ### Security
 

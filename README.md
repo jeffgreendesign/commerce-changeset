@@ -66,28 +66,69 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```
 app/
-  layout.tsx              — Root layout (Geist fonts, metadata)
-  page.tsx                — Home page (login/logout UI)
-  globals.css             — Tailwind v4 theme config
+  layout.tsx              — Root layout (Geist fonts, metadata, global styles)
+  page.tsx                — Home page (server component, Auth0 session check)
+  globals.css             — Tailwind v4 theme config (@theme inline, oklch colors)
   api/auth/[auth0]/
-    route.ts              — Auth0 route handler
+    route.ts              — Auth0 route handler (login, logout, callback)
   api/spike/token-vault/
-    route.ts              — Token Vault → Google Sheets spike
+    route.ts              — Token Vault → Google Sheets spike (GET, env-gated)
   api/spike/connect-google/
-    route.ts              — Google Connected Accounts linking spike
+    route.ts              — Google Connected Accounts linking spike (GET, env-gated)
   api/spike/ciba/
-    route.ts              — CIBA + Guardian push notification approval spike
+    route.ts              — CIBA + Guardian push notification approval spike (GET, env-gated)
+  api/reader/
+    route.ts              — Reader Agent POST route (authenticated, production)
+  api/orchestrator/
+    route.ts              — Orchestrator Agent POST route (authenticated, production)
+    execute/
+      route.ts            — Execute route: CIBA approval + writer execution + receipt (POST, authenticated)
+    rollback/
+      route.ts            — Rollback route: build reversal changeset from executed original (POST, authenticated)
+  dashboard/
+    page.tsx              — Dashboard (server component, auth gate, user session)
+    chat.tsx              — Chat interface (client component, fetch-based state machine)
 components/ui/
-  button.tsx              — shadcn Button (Base UI + CVA)
+  button.tsx              — shadcn Button wrapping Base UI ButtonPrimitive + CVA
+  card.tsx                — shadcn Card (header, title, content, footer)
+  badge.tsx               — shadcn Badge (variants: default, secondary, destructive, outline)
+  collapsible.tsx         — shadcn Collapsible wrapping Base UI CollapsiblePrimitive
+  separator.tsx           — shadcn Separator
+  input.tsx               — shadcn Input
+  table.tsx               — shadcn Table for markdown table rendering in chat
+components/changeset/
+  agent-badge.tsx         — Color-coded agent indicator badges (Reader/Writer/Notifier)
+  changeset-view.tsx      — Composite view: header, risk summary, operations, rollback, receipt
+  operation-card.tsx      — Single operation: action, target, risk badge, diff, result, checks
+  risk-badge.tsx          — Color-coded risk tier badge (green/blue/amber/red)
+  risk-summary.tsx        — Aggregate risk: ops by tier, CIBA badge, approval counts
+  diff-view.tsx           — Field-level before/after diff table
+  execution-receipt.tsx   — Receipt: OBO chain, delegations, verification, audit hash
+  rollback-section.tsx    — Collapsible rollback instructions per operation
 config/
   version-floors.json     — Minimum dependency versions for CVE protection
 lib/
-  auth0.ts                — Auth0Client singleton (server-only)
+  auth0.ts                — Auth0Client singleton (server-only, offline_access + Connected Accounts)
   utils.ts                — cn() utility (clsx + tailwind-merge)
+  policy/
+    types.ts              — Risk tier, PolicyFact, PolicyDecision types
+    engine.ts             — json-rules-engine rules + evaluatePolicy()
+  changeset/
+    types.ts              — ChangeSet, Operation, RiskSummary, ExecutionReceipt types
+    builder.ts            — buildChangeSet(): policy evaluation + diff + rollback assembly
+    approval.ts           — CIBA approval: dynamic binding messages, RAR authorization details
+    executor.ts           — Execution pipeline: approve → write → verify → notify → receipt
+    rollback-builder.ts   — buildRollbackChangeSet(): invert diffs, recompute risk, build reversal draft
+  agents/
+    reader.ts             — Reader Agent: 4 read-only Google Sheets tools + generateText runner
+    orchestrator.ts       — Orchestrator Agent: 3-tool workflow (gather → analyze → build)
+    writer.ts             — Writer Agent: update_price, set_promo_status, update_inventory_flag, bulk_price_change via Google Sheets write API
+    notifier.ts           — Notifier Agent: send_launch_notification via Gmail API + Token Vault OBO
 proxy.ts                  — Auth0 proxy intercepting all non-static routes
 scripts/
   security-check.sh       — Pre-commit security scanning
   version-floor-check.sh  — Dependency version enforcement
+public/                   — Static assets (SVGs)
 ```
 
 ## Peer Dependencies

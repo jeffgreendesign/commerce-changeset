@@ -31,7 +31,7 @@ Reader Agent (lib/agents/reader.ts)
 
 Writer Agent (lib/agents/writer.ts)
 - Deterministic (not LLM-driven); loops over approved operations
-- Tools: update_price (column E), set_promo_status (column F)
+- Tools: update_price (column E), set_promo_status (column F), update_inventory_flag (column G), bulk_price_change (column E, batch)
 - Only activated after change set approval via CIBA
 
 Notifier Agent (lib/agents/notifier.ts)
@@ -67,6 +67,7 @@ Skipped when requiresCIBA is false or 0 writer operations.
 4. Execution receipt: OBO chain, agent delegations, verification, audit hash (SHA-256)
 5. Notifier Agent dispatch (non-blocking)
 6. Final status: completed | partial_failure
+7. Rollback: reversal changesets built via rollback-builder.ts, linked by rollbackOf field
 
 ## Endpoints
 /auth/login        — Initiate Auth0 login (handled by middleware)
@@ -80,6 +81,7 @@ Skipped when requiresCIBA is false or 0 writer operations.
 /api/reader               — Reader Agent: natural-language product/pricing/launch queries (POST, authenticated)
 /api/orchestrator         — Orchestrator Agent: decomposes prompts into change sets with diffs and policy decisions (POST, authenticated)
 /api/orchestrator/execute — Execute approved change set: CIBA approval, write execution, verification, notification, receipt (POST, authenticated)
+/api/orchestrator/rollback — Build reversal changeset from executed original (POST, authenticated)
 /dashboard                — Chat dashboard for interacting with agents and viewing change sets (authenticated)
 
 ## UI Components

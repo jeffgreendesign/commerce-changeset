@@ -29,6 +29,8 @@ app/
     route.ts          — Orchestrator Agent POST route (authenticated, production)
     execute/
       route.ts        — Execute route: CIBA approval + writer execution + receipt (POST, authenticated)
+    rollback/
+      route.ts        — Rollback route: build reversal changeset from executed original (POST, authenticated)
   dashboard/
     page.tsx          — Dashboard (server component, auth gate, user session)
     chat.tsx          — Chat interface (client component, fetch-based state machine)
@@ -39,7 +41,9 @@ components/ui/
   collapsible.tsx     — shadcn Collapsible wrapping Base UI CollapsiblePrimitive
   separator.tsx       — shadcn Separator
   input.tsx           — shadcn Input
+  table.tsx           — shadcn Table for markdown table rendering in chat
 components/changeset/
+  agent-badge.tsx     — Color-coded agent indicator badges (Reader/Writer/Notifier)
   changeset-view.tsx  — Composite view: header, risk summary, operations, rollback, receipt
   operation-card.tsx  — Single operation: action, target, risk badge, diff, result, checks
   risk-badge.tsx      — Color-coded risk tier badge (green/blue/amber/red)
@@ -58,10 +62,11 @@ lib/
     builder.ts        — buildChangeSet(): policy evaluation + diff + rollback assembly
     approval.ts       — CIBA approval: dynamic binding messages, RAR authorization details
     executor.ts       — Execution pipeline: approve → write → verify → notify → receipt
+    rollback-builder.ts — buildRollbackChangeSet(): invert diffs, recompute risk, build reversal draft
   agents/
     reader.ts         — Reader Agent: 4 read-only Google Sheets tools + generateText runner
     orchestrator.ts   — Orchestrator Agent: 3-tool workflow (gather → analyze → build)
-    writer.ts         — Writer Agent: update_price, set_promo_status via Google Sheets write API
+    writer.ts         — Writer Agent: update_price, set_promo_status, update_inventory_flag, bulk_price_change via Google Sheets write API
     notifier.ts       — Notifier Agent: send_launch_notification via Gmail API + Token Vault OBO
 proxy.ts              — Auth0 proxy intercepting all non-static routes
 public/               — Static assets (SVGs)
