@@ -14,7 +14,10 @@ interface RollbackSectionProps {
   changeSetStatus?: ChangeSetStatus;
   isRollback?: boolean;
   onRollback?: () => void;
+  /** True only on the card actively being rolled back — controls spinner. */
   isRollingBack?: boolean;
+  /** True during any busy phase — disables button on all cards. */
+  disabled?: boolean;
 }
 
 export function RollbackSection({
@@ -23,6 +26,7 @@ export function RollbackSection({
   isRollback,
   onRollback,
   isRollingBack,
+  disabled,
 }: RollbackSectionProps) {
   const writerOps = operations.filter((op) => op.agent === "writer");
   if (writerOps.length === 0) return null;
@@ -63,7 +67,7 @@ export function RollbackSection({
                   variant="destructive"
                   size="sm"
                   onClick={onRollback}
-                  disabled={isRollingBack}
+                  disabled={isRollingBack || disabled}
                 >
                   {isRollingBack ? (
                     <>

@@ -46,6 +46,7 @@ export function Chat() {
   const [error, setError] = useState("");
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
   const [draftReasoning, setDraftReasoning] = useState("");
+  const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -177,7 +178,7 @@ export function Chat() {
     const sourceId = sourceChangeSet.id;
 
     setPhase("rolling_back");
-
+    setActiveRollbackId(sourceId);
     setError("");
     scrollToBottom();
 
@@ -275,11 +276,12 @@ export function Chat() {
       });
 
       setPhase("complete");
-
+      setActiveRollbackId(null);
       scrollToBottom();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("error");
+      setActiveRollbackId(null);
 
       scrollToBottom();
     }
@@ -365,7 +367,8 @@ export function Chat() {
                 <ChangeSetView
                   changeSet={msg.changeSet}
                   onRollback={() => handleRollback(i)}
-                  isRollingBack={isBusy}
+                  isRollingBack={phase === "rolling_back" && activeRollbackId === msg.changeSet.id}
+                  disabled={isBusy}
                 />
               </div>
             )}
