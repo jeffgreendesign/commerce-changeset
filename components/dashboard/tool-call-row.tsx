@@ -1,11 +1,16 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { CheckIcon, Loader2Icon, AlertCircleIcon } from "lucide-react";
+import {
+  CheckIcon,
+  Loader2Icon,
+  AlertCircleIcon,
+  MinusCircleIcon,
+} from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────
 
-export type ToolCallStatus = "running" | "completed" | "failed";
+export type ToolCallStatus = "running" | "completed" | "failed" | "skipped";
 
 export interface ToolCallData {
   name: string;
@@ -28,6 +33,9 @@ export function ToolCallRow({ call }: { call: ToolCallData }) {
       {call.status === "failed" && (
         <AlertCircleIcon className="size-3 shrink-0 text-destructive" />
       )}
+      {call.status === "skipped" && (
+        <MinusCircleIcon className="size-3 shrink-0 text-muted-foreground" />
+      )}
 
       {/* Tool name */}
       <code
@@ -36,6 +44,7 @@ export function ToolCallRow({ call }: { call: ToolCallData }) {
           call.status === "completed" && "text-muted-foreground",
           call.status === "running" && "text-foreground",
           call.status === "failed" && "text-destructive",
+          call.status === "skipped" && "text-muted-foreground line-through",
         )}
       >
         {call.name}()

@@ -101,10 +101,16 @@ function buildTraces(
 
   if (phase === "complete") {
     // Writer completed — derive from actual results when available
+    const STATUS_MAP = {
+      success: "completed",
+      failure: "failed",
+      skipped: "skipped",
+    } as const;
+
     const writerToolCalls = results
       ? results.map((r) => ({
           name: r.operationId,
-          status: (r.status === "failure" ? "failed" : "completed") as "completed" | "failed",
+          status: STATUS_MAP[r.status],
           durationMs: r.duration,
         }))
       : Array.from({ length: operationCount }, (_, i) => ({
