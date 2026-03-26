@@ -59,6 +59,9 @@ function checkMarginFloors(
     }
 
     for (const diff of op.diff) {
+      // Only check promo-price fields — base price updates are not margin violations
+      if (!diff.field.toLowerCase().includes("promo")) continue;
+
       const afterPrice = Number(diff.after);
       if (isNaN(afterPrice)) continue;
 

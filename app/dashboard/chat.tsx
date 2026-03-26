@@ -379,9 +379,11 @@ export function Chat() {
   }, []);
 
   const handleVoiceDeactivate = useCallback(async () => {
+    // Capture the session being closed before any state changes
+    const closingSessionId = voiceSessionId;
     setVoiceActive(false);
 
-    if (voiceSessionId) {
+    if (closingSessionId) {
       const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
       try {
         await fetch("/api/voice", {
@@ -389,7 +391,7 @@ export function Chat() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "end_session",
-            sessionId: voiceSessionId,
+            sessionId: closingSessionId,
             sessionDurationMinutes: durationMinutes,
             operationCount: messages.reduce((acc, m) => acc + (m.changeSet?.operations.length ?? 0), 0),
             operationTypes: messages
@@ -404,17 +406,22 @@ export function Chat() {
       }
     }
 
-    setVoiceSessionId(null);
-    setEmotionalState("calm");
-    setStressLevel(0);
-    setSessionPattern(null);
-    errorCountRef.current = 0;
-    paceHistoryRef.current = [];
-    stressHistoryRef.current = [];
+    // Only clear state if no new session was started while we were awaiting
+    setVoiceSessionId((prev) => {
+      if (prev !== null && prev !== closingSessionId) return prev;
+      // Safe to clean up — no new session was started
+      setEmotionalState("calm");
+      setStressLevel(0);
+      setSessionPattern(null);
+      errorCountRef.current = 0;
+      paceHistoryRef.current = [];
+      stressHistoryRef.current = [];
+      return null;
+    });
     toast.info("Voice mode deactivated");
   }, [voiceSessionId, messages]);
 
-  // Shared synchronous submit helper used by both form submit and command palette
+  // Shared submit helper used by both form submit and command palette
   const submitMessage = useCallback(
     async (prompt: string) => {
       if (!prompt || isBusy) return;
@@ -429,11 +436,34 @@ export function Chat() {
       scrollToBottom();
 
       try {
-        const res = await fetch("/api/orchestrator", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: prompt }),
-        });
+        // Route through voice API when voice session is active
+        const useVoiceRoute = voiceActive && voiceSessionId;
+        const res = await fetch(
+          useVoiceRoute ? "/api/voice" : "/api/orchestrator",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              useVoiceRoute
+                ? {
+                    action: "submit" as const,
+                    sessionId: voiceSessionId,
+                    message: prompt,
+                    voiceMetrics: {
+                      tone: "neutral",
+                      pace: dominantPace(paceHistoryRef.current),
+                      pitchVariance: 0.5,
+                      stressLevel,
+                      confidence: 0.8,
+                    },
+                    sessionDurationMinutes:
+                      (Date.now() - voiceStartTimeRef.current) / 60000,
+                    errorCount: errorCountRef.current,
+                  }
+                : { message: prompt }
+            ),
+          }
+        );
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -498,7 +528,7 @@ export function Chat() {
         scrollToBottom();
       }
     },
-    [isBusy, scrollToBottom],
+    [isBusy, scrollToBottom, voiceActive, voiceSessionId, stressLevel],
   );
 
   const handleApplyFix = useCallback(
