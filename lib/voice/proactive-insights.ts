@@ -132,7 +132,9 @@ function checkInconsistencies(
       }
 
       if (op.action === "update_price" || op.action === "bulk_price_change") {
-        priceChanges.set(sku, true);
+        if (diffItem.field.toLowerCase().includes("promo")) {
+          priceChanges.set(sku, true);
+        }
       }
     }
   }

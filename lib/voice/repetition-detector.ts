@@ -108,13 +108,18 @@ export function detectRepetition(
           isRepetitive: true,
           patternDescription: `${count} operations targeting ${prefix}-series products — consider a category-wide update`,
           affectedTargets: categoryOps.map((op) => extractSku(op.target)),
-          confirmationTable: categoryOps.map((op) => ({
-            sku: extractSku(op.target),
-            productName: extractProductName(op.target),
-            currentPrice: String(op.diff[0]?.before ?? "N/A"),
-            proposedPrice: String(op.diff[0]?.after ?? "N/A"),
-            field: op.diff[0]?.field ?? op.action,
-          })),
+          confirmationTable: categoryOps.map((op) => {
+            const priceDiff = op.diff.find(
+              (d) => d.field === "Promo Price" || d.field.startsWith("Promo Price")
+            ) ?? op.diff[0];
+            return {
+              sku: extractSku(op.target),
+              productName: extractProductName(op.target),
+              currentPrice: String(priceDiff?.before ?? "N/A"),
+              proposedPrice: String(priceDiff?.after ?? "N/A"),
+              field: priceDiff?.field ?? op.action,
+            };
+          }),
         };
       }
     }
