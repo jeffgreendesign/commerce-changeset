@@ -15,7 +15,10 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
+import { ChangeSetSkeleton } from "@/components/changeset/changeset-skeleton";
 import { AgentBadge } from "@/components/changeset/agent-badge";
+import { WorkflowPipeline } from "@/components/dashboard/workflow-pipeline";
+import { CIBAApprovalGate } from "@/components/dashboard/ciba-approval-gate";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 
@@ -449,26 +452,35 @@ export function Chat() {
           </div>
         ))}
 
-        {/* Loading states */}
-        {phase === "loading" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Analyzing request&hellip;
-          </div>
-        )}
+        {/* Workflow pipeline + contextual loading states */}
+        {(phase === "loading" ||
+          phase === "executing" ||
+          phase === "rolling_back" ||
+          phase === "draft" ||
+          phase === "complete") &&
+          messages.length > 0 && (
+            <WorkflowPipeline
+              phase={phase}
+              requiresCIBA={
+                draftChangeSet?.riskSummary.requiresCIBA ??
+                messages[messages.length - 1]?.changeSet?.riskSummary
+                  .requiresCIBA ??
+                false
+              }
+            />
+          )}
 
+        {/* Skeleton loading for orchestrator response */}
+        {phase === "loading" && <ChangeSetSkeleton />}
+
+        {/* CIBA approval gate during execution */}
         {phase === "executing" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Waiting for Guardian approval&hellip;
-          </div>
+          <CIBAApprovalGate isRollback={false} />
         )}
 
+        {/* CIBA approval gate during rollback */}
         {phase === "rolling_back" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Executing rollback &mdash; waiting for Guardian approval&hellip;
-          </div>
+          <CIBAApprovalGate isRollback />
         )}
 
         {/* Error */}
