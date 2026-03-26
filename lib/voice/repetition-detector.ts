@@ -130,12 +130,12 @@ export function detectRepetition(
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function extractSku(target: string): string {
-  const match = target.match(/^(STR-\d{3})/);
+  const match = target.match(/^([A-Z]{3}-\d{3})/);
   return match?.[1] ?? target;
 }
 
 function extractProductName(target: string): string {
-  const match = target.match(/^STR-\d{3}\s+(.+)/);
+  const match = target.match(/^[A-Z]{3}-\d{3}\s+(.+)/);
   return match?.[1] ?? target;
 }
 

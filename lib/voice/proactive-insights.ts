@@ -12,7 +12,7 @@ import type { ParsedOperation } from "@/lib/changeset/builder";
 import type { ProactiveIssue } from "./types";
 
 /** Default minimum margin percentage — prices below this floor trigger a warning. */
-const DEFAULT_minMarginPercent = 15;
+const DEFAULT_MIN_MARGIN_PERCENT = 15;
 
 /**
  * Run proactive checks against proposed operations and current product data.
@@ -30,7 +30,7 @@ const DEFAULT_minMarginPercent = 15;
 export function runProactiveChecks(
   operations: ParsedOperation[],
   productData: Record<string, string>[],
-  minMarginPercent: number = DEFAULT_minMarginPercent
+  minMarginPercent: number = DEFAULT_MIN_MARGIN_PERCENT
 ): ProactiveIssue[] {
   const issues: ProactiveIssue[] = [];
 
@@ -66,35 +66,36 @@ function checkMarginFloors(
 
       if (isNaN(basePrice) || basePrice === 0) continue;
 
-      const marginPercent =
+      const discountPercent =
         ((basePrice - afterPrice) / basePrice) * 100;
+      const remainingMarginPercent = 100 - discountPercent;
 
       // Check if discount exceeds safe margin
-      if (marginPercent > (100 - minMarginPercent)) {
+      if (remainingMarginPercent < minMarginPercent) {
         const minPrice = Number((basePrice * (minMarginPercent / 100)).toFixed(2));
 
         issues.push({
           severity: "error",
           operationId: op.target,
-          description: `${sku} promo price ($${afterPrice}) leaves only ${(100 - marginPercent).toFixed(1)}% margin — below the ${minMarginPercent}% floor. Minimum safe price: $${minPrice.toFixed(2)}`,
+          description: `${sku} promo price ($${afterPrice}) leaves only ${remainingMarginPercent.toFixed(1)}% margin — below the ${minMarginPercent}% floor. Minimum safe price: $${minPrice.toFixed(2)}`,
           suggestedFix: {
             action: op.action,
             target: op.target,
             field: diff.field,
             currentValue: afterPrice,
             suggestedValue: Number(
-              (basePrice * (1 - (100 - minMarginPercent) / 100)).toFixed(2)
+              (basePrice * (minMarginPercent / 100)).toFixed(2)
             ),
           },
         });
       }
 
       // Warn on very large discounts (>50%)
-      if (marginPercent > 50 && marginPercent <= (100 - minMarginPercent)) {
+      if (discountPercent > 50 && remainingMarginPercent >= minMarginPercent) {
         issues.push({
           severity: "warning",
           operationId: op.target,
-          description: `${sku} has a ${marginPercent.toFixed(0)}% discount — unusually large. Verify this is intentional.`,
+          description: `${sku} has a ${discountPercent.toFixed(0)}% discount — unusually large. Verify this is intentional.`,
         });
       }
     }

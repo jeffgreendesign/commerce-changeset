@@ -28,7 +28,7 @@ import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-car
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
-import type { EmotionalState, RepetitionSignal } from "@/lib/voice/types";
+import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -102,6 +102,11 @@ function dominantPace(history: Array<"fast" | "normal" | "slow">): "fast" | "nor
   return "normal";
 }
 
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function Chat() {
@@ -121,6 +126,7 @@ export function Chat() {
   const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
   const paceHistoryRef = useRef<Array<"fast" | "normal" | "slow">>([]);
+  const stressHistoryRef = useRef<number[]>([]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -377,7 +383,7 @@ export function Chat() {
             operationTypes: messages
               .flatMap((m) => m.changeSet?.operations.map((o) => o.action) ?? []),
             errorCount: errorCountRef.current,
-            avgStressLevel: stressLevel,
+            avgStressLevel: mean(stressHistoryRef.current),
             avgSpeechPace: dominantPace(paceHistoryRef.current),
           }),
         });
@@ -392,8 +398,21 @@ export function Chat() {
     setSessionPattern(null);
     errorCountRef.current = 0;
     paceHistoryRef.current = [];
+    stressHistoryRef.current = [];
     toast.info("Voice mode deactivated");
-  }, [voiceSessionId, messages, stressLevel]);
+  }, [voiceSessionId, messages]);
+
+  const handleApplyFix = useCallback(
+    (issue: ProactiveIssue) => {
+      if (isBusy || !issue.suggestedFix) return;
+      const { action, target, field, suggestedValue } = issue.suggestedFix;
+      submitMessage(
+        `Apply fix: ${action} on ${target} — set ${field} to ${String(suggestedValue)}`
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isBusy]
+  );
 
   const handleBulkAccept = useCallback(
     (selectedRows: { sku: string; productName: string; currentPrice: string | number; proposedPrice: string | number; field: string }[]) => {
@@ -439,6 +458,7 @@ export function Chat() {
         if (data.voiceContext) {
           setEmotionalState(data.voiceContext.emotionalState);
           setStressLevel(data.voiceContext.voiceMetrics.stressLevel);
+          stressHistoryRef.current.push(data.voiceContext.voiceMetrics.stressLevel);
           if (data.voiceContext.voiceMetrics.pace) {
             paceHistoryRef.current.push(data.voiceContext.voiceMetrics.pace);
           }
@@ -562,6 +582,7 @@ export function Chat() {
             {msg.changeSet?.proactiveIssues && msg.changeSet.proactiveIssues.length > 0 && (
               <ProactiveIssuesCard
                 issues={msg.changeSet.proactiveIssues}
+                onApplyFix={handleApplyFix}
                 disabled={isBusy}
               />
             )}
