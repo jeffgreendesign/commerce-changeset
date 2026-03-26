@@ -1,42 +1,18 @@
-"use client";
-
-import { AgentBadge } from "./agent-badge";
+import { AgentBadge } from "@/components/changeset/agent-badge";
+import {
+  deriveDelegationStatus,
+  DELEGATION_STATUS_CONFIG,
+} from "@/components/changeset/delegation-status";
 import { Badge } from "@/components/ui/badge";
 import { LockIcon } from "lucide-react";
 import type { AgentDelegation } from "@/lib/changeset/types";
 import { cn } from "@/lib/utils";
 
-// ── Status helpers ──────────────────────────────────────────────────
-
-function deriveDelegationStatus(d: AgentDelegation): "completed" | "failed" | "pending" {
-  const hasFailed = d.operationsPerformed.some(
-    (op) => op.toLowerCase().includes("fail") || op.toLowerCase().includes("error"),
-  );
-  if (hasFailed) return "failed";
-  if (d.duration > 0 && d.operationsPerformed.length > 0) return "completed";
-  return "pending";
-}
-
-const STATUS_STYLE: Record<string, { label: string; className: string }> = {
-  completed: {
-    label: "\u2713 Done",
-    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  },
-  failed: {
-    label: "\u2717 Failed",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  },
-  pending: {
-    label: "\u2022 Pending",
-    className: "bg-muted text-muted-foreground",
-  },
-};
-
 // ── Node component ──────────────────────────────────────────────────
 
 function DelegationNode({ delegation }: { delegation: AgentDelegation }) {
   const status = deriveDelegationStatus(delegation);
-  const cfg = STATUS_STYLE[status];
+  const cfg = DELEGATION_STATUS_CONFIG[status];
 
   return (
     <div className="flex flex-col items-center gap-1.5 rounded-lg border bg-card p-3 shadow-sm min-w-[120px]">

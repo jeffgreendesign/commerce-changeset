@@ -6,14 +6,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  deriveDelegationStatus,
+  DELEGATION_STATUS_CONFIG,
+} from "@/components/changeset/delegation-status";
 import type {
-  AgentDelegation,
   ExecutionReceipt as ReceiptType,
   RiskSummary,
 } from "@/lib/changeset/types";
 import { cn } from "@/lib/utils";
-import { AgentBadge } from "./agent-badge";
-import { DelegationGraph } from "./delegation-graph";
+import { AgentBadge } from "@/components/changeset/agent-badge";
+import { DelegationGraph } from "@/components/changeset/delegation-graph";
 
 // ── Shared icons ────────────────────────────────────────────────────
 
@@ -24,32 +27,6 @@ function LockIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-// ── Status helpers ──────────────────────────────────────────────────
-
-function deriveDelegationStatus(d: AgentDelegation): "completed" | "failed" | "pending" {
-  const hasFailed = d.operationsPerformed.some(
-    (op) => op.toLowerCase().includes("fail") || op.toLowerCase().includes("error"),
-  );
-  if (hasFailed) return "failed";
-  if (d.duration > 0 && d.operationsPerformed.length > 0) return "completed";
-  return "pending";
-}
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  completed: {
-    label: "\u2713 Completed",
-    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  },
-  failed: {
-    label: "\u2717 Failed",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  },
-  pending: {
-    label: "\u2022 Pending",
-    className: "bg-muted text-muted-foreground",
-  },
-};
 
 // ── Main component ──────────────────────────────────────────────────
 
@@ -112,7 +89,7 @@ export function ExecutionReceipt({
                     <AgentBadge agent={d.agent} />
                     {(() => {
                       const status = deriveDelegationStatus(d);
-                      const cfg = STATUS_CONFIG[status];
+                      const cfg = DELEGATION_STATUS_CONFIG[status];
                       return (
                         <Badge className={`border-0 text-[10px] px-1.5 py-0 ${cfg.className}`}>
                           {cfg.label}

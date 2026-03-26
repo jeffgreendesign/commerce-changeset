@@ -1,7 +1,6 @@
-"use client";
-
 import { AgentTraceCard, type AgentTraceData } from "./agent-trace-card";
 import { cn } from "@/lib/utils";
+import type { OperationResult } from "@/lib/changeset/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -18,6 +17,8 @@ interface AgentActivityProps {
   phase: ChatPhase;
   requiresCIBA: boolean;
   operationCount: number;
+  /** Actual execution results — used to build accurate "complete" traces. */
+  results?: OperationResult[];
 }
 
 // ── Build simulated agent traces from phase ──────────────────────────
@@ -26,6 +27,7 @@ function buildTraces(
   phase: ChatPhase,
   requiresCIBA: boolean,
   operationCount: number,
+  results?: OperationResult[],
 ): AgentTraceData[] {
   const traces: AgentTraceData[] = [];
 
@@ -94,18 +96,30 @@ function buildTraces(
   }
 
   if (phase === "complete") {
-    // Writer completed
-    const writerToolCalls = Array.from({ length: operationCount }, (_, i) => ({
-      name: `operation_${i + 1}`,
-      status: "completed" as const,
-      durationMs: 200 + Math.floor(i * 50),
-    }));
+    // Writer completed — derive from actual results when available
+    const writerToolCalls = results
+      ? results.map((r) => ({
+          name: r.operationId,
+          status: (r.status === "failure" ? "failed" : "completed") as "completed" | "failed",
+          durationMs: r.duration,
+        }))
+      : Array.from({ length: operationCount }, (_, i) => ({
+          name: `operation_${i + 1}`,
+          status: "completed" as const,
+          durationMs: undefined,
+        }));
+
+    const writerDuration = results
+      ? results.reduce((sum, r) => sum + r.duration, 0)
+      : undefined;
+
+    const hasFailed = results?.some((r) => r.status === "failure");
 
     traces.push({
       agent: "writer",
-      status: "completed",
+      status: hasFailed ? "failed" : "completed",
       toolCalls: writerToolCalls,
-      durationMs: operationCount * 250,
+      durationMs: writerDuration,
       contextBoundary: "approved change set operations only",
     });
 
@@ -117,15 +131,12 @@ function buildTraces(
         {
           name: "send_launch_notification",
           status: "completed",
-          durationMs: 450,
         },
         {
           name: "send_execution_receipt",
           status: "completed",
-          durationMs: 380,
         },
       ],
-      durationMs: 830,
       contextBoundary: "notification scope",
     });
   }
@@ -139,8 +150,9 @@ export function AgentActivity({
   phase,
   requiresCIBA,
   operationCount,
+  results,
 }: AgentActivityProps) {
-  const traces = buildTraces(phase, requiresCIBA, operationCount);
+  const traces = buildTraces(phase, requiresCIBA, operationCount, results);
 
   if (traces.length === 0) return null;
 

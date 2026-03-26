@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OperationDiff } from "@/lib/changeset/types";
 
@@ -59,7 +59,7 @@ export function DiffView({ diffs }: { diffs: OperationDiff[] }) {
               <span
                 className={cn(
                   "text-red-600 line-through dark:text-red-400",
-                  String(d.before).trim() === "" && "text-muted-foreground no-underline",
+                  ["", "undefined", "null"].includes(String(d.before).trim()) && "text-muted-foreground no-underline",
                 )}
               >
                 {formatValue(d.before)}
@@ -85,10 +85,8 @@ export function DiffView({ diffs }: { diffs: OperationDiff[] }) {
               >
                 {change.direction === "up" ? (
                   <ArrowUpIcon className="size-3" />
-                ) : change.direction === "down" ? (
-                  <ArrowDownIcon className="size-3" />
                 ) : (
-                  <MinusIcon className="size-3" />
+                  <ArrowDownIcon className="size-3" />
                 )}
                 {change.percent.toFixed(0)}%
               </span>

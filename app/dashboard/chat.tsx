@@ -106,73 +106,8 @@ export function Chat() {
     });
   }, []);
 
-  const handleSubmit = async () => {
-    const prompt = input.trim();
-    if (!prompt || phase === "loading" || phase === "executing" || phase === "rolling_back") return;
-
-    setInput("");
-    setError("");
-    setDraftChangeSet(null);
-    setPhase("loading");
-
-    const userMessage: Message = { role: "user", content: prompt };
-    setMessages((prev) => [...prev, userMessage]);
-    scrollToBottom();
-
-    try {
-      const res = await fetch("/api/orchestrator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(
-          body.message ?? body.error ?? `Request failed (${res.status})`
-        );
-      }
-
-      const data: { changeSet: ChangeSet; reasoning: string } =
-        await res.json();
-
-      if (data.changeSet.operations.length === 0) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "Here\u2019s what I found:",
-            readResult: data.reasoning,
-          },
-        ]);
-        setPhase("complete");
-        toast.success("Query complete");
-        scrollToBottom();
-      } else {
-        setDraftChangeSet(data.changeSet);
-        setDraftReasoning(data.reasoning);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.reasoning,
-            changeSet: data.changeSet,
-            reasoning: data.reasoning,
-          },
-        ]);
-        setPhase("draft");
-        toast.info(
-          `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
-        );
-        scrollToBottom();
-      }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      setError(errMsg);
-      setPhase("error");
-      toast.error(`Request failed: ${errMsg}`);
-      scrollToBottom();
-    }
+  const handleSubmit = () => {
+    submitMessage(input.trim());
   };
 
   const handleExecute = async () => {
@@ -245,6 +180,7 @@ export function Chat() {
     setPhase("rolling_back");
     setActiveRollbackId(sourceId);
     setError("");
+    setDraftChangeSet(null);
     scrollToBottom();
 
     try {
@@ -343,7 +279,11 @@ export function Chat() {
 
       setPhase("complete");
       setActiveRollbackId(null);
-      toast.success("Rollback completed successfully");
+      if (execData.changeSet.status === "completed") {
+        toast.success("Rollback completed successfully");
+      } else {
+        toast.warning(`Rollback finished with status: ${execData.changeSet.status}`);
+      }
       scrollToBottom();
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -364,64 +304,74 @@ export function Chat() {
 
   const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
-  // Command palette: set input and auto-submit
-  const handleCommandSubmit = useCallback(
-    (prompt: string) => {
-      if (isBusy) return;
-      setInput(prompt);
-      // Defer to next tick so the input state is set before submit reads it
-      setTimeout(() => {
-        setInput("");
-        setError("");
-        setDraftChangeSet(null);
-        setPhase("loading");
+  // Shared synchronous submit helper used by both form submit and command palette
+  const submitMessage = useCallback(
+    async (prompt: string) => {
+      if (!prompt || isBusy) return;
 
-        const userMessage: Message = { role: "user", content: prompt };
-        setMessages((prev) => [...prev, userMessage]);
-        scrollToBottom();
+      setInput("");
+      setError("");
+      setDraftChangeSet(null);
+      setPhase("loading");
 
-        fetch("/api/orchestrator", {
+      const userMessage: Message = { role: "user", content: prompt };
+      setMessages((prev) => [...prev, userMessage]);
+      scrollToBottom();
+
+      try {
+        const res = await fetch("/api/orchestrator", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: prompt }),
-        })
-          .then(async (res) => {
-            if (!res.ok) {
-              const body = await res.json().catch(() => ({ error: res.statusText }));
-              throw new Error(body.message ?? body.error ?? `Request failed (${res.status})`);
-            }
-            return res.json();
-          })
-          .then((data: { changeSet: ChangeSet; reasoning: string }) => {
-            if (data.changeSet.operations.length === 0) {
-              setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: "Here\u2019s what I found:", readResult: data.reasoning },
-              ]);
-              setPhase("complete");
-              toast.success("Query complete");
-            } else {
-              setDraftChangeSet(data.changeSet);
-              setDraftReasoning(data.reasoning);
-              setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: data.reasoning, changeSet: data.changeSet, reasoning: data.reasoning },
-              ]);
-              setPhase("draft");
-              toast.info(
-                `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
-              );
-            }
-            scrollToBottom();
-          })
-          .catch((err: unknown) => {
-            const errMsg = err instanceof Error ? err.message : String(err);
-            setError(errMsg);
-            setPhase("error");
-            toast.error(`Request failed: ${errMsg}`);
-            scrollToBottom();
-          });
-      }, 0);
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(
+            body.message ?? body.error ?? `Request failed (${res.status})`
+          );
+        }
+
+        const data: { changeSet: ChangeSet; reasoning: string } =
+          await res.json();
+
+        if (data.changeSet.operations.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "Here\u2019s what I found:",
+              readResult: data.reasoning,
+            },
+          ]);
+          setPhase("complete");
+          toast.success("Query complete");
+          scrollToBottom();
+        } else {
+          setDraftChangeSet(data.changeSet);
+          setDraftReasoning(data.reasoning);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: data.reasoning,
+              changeSet: data.changeSet,
+              reasoning: data.reasoning,
+            },
+          ]);
+          setPhase("draft");
+          toast.info(
+            `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
+          );
+          scrollToBottom();
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setError(errMsg);
+        setPhase("error");
+        toast.error(`Request failed: ${errMsg}`);
+        scrollToBottom();
+      }
     },
     [isBusy, scrollToBottom],
   );
@@ -440,12 +390,12 @@ export function Chat() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Command Palette (Cmd+K) */}
-      <CommandPalette onSubmitPrompt={handleCommandSubmit} />
+      <CommandPalette onSubmitPrompt={submitMessage} />
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 && phase === "idle" && (
-          <IntentCards onSelect={handleCommandSubmit} />
+          <IntentCards onSelect={submitMessage} />
         )}
 
         {messages.map((msg, i) => (
@@ -542,6 +492,9 @@ export function Chat() {
               messages[messages.length - 1]?.changeSet?.operations.length ??
               0
             }
+            results={
+              messages[messages.length - 1]?.changeSet?.execution?.results
+            }
           />
         )}
 
@@ -575,8 +528,8 @@ export function Chat() {
         )}
       </div>
 
-      {/* Execute bar — only show when CIBA approval is needed */}
-      {phase === "draft" && draftChangeSet && draftChangeSet.riskSummary.requiresCIBA && (
+      {/* Execute bar */}
+      {phase === "draft" && draftChangeSet && (
         <div className="border-t bg-muted/50 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="text-sm">

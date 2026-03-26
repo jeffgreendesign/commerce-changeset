@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {
-  DollarSignIcon,
-  RocketIcon,
-  TagIcon,
-  SearchIcon,
-  RotateCcwIcon,
-  SunIcon,
-  MoonIcon,
-} from "lucide-react";
+import { RotateCcwIcon, SunIcon, MoonIcon } from "lucide-react";
 import {
   CommandDialog,
   CommandInput,
@@ -20,6 +12,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { useTheme } from "next-themes";
+import { ACTIONS } from "@/lib/actions";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -27,36 +20,12 @@ interface CommandPaletteProps {
   onSubmitPrompt: (prompt: string) => void;
 }
 
-// ── Command items ────────────────────────────────────────────────────
+// ── Extra commands beyond shared ACTIONS ─────────────────────────────
 
-const ACTION_COMMANDS = [
-  {
-    icon: DollarSignIcon,
-    label: "Price Change",
-    description: "Update pricing for a product",
-    prompt: "Set a 20% discount on STR-001 Classic Runner",
-  },
-  {
-    icon: RocketIcon,
-    label: "Launch Promo",
-    description: "Activate a promo campaign",
-    prompt: "Launch the spring promo for all Stride products",
-  },
-  {
-    icon: TagIcon,
-    label: "Toggle Promo Status",
-    description: "Enable or disable promo",
-    prompt: "Set promo status to active for STR-002 Court Essential",
-  },
-  {
-    icon: SearchIcon,
-    label: "Query Catalog",
-    description: "Check current prices and status",
-    prompt: "What are the current prices for all products?",
-  },
+const EXTRA_COMMANDS = [
   {
     icon: RotateCcwIcon,
-    label: "Bulk Price Change",
+    title: "Bulk Price Change",
     description: "Update prices across multiple products",
     prompt: "Apply a 15% discount to all running shoes",
   },
@@ -95,16 +64,16 @@ export function CommandPalette({ onSubmitPrompt }: CommandPaletteProps) {
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Actions">
-          {ACTION_COMMANDS.map((cmd) => {
+          {[...ACTIONS, ...EXTRA_COMMANDS].map((cmd) => {
             const Icon = cmd.icon;
             return (
               <CommandItem
-                key={cmd.label}
+                key={cmd.title}
                 onSelect={() => handleSelect(cmd.prompt)}
               >
                 <Icon className="size-4 shrink-0" />
                 <div className="flex flex-col">
-                  <span>{cmd.label}</span>
+                  <span>{cmd.title}</span>
                   <span className="text-xs text-muted-foreground">
                     {cmd.description}
                   </span>
