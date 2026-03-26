@@ -14,6 +14,7 @@ import { runWriterAgent } from "@/lib/agents/writer";
 import { runReaderAgent } from "@/lib/agents/reader";
 import { runNotifierAgent, sendExecutionReceipt } from "@/lib/agents/notifier";
 import { requestApproval } from "./approval";
+import type { ExecutorCallbacks } from "@/lib/voice/types";
 import type {
   ChangeSet,
   ChangeSetExecution,
@@ -29,6 +30,8 @@ export interface ExecuteChangeSetResult {
   changeSet: ChangeSet;
   error?: { code: string; message: string };
 }
+
+export type { ExecutorCallbacks };
 
 // ── Verification ─────────────────────────────────────────────────────
 
@@ -210,7 +213,8 @@ export async function executeChangeSet(
   changeSet: ChangeSet,
   refreshToken: string,
   userId: string,
-  userEmail?: string
+  userEmail?: string,
+  callbacks?: ExecutorCallbacks
 ): Promise<ExecuteChangeSetResult> {
   if (changeSet.status !== "draft") {
     throw new Error(
@@ -226,12 +230,15 @@ export async function executeChangeSet(
   // Step 1: Request CIBA approval (only when required)
   if (needsCIBA) {
     cs = { ...cs, status: "pending_approval" };
+    callbacks?.onPhaseStart?.("approval", `Requesting CIBA approval for ${writerOps.length} operations`);
+    callbacks?.onApprovalStatus?.("waiting");
 
     console.log(`[executor] Requesting CIBA approval for changeSet ${cs.id.slice(0, 8)}`);
     const approvalStart = performance.now();
     const approvalResult = await requestApproval(cs, userId);
 
     if (!approvalResult.success) {
+      callbacks?.onApprovalStatus?.("denied");
       console.error(`[executor] CIBA approval failed: ${approvalResult.code} — ${approvalResult.message}`);
       return {
         changeSet: {
@@ -246,6 +253,7 @@ export async function executeChangeSet(
     }
 
     // Step 2: Mark approved
+    callbacks?.onApprovalStatus?.("approved");
     console.log(`[executor] CIBA approved in ${Math.round(performance.now() - approvalStart)}ms`);
     cs = {
       ...cs,
@@ -259,7 +267,13 @@ export async function executeChangeSet(
 
   // Step 3: Execute writer operations
   cs = { ...cs, status: "executing" };
+  callbacks?.onPhaseStart?.("writing", `Executing ${writerOps.length} write operations`);
   const writerResult = await runWriterAgent(writerOps, refreshToken);
+
+  // Stream individual operation results via callbacks
+  for (const result of writerResult.results) {
+    callbacks?.onOperationComplete?.(result);
+  }
 
   const succeededOps = writerResult.results.filter((r) => r.status === "success").length;
   const failedOps = writerResult.results.filter((r) => r.status === "failure");
@@ -269,6 +283,7 @@ export async function executeChangeSet(
   }
 
   // Step 4: Verification read-back
+  callbacks?.onPhaseStart?.("verification", "Reading back product data to verify changes");
   const verifyStart = performance.now();
   const readerResult = await runReaderAgent(
     "Show me all products with their current Promo Price and Promo Active status.",
@@ -282,6 +297,7 @@ export async function executeChangeSet(
   );
 
   for (const check of verificationChecks) {
+    callbacks?.onVerificationCheck?.(check);
     const sku = writerOps.find((op) => op.id === check.operationId)?.target ?? "unknown";
     console.log(`[executor] Check ${sku} ${check.field}: expected=${JSON.stringify(check.expected)}, actual=${JSON.stringify(check.actual)} → ${check.status}`);
   }
@@ -293,6 +309,7 @@ export async function executeChangeSet(
   }
 
   // Step 5: Build receipt and determine final status
+  callbacks?.onPhaseStart?.("receipt", "Building execution receipt and audit hash");
   const receipt = await buildExecutionReceipt(
     cs,
     userId,
@@ -303,6 +320,7 @@ export async function executeChangeSet(
   );
 
   // Step 6: Send notifications via Notifier Agent (non-blocking)
+  callbacks?.onPhaseStart?.("notification", "Sending execution notification and receipt email");
   if (userEmail) {
     try {
       const [notifierResult, receiptResult] = await Promise.all([

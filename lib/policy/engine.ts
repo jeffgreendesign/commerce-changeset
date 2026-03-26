@@ -119,6 +119,46 @@ engine.addRule({
   },
 });
 
+// ── Rule 6: stressed user + write → ciba-escalated (Tier 3) ──────────
+engine.addRule({
+  name: "stressed-user-write-escalation",
+  priority: 11, // Higher than write-single-record to override
+  conditions: {
+    all: [
+      { fact: "operationType", operator: "equal", value: "write" },
+      { fact: "userStressLevel", operator: "greaterThan", value: 0.7 },
+    ],
+  },
+  event: {
+    type: "ciba-escalated",
+    params: {
+      tier: RiskTier.BULK,
+      reason: "User stress level elevated — escalating for additional confirmation",
+      ruleName: "stressed-user-write-escalation",
+    } satisfies RuleEventParams,
+  },
+});
+
+// ── Rule 7: long session + write → ciba-escalated (Tier 3) ───────────
+engine.addRule({
+  name: "fatigued-session-write-escalation",
+  priority: 11,
+  conditions: {
+    all: [
+      { fact: "operationType", operator: "equal", value: "write" },
+      { fact: "sessionDurationMinutes", operator: "greaterThan", value: 60 },
+    ],
+  },
+  event: {
+    type: "ciba-escalated",
+    params: {
+      tier: RiskTier.BULK,
+      reason: "Extended session detected — escalating to prevent fatigue-related errors",
+      ruleName: "fatigued-session-write-escalation",
+    } satisfies RuleEventParams,
+  },
+});
+
 /**
  * Evaluate an operation against the policy rules.
  *
