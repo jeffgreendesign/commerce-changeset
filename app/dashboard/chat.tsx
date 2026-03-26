@@ -22,9 +22,13 @@ import { CIBAApprovalGate } from "@/components/dashboard/ciba-approval-gate";
 import { AgentActivity } from "@/components/dashboard/agent-activity";
 import { IntentCards } from "@/components/dashboard/intent-cards";
 import { CommandPalette } from "@/components/dashboard/command-palette";
+import { VoiceControls } from "@/components/dashboard/voice-controls";
+import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card";
+import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
+import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -37,6 +41,8 @@ interface Message {
   readResult?: string;
   /** Unique key for locating rollback draft messages during state updates. */
   rollbackDraftId?: string;
+  /** Repetition signal if the orchestrator detected a repetitive workflow. */
+  repetitionSignal?: RepetitionSignal;
 }
 
 type Phase =
@@ -47,6 +53,17 @@ type Phase =
   | "rolling_back"
   | "complete"
   | "error";
+
+interface OrchestratorResponse {
+  changeSet: ChangeSet;
+  reasoning: string;
+  repetitionSignal?: RepetitionSignal;
+  voiceContext?: {
+    emotionalState: EmotionalState;
+    voiceMetrics: { stressLevel: number; pace?: "fast" | "normal" | "slow" };
+  };
+  fatigueWarning?: string;
+}
 
 // ── (Suggested prompts moved to IntentCards component) ───────────────
 
@@ -85,6 +102,22 @@ const mdComponents = {
   ),
 };
 
+// ── Helpers ─────────────────────────────────────────────────────────
+
+function dominantPace(history: Array<"fast" | "normal" | "slow">): "fast" | "normal" | "slow" {
+  if (history.length === 0) return "normal";
+  const counts = { fast: 0, normal: 0, slow: 0 };
+  for (const p of history) counts[p]++;
+  if (counts.fast >= counts.normal && counts.fast >= counts.slow) return "fast";
+  if (counts.slow >= counts.normal) return "slow";
+  return "normal";
+}
+
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function Chat() {
@@ -95,7 +128,16 @@ export function Chat() {
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
   const [draftReasoning, setDraftReasoning] = useState("");
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceSessionId, setVoiceSessionId] = useState<string | null>(null);
+  const [emotionalState, setEmotionalState] = useState<EmotionalState>("calm");
+  const [stressLevel, setStressLevel] = useState(0);
+  const [sessionPattern, setSessionPattern] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const voiceStartTimeRef = useRef<number>(0);
+  const errorCountRef = useRef(0);
+  const paceHistoryRef = useRef<Array<"fast" | "normal" | "slow">>([]);
+  const stressHistoryRef = useRef<number[]>([]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -304,7 +346,82 @@ export function Chat() {
 
   const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
-  // Shared synchronous submit helper used by both form submit and command palette
+  // ── Voice mode handlers ────────────────────────────────────────────
+
+  const handleVoiceActivate = useCallback(async () => {
+    try {
+      const res = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "init" }),
+      });
+
+      if (!res.ok) {
+        toast.error("Failed to initialize voice session");
+        return;
+      }
+
+      const data = await res.json();
+      setVoiceSessionId(data.sessionId);
+      setVoiceActive(true);
+      voiceStartTimeRef.current = Date.now();
+
+      if (data.sessionPattern) {
+        setSessionPattern(data.sessionPattern.description);
+        toast.info(data.sessionPattern.description, { duration: 8000 });
+      }
+
+      toast.success("Voice mode activated");
+    } catch (error) {
+      console.error("Failed to start voice session", error);
+      toast.error("Failed to start voice session");
+    }
+  }, []);
+
+  const handleVoiceDeactivate = useCallback(async () => {
+    // Capture the session being closed before any state changes
+    const closingSessionId = voiceSessionId;
+    setVoiceActive(false);
+
+    if (closingSessionId) {
+      const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
+      try {
+        await fetch("/api/voice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "end_session",
+            sessionId: closingSessionId,
+            sessionDurationMinutes: durationMinutes,
+            operationCount: messages.reduce((acc, m) => acc + (m.changeSet?.operations.length ?? 0), 0),
+            operationTypes: messages
+              .flatMap((m) => m.changeSet?.operations.map((o) => o.action) ?? []),
+            errorCount: errorCountRef.current,
+            avgStressLevel: mean(stressHistoryRef.current),
+            avgSpeechPace: dominantPace(paceHistoryRef.current),
+          }),
+        });
+      } catch {
+        // Non-critical — session logging failure shouldn't block the user
+      }
+    }
+
+    // Only clear state if no new session was started while we were awaiting
+    setVoiceSessionId((prev) => {
+      if (prev !== null && prev !== closingSessionId) return prev;
+      // Safe to clean up — no new session was started
+      setEmotionalState("calm");
+      setStressLevel(0);
+      setSessionPattern(null);
+      errorCountRef.current = 0;
+      paceHistoryRef.current = [];
+      stressHistoryRef.current = [];
+      return null;
+    });
+    toast.info("Voice mode deactivated");
+  }, [voiceSessionId, messages]);
+
+  // Shared submit helper used by both form submit and command palette
   const submitMessage = useCallback(
     async (prompt: string) => {
       if (!prompt || isBusy) return;
@@ -319,11 +436,34 @@ export function Chat() {
       scrollToBottom();
 
       try {
-        const res = await fetch("/api/orchestrator", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: prompt }),
-        });
+        // Route through voice API when voice session is active
+        const useVoiceRoute = voiceActive && voiceSessionId;
+        const res = await fetch(
+          useVoiceRoute ? "/api/voice" : "/api/orchestrator",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              useVoiceRoute
+                ? {
+                    action: "submit" as const,
+                    sessionId: voiceSessionId,
+                    message: prompt,
+                    voiceMetrics: {
+                      tone: "neutral",
+                      pace: dominantPace(paceHistoryRef.current),
+                      pitchVariance: 0.5,
+                      stressLevel,
+                      confidence: 0.8,
+                    },
+                    sessionDurationMinutes:
+                      (Date.now() - voiceStartTimeRef.current) / 60000,
+                    errorCount: errorCountRef.current,
+                  }
+                : { message: prompt }
+            ),
+          }
+        );
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -332,8 +472,21 @@ export function Chat() {
           );
         }
 
-        const data: { changeSet: ChangeSet; reasoning: string } =
-          await res.json();
+        const data: OrchestratorResponse = await res.json();
+
+        // Update voice state from response (when using voice API)
+        if (data.voiceContext) {
+          setEmotionalState(data.voiceContext.emotionalState);
+          setStressLevel(data.voiceContext.voiceMetrics.stressLevel);
+          stressHistoryRef.current.push(data.voiceContext.voiceMetrics.stressLevel);
+          if (data.voiceContext.voiceMetrics.pace) {
+            paceHistoryRef.current.push(data.voiceContext.voiceMetrics.pace);
+          }
+        }
+
+        if (data.fatigueWarning) {
+          toast.warning(data.fatigueWarning, { duration: 10000 });
+        }
 
         if (data.changeSet.operations.length === 0) {
           setMessages((prev) => [
@@ -357,6 +510,7 @@ export function Chat() {
               content: data.reasoning,
               changeSet: data.changeSet,
               reasoning: data.reasoning,
+              repetitionSignal: data.repetitionSignal,
             },
           ]);
           setPhase("draft");
@@ -369,11 +523,32 @@ export function Chat() {
         const errMsg = err instanceof Error ? err.message : String(err);
         setError(errMsg);
         setPhase("error");
+        errorCountRef.current += 1;
         toast.error(`Request failed: ${errMsg}`);
         scrollToBottom();
       }
     },
-    [isBusy, scrollToBottom],
+    [isBusy, scrollToBottom, voiceActive, voiceSessionId, stressLevel],
+  );
+
+  const handleApplyFix = useCallback(
+    (issue: ProactiveIssue) => {
+      if (isBusy || !issue.suggestedFix) return;
+      const { action, target, field, suggestedValue } = issue.suggestedFix;
+      submitMessage(
+        `Apply fix: ${action} on ${target} — set ${field} to ${String(suggestedValue)}`
+      );
+    },
+    [submitMessage, isBusy]
+  );
+
+  const handleBulkAccept = useCallback(
+    (selectedRows: { sku: string; productName: string; currentPrice: string | number; proposedPrice: string | number; field: string }[]) => {
+      if (isBusy) return;
+      const skuList = selectedRows.map((r) => r.sku).join(", ");
+      submitMessage(`Apply bulk price change to: ${skuList}`);
+    },
+    [submitMessage, isBusy]
   );
 
   // Keyboard shortcuts
@@ -441,6 +616,32 @@ export function Chat() {
               <div className="ml-0 max-w-full rounded-lg border bg-card p-6 text-sm text-card-foreground">
                 <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{msg.readResult}</Markdown>
               </div>
+            )}
+
+            {/* Proactive issues detected by voice-enriched pipeline */}
+            {msg.changeSet?.proactiveIssues && msg.changeSet.proactiveIssues.length > 0 && (
+              <ProactiveIssuesCard
+                issues={msg.changeSet.proactiveIssues}
+                onApplyFix={handleApplyFix}
+                disabled={isBusy}
+              />
+            )}
+
+            {/* Bulk suggestion from repetition detection */}
+            {msg.repetitionSignal?.isRepetitive && (
+              <BulkSuggestionCard
+                signal={msg.repetitionSignal}
+                onAccept={handleBulkAccept}
+                onDismiss={() => {
+                  // Remove repetition signal from message to dismiss
+                  setMessages((prev) =>
+                    prev.map((m, idx) =>
+                      idx === i ? { ...m, repetitionSignal: undefined } : m
+                    )
+                  );
+                }}
+                disabled={isBusy}
+              />
             )}
 
             {msg.changeSet && (
@@ -553,6 +754,13 @@ export function Chat() {
         </div>
       )}
 
+      {/* Session pattern banner */}
+      {voiceActive && sessionPattern && (
+        <div className="border-t bg-amber-50/50 px-6 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+          {sessionPattern}
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t px-6 py-4 pb-safe">
         <form
@@ -565,9 +773,17 @@ export function Chat() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe a commerce change..."
+            placeholder={voiceActive ? "Listening... or type here" : "Describe a commerce change..."}
             disabled={isBusy}
             className="flex-1"
+          />
+          <VoiceControls
+            isActive={voiceActive}
+            emotionalState={emotionalState}
+            stressLevel={stressLevel}
+            disabled={isBusy}
+            onActivate={handleVoiceActivate}
+            onDeactivate={handleVoiceDeactivate}
           />
           <Button
             type="submit"

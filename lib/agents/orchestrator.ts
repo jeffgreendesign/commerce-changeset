@@ -16,12 +16,24 @@ import { z } from "zod/v4";
 import { runReaderAgent } from "@/lib/agents/reader";
 import { buildChangeSet } from "@/lib/changeset/builder";
 import type { ParsedOperation } from "@/lib/changeset/builder";
+import { detectRepetition } from "@/lib/voice/repetition-detector";
+import type { VoiceUserContext, RepetitionSignal } from "@/lib/voice/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface OrchestratorResult {
   changeSet: Awaited<ReturnType<typeof buildChangeSet>>;
   reasoning: string;
+  /** Repetition signal if a repetitive workflow pattern was detected. */
+  repetitionSignal?: RepetitionSignal;
+}
+
+/** Options for voice-enriched orchestration. */
+export interface OrchestratorOptions {
+  /** Voice-derived user context for stress-aware policy and proactive insights. */
+  voiceContext?: VoiceUserContext;
+  /** Duration of the current voice session in minutes (for fatigue detection). */
+  sessionDurationMinutes?: number;
 }
 
 // ── Zod schema for LLM-generated operations ─────────────────────────
@@ -116,7 +128,8 @@ Return a JSON array of operations.`;
 export async function runOrchestratorAgent(
   message: string,
   refreshToken: string,
-  userId: string
+  userId: string,
+  options?: OrchestratorOptions
 ): Promise<OrchestratorResult> {
   const anthropic = createAnthropic();
 
@@ -154,11 +167,29 @@ export async function runOrchestratorAgent(
   const operations = decomposition.operations;
   console.log(`[orchestrator] Decomposed into ${operations.length} operations in ${Math.round(performance.now() - decompStart)}ms: ${operations.map((o) => o.action).join(", ")}`);
 
-  // Step 3: Build the change set with policy evaluation + rollback
+  // Step 2b: Detect repetitive patterns that could be bulk-optimized
+  const repetitionSignal = detectRepetition(operations as ParsedOperation[]);
+  if (repetitionSignal.isRepetitive) {
+    console.log(`[orchestrator] Repetition detected: ${repetitionSignal.patternDescription}`);
+  }
+
+  // Extract product data from reader results for proactive checks
+  const productToolResult = readerResult.toolResults.find(
+    (tr) => tr.toolName === "get_products" || tr.toolName === "get_pricing"
+  );
+  const rawProducts = productToolResult?.result as
+    | { products?: Record<string, string>[]; pricing?: Record<string, string>[] }
+    | undefined;
+  const productData = rawProducts?.products ?? rawProducts?.pricing;
+
+  // Step 3: Build the change set with policy evaluation + rollback + proactive checks
   const changeSet = await buildChangeSet({
     requestedBy: userId,
     originalPrompt: message,
     operations: operations as ParsedOperation[],
+    voiceContext: options?.voiceContext,
+    productData: productData ?? undefined,
+    sessionDurationMinutes: options?.sessionDurationMinutes,
   });
   console.log(`[orchestrator] ChangeSet ${changeSet.id.slice(0, 8)} built — ${changeSet.operations.length} ops, max tier ${changeSet.riskSummary.maxTier}, CIBA: ${changeSet.riskSummary.requiresCIBA}`);
 
@@ -170,5 +201,12 @@ export async function runOrchestratorAgent(
       `Decomposed request into ${changeSet.operations.length} operations. ` +
       `Assembled draft change set with policy evaluation and rollback instructions.`;
 
-  return { changeSet, reasoning };
+  return {
+    changeSet,
+    reasoning,
+    // Returned separately for API consumers; changeSet is for persistence only.
+    repetitionSignal: repetitionSignal.isRepetitive
+      ? repetitionSignal
+      : undefined,
+  };
 }

@@ -7,6 +7,21 @@
  */
 
 import type { RiskTier, PolicyDecision } from "@/lib/policy/types";
+import type {
+  VoiceUserContext,
+  RepetitionSignal,
+  ProactiveIssue,
+} from "@/lib/voice/types";
+
+// ── Executor callbacks (streaming progress) ──────────────────────────
+
+/** Callbacks for streaming execution progress to the voice/UI layer. */
+export interface ExecutorCallbacks {
+  onPhaseStart?: (phase: string, detail: string) => void;
+  onOperationComplete?: (result: OperationResult) => void;
+  onVerificationCheck?: (check: VerificationCheck) => void;
+  onApprovalStatus?: (status: "waiting" | "approved" | "denied") => void;
+}
 
 // ── Operation primitives ────────────────────────────────────────────
 
@@ -142,4 +157,11 @@ export interface ChangeSet {
   execution?: ChangeSetExecution;
   /** When set, this changeset is a reversal of the referenced original. */
   rollbackOf?: string;
+  // ── Voice/contextual intelligence (populated by Gemini Live) ────────
+  /** Voice-derived user context at the time of changeset creation. */
+  voiceContext?: VoiceUserContext;
+  /** Repetition signal if the orchestrator detected a repetitive workflow. */
+  repetitionSignal?: RepetitionSignal;
+  /** Proactive issues detected by analyzing operations against business rules. */
+  proactiveIssues?: ProactiveIssue[];
 }

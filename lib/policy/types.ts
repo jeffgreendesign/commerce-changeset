@@ -17,6 +17,11 @@ export interface PolicyFact {
   affectedRecords?: number;
   priceChangePercent?: number;
   domain?: string;
+  // ── Voice/session context (populated by Gemini Live integration) ────
+  /** 0-1 stress level from Gemini affective dialog. */
+  userStressLevel?: number;
+  /** Duration of the current voice session in minutes. */
+  sessionDurationMinutes?: number;
 }
 
 /** The result of evaluating a set of facts against the policy rules. */

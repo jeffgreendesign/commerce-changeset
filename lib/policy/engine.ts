@@ -10,6 +10,12 @@ import { Engine } from "json-rules-engine";
 import { RiskTier } from "./types";
 import type { PolicyDecision, PolicyFact } from "./types";
 
+// ── Policy thresholds ────────────────────────────────────────────────
+/** Stress level above which write operations are escalated to Tier 3. */
+const STRESS_ESCALATION_THRESHOLD = 0.7;
+/** Session duration (minutes) above which write operations are escalated. */
+const SESSION_FATIGUE_THRESHOLD_MINUTES = 60;
+
 // Event params shape we attach to every rule. json-rules-engine types
 // Event.params as Record<string, any>, so we define our own narrow type
 // and cast at the extraction boundary.
@@ -115,6 +121,46 @@ engine.addRule({
       tier: RiskTier.BULK,
       reason: "Price change exceeds 25% threshold",
       ruleName: "write-large-price-change",
+    } satisfies RuleEventParams,
+  },
+});
+
+// ── Rule 6: stressed user + write → ciba-escalated (Tier 3) ──────────
+engine.addRule({
+  name: "stressed-user-write-escalation",
+  priority: 11, // Higher than write-single-record to override
+  conditions: {
+    all: [
+      { fact: "operationType", operator: "equal", value: "write" },
+      { fact: "userStressLevel", operator: "greaterThan", value: STRESS_ESCALATION_THRESHOLD },
+    ],
+  },
+  event: {
+    type: "ciba-escalated",
+    params: {
+      tier: RiskTier.BULK,
+      reason: "User stress level elevated — escalating for additional confirmation",
+      ruleName: "stressed-user-write-escalation",
+    } satisfies RuleEventParams,
+  },
+});
+
+// ── Rule 7: long session + write → ciba-escalated (Tier 3) ───────────
+engine.addRule({
+  name: "fatigued-session-write-escalation",
+  priority: 11,
+  conditions: {
+    all: [
+      { fact: "operationType", operator: "equal", value: "write" },
+      { fact: "sessionDurationMinutes", operator: "greaterThan", value: SESSION_FATIGUE_THRESHOLD_MINUTES },
+    ],
+  },
+  event: {
+    type: "ciba-escalated",
+    params: {
+      tier: RiskTier.BULK,
+      reason: "Extended session detected — escalating to prevent fatigue-related errors",
+      ruleName: "fatigued-session-write-escalation",
     } satisfies RuleEventParams,
   },
 });

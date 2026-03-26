@@ -8,6 +8,8 @@
 import { evaluatePolicy } from "@/lib/policy/engine";
 import { RiskTier } from "@/lib/policy/types";
 import type { PolicyFact } from "@/lib/policy/types";
+import { runProactiveChecks } from "@/lib/voice/proactive-insights";
+import type { VoiceUserContext } from "@/lib/voice/types";
 import type {
   ChangeSet,
   Operation,
@@ -33,6 +35,12 @@ export interface BuildChangeSetInput {
   requestedBy: string;
   originalPrompt: string;
   operations: ParsedOperation[];
+  /** Voice-derived user context for stress-aware policy evaluation. */
+  voiceContext?: VoiceUserContext;
+  /** Current product data from reader agent, for proactive checks. */
+  productData?: Record<string, string>[];
+  /** Duration of the current voice session in minutes (for fatigue detection). */
+  sessionDurationMinutes?: number;
 }
 
 // ── Rollback generation ─────────────────────────────────────────────
@@ -151,6 +159,9 @@ export async function buildChangeSet(
         operationType: parsed.operationType,
         affectedRecords: parsed.affectedRecords ?? 1,
         priceChangePercent: parsed.priceChangePercent,
+        // Pass voice context signals into policy evaluation
+        userStressLevel: input.voiceContext?.voiceMetrics.stressLevel,
+        sessionDurationMinutes: input.sessionDurationMinutes,
       };
 
       const policyExplanation = await evaluatePolicy(fact);
@@ -170,6 +181,15 @@ export async function buildChangeSet(
     })
   );
 
+  // Run proactive checks if product data is available
+  const proactiveIssues = input.productData
+    ? runProactiveChecks(actionable, input.productData)
+    : [];
+
+  if (proactiveIssues.length > 0) {
+    console.log(`[builder] Proactive checks found ${proactiveIssues.length} issue(s): ${proactiveIssues.map((i) => `${i.severity}: ${i.description.slice(0, 60)}`).join("; ")}`);
+  }
+
   return {
     id: crypto.randomUUID(),
     requestedBy: input.requestedBy,
@@ -178,5 +198,7 @@ export async function buildChangeSet(
     status: "draft",
     operations,
     riskSummary: computeRiskSummary(operations),
+    voiceContext: input.voiceContext,
+    proactiveIssues: proactiveIssues.length > 0 ? proactiveIssues : undefined,
   };
 }
