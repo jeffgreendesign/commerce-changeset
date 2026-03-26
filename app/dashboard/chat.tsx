@@ -54,6 +54,17 @@ type Phase =
   | "complete"
   | "error";
 
+interface OrchestratorResponse {
+  changeSet: ChangeSet;
+  reasoning: string;
+  repetitionSignal?: RepetitionSignal;
+  voiceContext?: {
+    emotionalState: EmotionalState;
+    voiceMetrics: { stressLevel: number; pace?: "fast" | "normal" | "slow" };
+  };
+  fatigueWarning?: string;
+}
+
 // ── (Suggested prompts moved to IntentCards component) ───────────────
 
 // ── Markdown → shadcn table mapping ──────────────────────────────────
@@ -361,7 +372,8 @@ export function Chat() {
       }
 
       toast.success("Voice mode activated");
-    } catch {
+    } catch (error) {
+      console.error("Failed to start voice session", error);
       toast.error("Failed to start voice session");
     }
   }, []);
@@ -379,7 +391,7 @@ export function Chat() {
             action: "end_session",
             sessionId: voiceSessionId,
             sessionDurationMinutes: durationMinutes,
-            operationCount: messages.filter((m) => m.changeSet).length,
+            operationCount: messages.reduce((acc, m) => acc + (m.changeSet?.operations.length ?? 0), 0),
             operationTypes: messages
               .flatMap((m) => m.changeSet?.operations.map((o) => o.action) ?? []),
             errorCount: errorCountRef.current,
@@ -401,27 +413,6 @@ export function Chat() {
     stressHistoryRef.current = [];
     toast.info("Voice mode deactivated");
   }, [voiceSessionId, messages]);
-
-  const handleApplyFix = useCallback(
-    (issue: ProactiveIssue) => {
-      if (isBusy || !issue.suggestedFix) return;
-      const { action, target, field, suggestedValue } = issue.suggestedFix;
-      submitMessage(
-        `Apply fix: ${action} on ${target} — set ${field} to ${String(suggestedValue)}`
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isBusy]
-  );
-
-  const handleBulkAccept = useCallback(
-    (selectedRows: { sku: string; productName: string; currentPrice: string | number; proposedPrice: string | number; field: string }[]) => {
-      const skuList = selectedRows.map((r) => r.sku).join(", ");
-      submitMessage(`Apply bulk price change to: ${skuList}`);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
 
   // Shared synchronous submit helper used by both form submit and command palette
   const submitMessage = useCallback(
@@ -451,8 +442,7 @@ export function Chat() {
           );
         }
 
-        const data: { changeSet: ChangeSet; reasoning: string; repetitionSignal?: RepetitionSignal; voiceContext?: { emotionalState: EmotionalState; voiceMetrics: { stressLevel: number; pace?: "fast" | "normal" | "slow" } }; fatigueWarning?: string } =
-          await res.json();
+        const data: OrchestratorResponse = await res.json();
 
         // Update voice state from response (when using voice API)
         if (data.voiceContext) {
@@ -509,6 +499,26 @@ export function Chat() {
       }
     },
     [isBusy, scrollToBottom],
+  );
+
+  const handleApplyFix = useCallback(
+    (issue: ProactiveIssue) => {
+      if (isBusy || !issue.suggestedFix) return;
+      const { action, target, field, suggestedValue } = issue.suggestedFix;
+      submitMessage(
+        `Apply fix: ${action} on ${target} — set ${field} to ${String(suggestedValue)}`
+      );
+    },
+    [submitMessage, isBusy]
+  );
+
+  const handleBulkAccept = useCallback(
+    (selectedRows: { sku: string; productName: string; currentPrice: string | number; proposedPrice: string | number; field: string }[]) => {
+      if (isBusy) return;
+      const skuList = selectedRows.map((r) => r.sku).join(", ");
+      submitMessage(`Apply bulk price change to: ${skuList}`);
+    },
+    [submitMessage, isBusy]
   );
 
   // Keyboard shortcuts

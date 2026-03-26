@@ -32,9 +32,12 @@ export function runProactiveChecks(
   productData: Record<string, string>[],
   minMarginPercent: number = DEFAULT_MIN_MARGIN_PERCENT
 ): ProactiveIssue[] {
+  const safeMargin = Number.isFinite(minMarginPercent)
+    ? Math.max(0, Math.min(100, minMarginPercent))
+    : DEFAULT_MIN_MARGIN_PERCENT;
   const issues: ProactiveIssue[] = [];
 
-  issues.push(...checkMarginFloors(operations, productData, minMarginPercent));
+  issues.push(...checkMarginFloors(operations, productData, safeMargin));
   issues.push(...checkInconsistencies(operations, productData));
   issues.push(...checkDuplicateTargets(operations));
 
@@ -117,15 +120,17 @@ function checkInconsistencies(
   const priceChanges = new Map<string, boolean>();
 
   for (const op of operations) {
-    const sku = extractSku(op.target, op.diff[0]?.field ?? "");
+    for (const diffItem of op.diff) {
+      const sku = extractSku(op.target, diffItem.field);
 
-    if (op.action === "set_promo_status") {
-      const afterValue = String(op.diff[0]?.after ?? "").toUpperCase();
-      promoStatusChanges.set(sku, afterValue);
-    }
+      if (op.action === "set_promo_status") {
+        const afterValue = String(diffItem.after ?? "").toUpperCase();
+        promoStatusChanges.set(sku, afterValue);
+      }
 
-    if (op.action === "update_price" || op.action === "bulk_price_change") {
-      priceChanges.set(sku, true);
+      if (op.action === "update_price" || op.action === "bulk_price_change") {
+        priceChanges.set(sku, true);
+      }
     }
   }
 
@@ -196,13 +201,15 @@ function checkDuplicateTargets(
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+const SKU_REGEX = /([A-Z]{2,}-\d{3,})/;
+
 function extractSku(target: string, field: string): string {
   // Try extracting from target first (e.g. "STR-001 Classic Runner")
-  const targetMatch = target.match(/^(STR-\d{3})/);
+  const targetMatch = target.match(SKU_REGEX);
   if (targetMatch) return targetMatch[1];
 
   // Try extracting from field name (e.g. "Promo Price (STR-001)")
-  const fieldMatch = field.match(/\((STR-\d{3})\)/);
+  const fieldMatch = field.match(SKU_REGEX);
   if (fieldMatch) return fieldMatch[1];
 
   return target;

@@ -47,6 +47,7 @@ export function detectRepetition(
     if (ops.length < REPETITION_THRESHOLD) continue;
 
     const bulkAction = BULK_EQUIVALENTS[action];
+    if (!bulkAction) continue;
 
     // Check if all operations apply a similar percentage change
     const percentages = ops
@@ -54,7 +55,7 @@ export function detectRepetition(
       .filter((p): p is number => p !== undefined);
 
     const isUniformDiscount =
-      percentages.length > 0 &&
+      percentages.length === ops.length &&
       percentages.every((p) => Math.abs(p - percentages[0]) < 1);
 
     // Build confirmation table
