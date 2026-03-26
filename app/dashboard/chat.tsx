@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -145,6 +146,7 @@ export function Chat() {
           },
         ]);
         setPhase("complete");
+        toast.success("Query complete");
         scrollToBottom();
       } else {
         setDraftChangeSet(data.changeSet);
@@ -159,11 +161,16 @@ export function Chat() {
           },
         ]);
         setPhase("draft");
+        toast.info(
+          `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
+        );
         scrollToBottom();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setError(errMsg);
       setPhase("error");
+      toast.error(`Request failed: ${errMsg}`);
       scrollToBottom();
     }
   };
@@ -205,6 +212,17 @@ export function Chat() {
       ]);
       setDraftChangeSet(null);
       setPhase("complete");
+
+      if (data.changeSet.status === "completed") {
+        const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
+        const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
+        toast.success(
+          `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
+        );
+      } else {
+        toast.warning(`Execution finished with status: ${data.changeSet.status}`);
+      }
+
       scrollToBottom();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -259,6 +277,7 @@ export function Chat() {
           rollbackDraftId: draftId,
         },
       ]);
+      toast.info("Rollback initiated \u2014 executing reversal\u2026");
       scrollToBottom();
 
       // Step 3: Execute the reversal through the standard pipeline
@@ -324,12 +343,14 @@ export function Chat() {
 
       setPhase("complete");
       setActiveRollbackId(null);
+      toast.success("Rollback completed successfully");
       scrollToBottom();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setError(errMsg);
       setPhase("error");
       setActiveRollbackId(null);
-
+      toast.error(`Rollback failed: ${errMsg}`);
       scrollToBottom();
     }
   };
@@ -487,7 +508,7 @@ export function Chat() {
       )}
 
       {/* Input */}
-      <div className="border-t px-6 py-4">
+      <div className="border-t px-6 py-4 pb-safe">
         <form
           onSubmit={(e) => {
             e.preventDefault();
