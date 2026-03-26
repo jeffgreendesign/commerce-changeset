@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,7 +15,14 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
+import { ChangeSetSkeleton } from "@/components/changeset/changeset-skeleton";
 import { AgentBadge } from "@/components/changeset/agent-badge";
+import { WorkflowPipeline } from "@/components/dashboard/workflow-pipeline";
+import { CIBAApprovalGate } from "@/components/dashboard/ciba-approval-gate";
+import { AgentActivity } from "@/components/dashboard/agent-activity";
+import { IntentCards } from "@/components/dashboard/intent-cards";
+import { CommandPalette } from "@/components/dashboard/command-palette";
+import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 
@@ -40,14 +48,7 @@ type Phase =
   | "complete"
   | "error";
 
-// ── Suggested prompts ────────────────────────────────────────────────
-
-const SUGGESTIONS = [
-  { label: "Launch spring promo", prompt: "Launch the spring promo for all Stride products" },
-  { label: "Discount a product", prompt: "Set a 20% discount on STR-001 Classic Runner" },
-  { label: "Activate promo", prompt: "Set promo status to active for STR-002 Court Essential" },
-  { label: "Show current prices", prompt: "What are the current prices for all products?" },
-];
+// ── (Suggested prompts moved to IntentCards component) ───────────────
 
 // ── Markdown → shadcn table mapping ──────────────────────────────────
 
@@ -105,67 +106,8 @@ export function Chat() {
     });
   }, []);
 
-  const handleSubmit = async () => {
-    const prompt = input.trim();
-    if (!prompt || phase === "loading" || phase === "executing" || phase === "rolling_back") return;
-
-    setInput("");
-    setError("");
-    setDraftChangeSet(null);
-    setPhase("loading");
-
-    const userMessage: Message = { role: "user", content: prompt };
-    setMessages((prev) => [...prev, userMessage]);
-    scrollToBottom();
-
-    try {
-      const res = await fetch("/api/orchestrator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(
-          body.message ?? body.error ?? `Request failed (${res.status})`
-        );
-      }
-
-      const data: { changeSet: ChangeSet; reasoning: string } =
-        await res.json();
-
-      if (data.changeSet.operations.length === 0) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "Here\u2019s what I found:",
-            readResult: data.reasoning,
-          },
-        ]);
-        setPhase("complete");
-        scrollToBottom();
-      } else {
-        setDraftChangeSet(data.changeSet);
-        setDraftReasoning(data.reasoning);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.reasoning,
-            changeSet: data.changeSet,
-            reasoning: data.reasoning,
-          },
-        ]);
-        setPhase("draft");
-        scrollToBottom();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setPhase("error");
-      scrollToBottom();
-    }
+  const handleSubmit = () => {
+    submitMessage(input.trim());
   };
 
   const handleExecute = async () => {
@@ -205,6 +147,17 @@ export function Chat() {
       ]);
       setDraftChangeSet(null);
       setPhase("complete");
+
+      if (data.changeSet.status === "completed") {
+        const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
+        const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
+        toast.success(
+          `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
+        );
+      } else {
+        toast.warning(`Execution finished with status: ${data.changeSet.status}`);
+      }
+
       scrollToBottom();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -227,6 +180,7 @@ export function Chat() {
     setPhase("rolling_back");
     setActiveRollbackId(sourceId);
     setError("");
+    setDraftChangeSet(null);
     scrollToBottom();
 
     try {
@@ -259,6 +213,7 @@ export function Chat() {
           rollbackDraftId: draftId,
         },
       ]);
+      toast.info("Rollback initiated \u2014 executing reversal\u2026");
       scrollToBottom();
 
       // Step 3: Execute the reversal through the standard pipeline
@@ -324,12 +279,18 @@ export function Chat() {
 
       setPhase("complete");
       setActiveRollbackId(null);
+      if (execData.changeSet.status === "completed") {
+        toast.success("Rollback completed successfully");
+      } else {
+        toast.warning(`Rollback finished with status: ${execData.changeSet.status}`);
+      }
       scrollToBottom();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setError(errMsg);
       setPhase("error");
       setActiveRollbackId(null);
-
+      toast.error(`Rollback failed: ${errMsg}`);
       scrollToBottom();
     }
   };
@@ -343,31 +304,98 @@ export function Chat() {
 
   const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
+  // Shared synchronous submit helper used by both form submit and command palette
+  const submitMessage = useCallback(
+    async (prompt: string) => {
+      if (!prompt || isBusy) return;
+
+      setInput("");
+      setError("");
+      setDraftChangeSet(null);
+      setPhase("loading");
+
+      const userMessage: Message = { role: "user", content: prompt };
+      setMessages((prev) => [...prev, userMessage]);
+      scrollToBottom();
+
+      try {
+        const res = await fetch("/api/orchestrator", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: prompt }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(
+            body.message ?? body.error ?? `Request failed (${res.status})`
+          );
+        }
+
+        const data: { changeSet: ChangeSet; reasoning: string } =
+          await res.json();
+
+        if (data.changeSet.operations.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "Here\u2019s what I found:",
+              readResult: data.reasoning,
+            },
+          ]);
+          setPhase("complete");
+          toast.success("Query complete");
+          scrollToBottom();
+        } else {
+          setDraftChangeSet(data.changeSet);
+          setDraftReasoning(data.reasoning);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: data.reasoning,
+              changeSet: data.changeSet,
+              reasoning: data.reasoning,
+            },
+          ]);
+          setPhase("draft");
+          toast.info(
+            `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
+          );
+          scrollToBottom();
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setError(errMsg);
+        setPhase("error");
+        toast.error(`Request failed: ${errMsg}`);
+        scrollToBottom();
+      }
+    },
+    [isBusy, scrollToBottom],
+  );
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSubmit: () => {
+      if (phase === "draft" && draftChangeSet) {
+        handleExecute();
+      } else if (input.trim() && !isBusy) {
+        handleSubmit();
+      }
+    },
+  });
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Command Palette (Cmd+K) */}
+      <CommandPalette onSubmitPrompt={submitMessage} />
+
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 && phase === "idle" && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 pt-24 text-center">
-            <p className="text-lg font-medium">
-              What commerce changes would you like to make?
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Pick a suggestion or type your own request
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((s) => (
-                <Button
-                  key={s.label}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput(s.prompt)}
-                >
-                  {s.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <IntentCards onSelect={submitMessage} />
         )}
 
         {messages.map((msg, i) => (
@@ -428,26 +456,60 @@ export function Chat() {
           </div>
         ))}
 
-        {/* Loading states */}
-        {phase === "loading" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Analyzing request&hellip;
-          </div>
+        {/* Workflow pipeline + contextual loading states */}
+        {(phase === "loading" ||
+          phase === "executing" ||
+          phase === "rolling_back" ||
+          phase === "draft" ||
+          phase === "complete") &&
+          messages.length > 0 && (
+            <WorkflowPipeline
+              phase={phase}
+              requiresCIBA={
+                draftChangeSet?.riskSummary.requiresCIBA ??
+                messages[messages.length - 1]?.changeSet?.riskSummary
+                  .requiresCIBA ??
+                false
+              }
+            />
+          )}
+
+        {/* Agent activity theater — shows live agent traces */}
+        {(phase === "loading" ||
+          phase === "executing" ||
+          phase === "rolling_back" ||
+          phase === "complete") &&
+          messages.length > 0 && (
+          <AgentActivity
+            phase={phase}
+            requiresCIBA={
+              draftChangeSet?.riskSummary.requiresCIBA ??
+              messages[messages.length - 1]?.changeSet?.riskSummary
+                .requiresCIBA ??
+              false
+            }
+            operationCount={
+              draftChangeSet?.operations.length ??
+              messages[messages.length - 1]?.changeSet?.operations.length ??
+              0
+            }
+            results={
+              messages[messages.length - 1]?.changeSet?.execution?.results
+            }
+          />
         )}
 
+        {/* Skeleton loading for orchestrator response */}
+        {phase === "loading" && <ChangeSetSkeleton />}
+
+        {/* CIBA approval gate during execution */}
         {phase === "executing" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Waiting for Guardian approval&hellip;
-          </div>
+          <CIBAApprovalGate isRollback={false} />
         )}
 
+        {/* CIBA approval gate during rollback */}
         {phase === "rolling_back" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Executing rollback &mdash; waiting for Guardian approval&hellip;
-          </div>
+          <CIBAApprovalGate isRollback />
         )}
 
         {/* Error */}
@@ -467,8 +529,8 @@ export function Chat() {
         )}
       </div>
 
-      {/* Execute bar — only show when CIBA approval is needed */}
-      {phase === "draft" && draftChangeSet && draftChangeSet.riskSummary.requiresCIBA && (
+      {/* Execute bar */}
+      {phase === "draft" && draftChangeSet && (
         <div className="border-t bg-muted/50 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="text-sm">
@@ -481,13 +543,18 @@ export function Chat() {
                 {draftReasoning.length > 80 ? "..." : ""}
               </span>
             </div>
-            <Button onClick={handleExecute}>Execute Change Set</Button>
+            <Button onClick={handleExecute}>
+              Execute Change Set
+              <kbd className="ml-1.5 hidden rounded bg-primary-foreground/20 px-1 py-0.5 text-[10px] font-mono sm:inline">
+                {"\u2318\u21B5"}
+              </kbd>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Input */}
-      <div className="border-t px-6 py-4">
+      <div className="border-t px-6 py-4 pb-safe">
         <form
           onSubmit={(e) => {
             e.preventDefault();
