@@ -10,6 +10,12 @@ import { Engine } from "json-rules-engine";
 import { RiskTier } from "./types";
 import type { PolicyDecision, PolicyFact } from "./types";
 
+// ── Policy thresholds ────────────────────────────────────────────────
+/** Stress level above which write operations are escalated to Tier 3. */
+const STRESS_ESCALATION_THRESHOLD = 0.7;
+/** Session duration (minutes) above which write operations are escalated. */
+const SESSION_FATIGUE_THRESHOLD_MINUTES = 60;
+
 // Event params shape we attach to every rule. json-rules-engine types
 // Event.params as Record<string, any>, so we define our own narrow type
 // and cast at the extraction boundary.
@@ -126,7 +132,7 @@ engine.addRule({
   conditions: {
     all: [
       { fact: "operationType", operator: "equal", value: "write" },
-      { fact: "userStressLevel", operator: "greaterThan", value: 0.7 },
+      { fact: "userStressLevel", operator: "greaterThan", value: STRESS_ESCALATION_THRESHOLD },
     ],
   },
   event: {
@@ -146,7 +152,7 @@ engine.addRule({
   conditions: {
     all: [
       { fact: "operationType", operator: "equal", value: "write" },
-      { fact: "sessionDurationMinutes", operator: "greaterThan", value: 60 },
+      { fact: "sessionDurationMinutes", operator: "greaterThan", value: SESSION_FATIGUE_THRESHOLD_MINUTES },
     ],
   },
   event: {

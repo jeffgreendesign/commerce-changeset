@@ -39,6 +39,8 @@ export interface BuildChangeSetInput {
   voiceContext?: VoiceUserContext;
   /** Current product data from reader agent, for proactive checks. */
   productData?: Record<string, string>[];
+  /** Duration of the current voice session in minutes (for fatigue detection). */
+  sessionDurationMinutes?: number;
 }
 
 // ── Rollback generation ─────────────────────────────────────────────
@@ -159,10 +161,7 @@ export async function buildChangeSet(
         priceChangePercent: parsed.priceChangePercent,
         // Pass voice context signals into policy evaluation
         userStressLevel: input.voiceContext?.voiceMetrics.stressLevel,
-        isRepetitivePattern: input.voiceContext?.isRepetitiveWorkflow,
-        sessionDurationMinutes: input.voiceContext?.sessionPattern
-          ? undefined // Session duration tracked separately
-          : undefined,
+        sessionDurationMinutes: input.sessionDurationMinutes,
       };
 
       const policyExplanation = await evaluatePolicy(fact);

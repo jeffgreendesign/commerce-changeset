@@ -28,8 +28,6 @@ export interface VoiceUserContext {
   emotionalState: EmotionalState;
   voiceMetrics: VoiceMetrics;
   sessionPattern?: SessionPattern;
-  /** Whether the current request was detected as part of a repetitive workflow. */
-  isRepetitiveWorkflow: boolean;
 }
 
 // ── Session insights & pattern memory ────────────────────────────────
@@ -108,23 +106,9 @@ export interface ProactiveIssue {
   };
 }
 
-// ── Executor callbacks (streaming progress) ──────────────────────────
+// ── Re-export ExecutorCallbacks from changeset layer ─────────────────
 
-/** Callbacks for streaming execution progress to the voice/UI layer. */
-export interface ExecutorCallbacks {
-  onPhaseStart?: (phase: string, detail: string) => void;
-  onOperationComplete?: (result: {
-    operationId: string;
-    status: string;
-    duration: number;
-  }) => void;
-  onVerificationCheck?: (check: {
-    operationId: string;
-    field: string;
-    status: string;
-  }) => void;
-  onApprovalStatus?: (status: "waiting" | "approved" | "denied") => void;
-}
+export type { ExecutorCallbacks } from "@/lib/changeset/types";
 
 // ── Gemini Live API configuration ────────────────────────────────────
 

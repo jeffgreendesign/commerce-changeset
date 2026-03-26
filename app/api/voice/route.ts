@@ -17,9 +17,9 @@ import { auth0 } from "@/lib/auth0";
 import { setAIContext } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 import { runOrchestratorAgent } from "@/lib/agents/orchestrator";
-import { createSession, buildSetupMessage } from "@/lib/voice/gemini-live";
+import { createSession, buildSetupMessage, classifyEmotionalState } from "@/lib/voice/gemini-live";
 import { recordSession, detectPatterns, checkSessionFatigue } from "@/lib/voice/session-insights";
-import type { VoiceUserContext, EmotionalState } from "@/lib/voice/types";
+import type { VoiceUserContext } from "@/lib/voice/types";
 
 // ── Request schemas ──────────────────────────────────────────────────
 
@@ -43,6 +43,7 @@ const SubmitVoiceSchema = z.object({
   voiceMetrics: VoiceMetricsSchema,
   sessionId: z.string().uuid(),
   sessionDurationMinutes: z.number().min(0).optional(),
+  errorCount: z.number().min(0).optional(),
 });
 
 const EndSessionSchema = z.object({
@@ -116,19 +117,18 @@ export async function POST(request: Request) {
     setAIContext({ threadID: `voice-${parsed.data.sessionId}` });
 
     // Build voice user context from metrics
-    const emotionalState = classifyFromMetrics(parsed.data.voiceMetrics);
+    const emotionalState = classifyEmotionalState(parsed.data.voiceMetrics);
     const patterns = detectPatterns(userId);
 
     const voiceContext: VoiceUserContext = {
       emotionalState,
       voiceMetrics: parsed.data.voiceMetrics,
       sessionPattern: patterns ?? undefined,
-      isRepetitiveWorkflow: false, // Set by orchestrator after decomposition
     };
 
     // Check for session fatigue
     const fatigueWarning = parsed.data.sessionDurationMinutes
-      ? checkSessionFatigue(parsed.data.sessionDurationMinutes, 0)
+      ? checkSessionFatigue(parsed.data.sessionDurationMinutes, parsed.data.errorCount ?? 0)
       : null;
 
     const routeStart = performance.now();
@@ -139,7 +139,10 @@ export async function POST(request: Request) {
         parsed.data.message,
         refreshToken,
         userId,
-        { voiceContext }
+        {
+          voiceContext,
+          sessionDurationMinutes: parsed.data.sessionDurationMinutes,
+        }
       );
       console.log(`[voice] Completed in ${Math.round(performance.now() - routeStart)}ms — ${result.changeSet.operations.length} operations`);
 
@@ -190,13 +193,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-function classifyFromMetrics(metrics: { stressLevel: number; pace: string; pitchVariance: number }): EmotionalState {
-  if (metrics.stressLevel > 0.7) return "stressed";
-  if (metrics.pace === "fast" && metrics.stressLevel > 0.4) return "rushed";
-  if (metrics.stressLevel > 0.3 && metrics.pitchVariance > 0.6) return "uncertain";
-  return "calm";
 }

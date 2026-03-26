@@ -32,6 +32,8 @@ export interface OrchestratorResult {
 export interface OrchestratorOptions {
   /** Voice-derived user context for stress-aware policy and proactive insights. */
   voiceContext?: VoiceUserContext;
+  /** Duration of the current voice session in minutes (for fatigue detection). */
+  sessionDurationMinutes?: number;
 }
 
 // ── Zod schema for LLM-generated operations ─────────────────────────
@@ -187,6 +189,7 @@ export async function runOrchestratorAgent(
     operations: operations as ParsedOperation[],
     voiceContext: options?.voiceContext,
     productData: productData ?? undefined,
+    sessionDurationMinutes: options?.sessionDurationMinutes,
   });
   console.log(`[orchestrator] ChangeSet ${changeSet.id.slice(0, 8)} built — ${changeSet.operations.length} ops, max tier ${changeSet.riskSummary.maxTier}, CIBA: ${changeSet.riskSummary.requiresCIBA}`);
 
@@ -198,14 +201,10 @@ export async function runOrchestratorAgent(
       `Decomposed request into ${changeSet.operations.length} operations. ` +
       `Assembled draft change set with policy evaluation and rollback instructions.`;
 
-  // Attach repetition signal to the changeset if detected
-  if (repetitionSignal.isRepetitive) {
-    changeSet.repetitionSignal = repetitionSignal;
-  }
-
   return {
     changeSet,
     reasoning,
+    // Returned separately for API consumers; changeSet is for persistence only.
     repetitionSignal: repetitionSignal.isRepetitive
       ? repetitionSignal
       : undefined,

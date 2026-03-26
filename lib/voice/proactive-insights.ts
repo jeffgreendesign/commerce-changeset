@@ -11,8 +11,8 @@
 import type { ParsedOperation } from "@/lib/changeset/builder";
 import type { ProactiveIssue } from "./types";
 
-/** Minimum margin percentage — prices below this floor trigger a warning. */
-const MIN_MARGIN_PERCENT = 15;
+/** Default minimum margin percentage — prices below this floor trigger a warning. */
+const DEFAULT_minMarginPercent = 15;
 
 /**
  * Run proactive checks against proposed operations and current product data.
@@ -24,15 +24,17 @@ const MIN_MARGIN_PERCENT = 15;
  *
  * @param operations - The parsed operations from the orchestrator
  * @param productData - Current product catalog from the reader agent
+ * @param minMarginPercent - Minimum margin percentage (default: 15)
  * @returns Array of proactive issues found (may be empty)
  */
 export function runProactiveChecks(
   operations: ParsedOperation[],
-  productData: Record<string, string>[]
+  productData: Record<string, string>[],
+  minMarginPercent: number = DEFAULT_minMarginPercent
 ): ProactiveIssue[] {
   const issues: ProactiveIssue[] = [];
 
-  issues.push(...checkMarginFloors(operations, productData));
+  issues.push(...checkMarginFloors(operations, productData, minMarginPercent));
   issues.push(...checkInconsistencies(operations, productData));
   issues.push(...checkDuplicateTargets(operations));
 
@@ -43,7 +45,8 @@ export function runProactiveChecks(
 
 function checkMarginFloors(
   operations: ParsedOperation[],
-  productData: Record<string, string>[]
+  productData: Record<string, string>[],
+  minMarginPercent: number
 ): ProactiveIssue[] {
   const issues: ProactiveIssue[] = [];
 
@@ -67,27 +70,27 @@ function checkMarginFloors(
         ((basePrice - afterPrice) / basePrice) * 100;
 
       // Check if discount exceeds safe margin
-      if (marginPercent > (100 - MIN_MARGIN_PERCENT)) {
-        const minPrice = Number((basePrice * (MIN_MARGIN_PERCENT / 100)).toFixed(2));
+      if (marginPercent > (100 - minMarginPercent)) {
+        const minPrice = Number((basePrice * (minMarginPercent / 100)).toFixed(2));
 
         issues.push({
           severity: "error",
           operationId: op.target,
-          description: `${sku} promo price ($${afterPrice}) leaves only ${(100 - marginPercent).toFixed(1)}% margin — below the ${MIN_MARGIN_PERCENT}% floor. Minimum safe price: $${minPrice.toFixed(2)}`,
+          description: `${sku} promo price ($${afterPrice}) leaves only ${(100 - marginPercent).toFixed(1)}% margin — below the ${minMarginPercent}% floor. Minimum safe price: $${minPrice.toFixed(2)}`,
           suggestedFix: {
             action: op.action,
             target: op.target,
             field: diff.field,
             currentValue: afterPrice,
             suggestedValue: Number(
-              (basePrice * (1 - (100 - MIN_MARGIN_PERCENT) / 100)).toFixed(2)
+              (basePrice * (1 - (100 - minMarginPercent) / 100)).toFixed(2)
             ),
           },
         });
       }
 
       // Warn on very large discounts (>50%)
-      if (marginPercent > 50 && marginPercent <= (100 - MIN_MARGIN_PERCENT)) {
+      if (marginPercent > 50 && marginPercent <= (100 - minMarginPercent)) {
         issues.push({
           severity: "warning",
           operationId: op.target,
@@ -176,7 +179,9 @@ function checkDuplicateTargets(
 
   for (const [key, count] of targetActionCounts) {
     if (count > 1) {
-      const [action, target] = key.split(":");
+      const colonIdx = key.indexOf(":");
+      const action = colonIdx >= 0 ? key.slice(0, colonIdx) : key;
+      const target = colonIdx >= 0 ? key.slice(colonIdx + 1) : key;
       issues.push({
         severity: "warning",
         operationId: target,

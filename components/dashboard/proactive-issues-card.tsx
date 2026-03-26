@@ -43,6 +43,18 @@ function getSeverityBorder(severity: ProactiveIssue["severity"]) {
   }
 }
 
+// ── Value formatting ─────────────────────────────────────────────────
+
+function formatFixValue(fix: NonNullable<ProactiveIssue["suggestedFix"]>): string {
+  if (typeof fix.suggestedValue === "boolean") {
+    return fix.suggestedValue ? "TRUE" : "FALSE";
+  }
+  if (fix.field.toLowerCase().includes("price")) {
+    return `$${Number(fix.suggestedValue).toFixed(2)}`;
+  }
+  return String(fix.suggestedValue);
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function ProactiveIssuesCard({
@@ -103,7 +115,7 @@ export function ProactiveIssuesCard({
                   disabled={disabled}
                 >
                   <WrenchIcon className="size-3" />
-                  Apply fix: {issue.suggestedFix.field} → ${String(issue.suggestedFix.suggestedValue)}
+                  Apply fix: {issue.suggestedFix.field} → {formatFixValue(issue.suggestedFix)}
                 </Button>
               )}
             </div>

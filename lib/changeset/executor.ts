@@ -14,10 +14,10 @@ import { runWriterAgent } from "@/lib/agents/writer";
 import { runReaderAgent } from "@/lib/agents/reader";
 import { runNotifierAgent, sendExecutionReceipt } from "@/lib/agents/notifier";
 import { requestApproval } from "./approval";
-import type { ExecutorCallbacks } from "@/lib/voice/types";
 import type {
   ChangeSet,
   ChangeSetExecution,
+  ExecutorCallbacks,
   ExecutionReceipt,
   Operation,
   OperationResult,

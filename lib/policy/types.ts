@@ -20,8 +20,6 @@ export interface PolicyFact {
   // ── Voice/session context (populated by Gemini Live integration) ────
   /** 0-1 stress level from Gemini affective dialog. */
   userStressLevel?: number;
-  /** Whether the current request is part of a detected repetitive pattern. */
-  isRepetitivePattern?: boolean;
   /** Duration of the current voice session in minutes. */
   sessionDurationMinutes?: number;
 }

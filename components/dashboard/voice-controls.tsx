@@ -21,8 +21,6 @@ interface VoiceControlsProps {
   onActivate: () => void;
   /** Called when user toggles voice mode off. */
   onDeactivate: () => void;
-  /** Called with transcript when speech is finalized. */
-  onTranscript?: (text: string) => void;
 }
 
 // ── Stress indicator colors ──────────────────────────────────────────

@@ -140,6 +140,6 @@ function extractProductName(target: string): string {
 }
 
 function extractSkuPrefix(target: string): string {
-  const match = target.match(/^([A-Z]+-)/);
+  const match = target.match(/^([A-Z]{3}-)/);
   return match?.[1] ?? "";
 }

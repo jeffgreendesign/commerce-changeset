@@ -13,6 +13,16 @@ import type {
   ProactiveIssue,
 } from "@/lib/voice/types";
 
+// ── Executor callbacks (streaming progress) ──────────────────────────
+
+/** Callbacks for streaming execution progress to the voice/UI layer. */
+export interface ExecutorCallbacks {
+  onPhaseStart?: (phase: string, detail: string) => void;
+  onOperationComplete?: (result: OperationResult) => void;
+  onVerificationCheck?: (check: VerificationCheck) => void;
+  onApprovalStatus?: (status: "waiting" | "approved" | "denied") => void;
+}
+
 // ── Operation primitives ────────────────────────────────────────────
 
 /** A single field-level diff within an operation. */

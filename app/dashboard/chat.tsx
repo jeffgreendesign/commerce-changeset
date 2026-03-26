@@ -91,6 +91,17 @@ const mdComponents = {
   ),
 };
 
+// ── Helpers ─────────────────────────────────────────────────────────
+
+function dominantPace(history: Array<"fast" | "normal" | "slow">): "fast" | "normal" | "slow" {
+  if (history.length === 0) return "normal";
+  const counts = { fast: 0, normal: 0, slow: 0 };
+  for (const p of history) counts[p]++;
+  if (counts.fast >= counts.normal && counts.fast >= counts.slow) return "fast";
+  if (counts.slow >= counts.normal) return "slow";
+  return "normal";
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function Chat() {
@@ -108,6 +119,8 @@ export function Chat() {
   const [sessionPattern, setSessionPattern] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voiceStartTimeRef = useRef<number>(0);
+  const errorCountRef = useRef(0);
+  const paceHistoryRef = useRef<Array<"fast" | "normal" | "slow">>([]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -363,9 +376,9 @@ export function Chat() {
             operationCount: messages.filter((m) => m.changeSet).length,
             operationTypes: messages
               .flatMap((m) => m.changeSet?.operations.map((o) => o.action) ?? []),
-            errorCount: messages.filter((m) => m.role === "assistant" && !m.changeSet && !m.readResult).length,
+            errorCount: errorCountRef.current,
             avgStressLevel: stressLevel,
-            avgSpeechPace: "normal" as const,
+            avgSpeechPace: dominantPace(paceHistoryRef.current),
           }),
         });
       } catch {
@@ -377,6 +390,8 @@ export function Chat() {
     setEmotionalState("calm");
     setStressLevel(0);
     setSessionPattern(null);
+    errorCountRef.current = 0;
+    paceHistoryRef.current = [];
     toast.info("Voice mode deactivated");
   }, [voiceSessionId, messages, stressLevel]);
 
@@ -417,13 +432,16 @@ export function Chat() {
           );
         }
 
-        const data: { changeSet: ChangeSet; reasoning: string; repetitionSignal?: RepetitionSignal; voiceContext?: { emotionalState: EmotionalState; voiceMetrics: { stressLevel: number } }; fatigueWarning?: string } =
+        const data: { changeSet: ChangeSet; reasoning: string; repetitionSignal?: RepetitionSignal; voiceContext?: { emotionalState: EmotionalState; voiceMetrics: { stressLevel: number; pace?: "fast" | "normal" | "slow" } }; fatigueWarning?: string } =
           await res.json();
 
         // Update voice state from response (when using voice API)
         if (data.voiceContext) {
           setEmotionalState(data.voiceContext.emotionalState);
           setStressLevel(data.voiceContext.voiceMetrics.stressLevel);
+          if (data.voiceContext.voiceMetrics.pace) {
+            paceHistoryRef.current.push(data.voiceContext.voiceMetrics.pace);
+          }
         }
 
         if (data.fatigueWarning) {
@@ -465,6 +483,7 @@ export function Chat() {
         const errMsg = err instanceof Error ? err.message : String(err);
         setError(errMsg);
         setPhase("error");
+        errorCountRef.current += 1;
         toast.error(`Request failed: ${errMsg}`);
         scrollToBottom();
       }
