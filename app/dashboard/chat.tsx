@@ -19,6 +19,10 @@ import { ChangeSetSkeleton } from "@/components/changeset/changeset-skeleton";
 import { AgentBadge } from "@/components/changeset/agent-badge";
 import { WorkflowPipeline } from "@/components/dashboard/workflow-pipeline";
 import { CIBAApprovalGate } from "@/components/dashboard/ciba-approval-gate";
+import { AgentActivity } from "@/components/dashboard/agent-activity";
+import { IntentCards } from "@/components/dashboard/intent-cards";
+import { CommandPalette } from "@/components/dashboard/command-palette";
+import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 
@@ -44,14 +48,7 @@ type Phase =
   | "complete"
   | "error";
 
-// ── Suggested prompts ────────────────────────────────────────────────
-
-const SUGGESTIONS = [
-  { label: "Launch spring promo", prompt: "Launch the spring promo for all Stride products" },
-  { label: "Discount a product", prompt: "Set a 20% discount on STR-001 Classic Runner" },
-  { label: "Activate promo", prompt: "Set promo status to active for STR-002 Court Essential" },
-  { label: "Show current prices", prompt: "What are the current prices for all products?" },
-];
+// ── (Suggested prompts moved to IntentCards component) ───────────────
 
 // ── Markdown → shadcn table mapping ──────────────────────────────────
 
@@ -367,31 +364,88 @@ export function Chat() {
 
   const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
+  // Command palette: set input and auto-submit
+  const handleCommandSubmit = useCallback(
+    (prompt: string) => {
+      if (isBusy) return;
+      setInput(prompt);
+      // Defer to next tick so the input state is set before submit reads it
+      setTimeout(() => {
+        setInput("");
+        setError("");
+        setDraftChangeSet(null);
+        setPhase("loading");
+
+        const userMessage: Message = { role: "user", content: prompt };
+        setMessages((prev) => [...prev, userMessage]);
+        scrollToBottom();
+
+        fetch("/api/orchestrator", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: prompt }),
+        })
+          .then(async (res) => {
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({ error: res.statusText }));
+              throw new Error(body.message ?? body.error ?? `Request failed (${res.status})`);
+            }
+            return res.json();
+          })
+          .then((data: { changeSet: ChangeSet; reasoning: string }) => {
+            if (data.changeSet.operations.length === 0) {
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: "Here\u2019s what I found:", readResult: data.reasoning },
+              ]);
+              setPhase("complete");
+              toast.success("Query complete");
+            } else {
+              setDraftChangeSet(data.changeSet);
+              setDraftReasoning(data.reasoning);
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: data.reasoning, changeSet: data.changeSet, reasoning: data.reasoning },
+              ]);
+              setPhase("draft");
+              toast.info(
+                `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
+              );
+            }
+            scrollToBottom();
+          })
+          .catch((err: unknown) => {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            setError(errMsg);
+            setPhase("error");
+            toast.error(`Request failed: ${errMsg}`);
+            scrollToBottom();
+          });
+      }, 0);
+    },
+    [isBusy, scrollToBottom],
+  );
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSubmit: () => {
+      if (phase === "draft" && draftChangeSet) {
+        handleExecute();
+      } else if (input.trim() && !isBusy) {
+        handleSubmit();
+      }
+    },
+  });
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Command Palette (Cmd+K) */}
+      <CommandPalette onSubmitPrompt={handleCommandSubmit} />
+
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 && phase === "idle" && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 pt-24 text-center">
-            <p className="text-lg font-medium">
-              What commerce changes would you like to make?
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Pick a suggestion or type your own request
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((s) => (
-                <Button
-                  key={s.label}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput(s.prompt)}
-                >
-                  {s.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <IntentCards onSelect={handleCommandSubmit} />
         )}
 
         {messages.map((msg, i) => (
@@ -470,6 +524,27 @@ export function Chat() {
             />
           )}
 
+        {/* Agent activity theater — shows live agent traces */}
+        {(phase === "loading" ||
+          phase === "executing" ||
+          phase === "rolling_back" ||
+          phase === "complete") && (
+          <AgentActivity
+            phase={phase}
+            requiresCIBA={
+              draftChangeSet?.riskSummary.requiresCIBA ??
+              messages[messages.length - 1]?.changeSet?.riskSummary
+                .requiresCIBA ??
+              false
+            }
+            operationCount={
+              draftChangeSet?.operations.length ??
+              messages[messages.length - 1]?.changeSet?.operations.length ??
+              0
+            }
+          />
+        )}
+
         {/* Skeleton loading for orchestrator response */}
         {phase === "loading" && <ChangeSetSkeleton />}
 
@@ -514,7 +589,12 @@ export function Chat() {
                 {draftReasoning.length > 80 ? "..." : ""}
               </span>
             </div>
-            <Button onClick={handleExecute}>Execute Change Set</Button>
+            <Button onClick={handleExecute}>
+              Execute Change Set
+              <kbd className="ml-1.5 hidden rounded bg-primary-foreground/20 px-1 py-0.5 text-[10px] font-mono sm:inline">
+                {"\u2318\u21B5"}
+              </kbd>
+            </Button>
           </div>
         </div>
       )}
