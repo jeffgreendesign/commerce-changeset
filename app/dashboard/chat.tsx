@@ -478,7 +478,8 @@ export function Chat() {
         {(phase === "loading" ||
           phase === "executing" ||
           phase === "rolling_back" ||
-          phase === "complete") && (
+          phase === "complete") &&
+          messages.length > 0 && (
           <AgentActivity
             phase={phase}
             requiresCIBA={

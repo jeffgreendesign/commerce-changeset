@@ -61,10 +61,12 @@ function buildTraces(
 
   if (phase === "executing") {
     // Writer is blocked on CIBA or executing
-    const writerToolCalls = Array.from({ length: operationCount }, (_, i) => ({
-      name: `operation_${i + 1}`,
-      status: "running" as const,
-    }));
+    const writerToolCalls = requiresCIBA
+      ? []
+      : Array.from({ length: operationCount }, (_, i) => ({
+          name: `operation_${i + 1}`,
+          status: "running" as const,
+        }));
 
     traces.push({
       agent: "writer",
@@ -90,7 +92,9 @@ function buildTraces(
       agent: "writer",
       status: requiresCIBA ? "blocked" : "running",
       statusLabel: requiresCIBA ? "Awaiting Guardian" : "Reversing",
-      toolCalls: [{ name: "rollback_operations", status: "running" }],
+      toolCalls: requiresCIBA
+        ? []
+        : [{ name: "rollback_operations", status: "running" as const }],
       contextBoundary: "approved rollback operations only",
     });
   }
@@ -123,22 +127,24 @@ function buildTraces(
       contextBoundary: "approved change set operations only",
     });
 
-    // Notifier completed
-    traces.push({
-      agent: "notifier",
-      status: "completed",
-      toolCalls: [
-        {
-          name: "send_launch_notification",
-          status: "completed",
-        },
-        {
-          name: "send_execution_receipt",
-          status: "completed",
-        },
-      ],
-      contextBoundary: "notification scope",
-    });
+    // Notifier — only for forward executions with operations
+    if (operationCount > 0 && !hasFailed) {
+      traces.push({
+        agent: "notifier",
+        status: "completed",
+        toolCalls: [
+          {
+            name: "send_launch_notification",
+            status: "completed",
+          },
+          {
+            name: "send_execution_receipt",
+            status: "completed",
+          },
+        ],
+        contextBoundary: "notification scope",
+      });
+    }
   }
 
   return traces;

@@ -39,8 +39,16 @@ export function IntentCards({ onSelect }: IntentCardsProps) {
           return (
             <Card
               key={intent.id}
-              className="cursor-pointer transition-all hover:ring-2 hover:ring-ring/30 active:translate-y-px"
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer transition-all hover:ring-2 hover:ring-ring/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-px"
               onClick={() => onSelect(intent.prompt)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(intent.prompt);
+                }
+              }}
             >
               <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
                 <div

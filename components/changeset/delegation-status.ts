@@ -1,8 +1,10 @@
 import type { AgentDelegation } from "@/lib/changeset/types";
 
+export type DelegationStatus = "completed" | "failed" | "pending";
+
 export function deriveDelegationStatus(
   d: AgentDelegation,
-): "completed" | "failed" | "pending" {
+): DelegationStatus {
   const hasFailed = d.operationsPerformed.some(
     (op) =>
       op.toLowerCase().includes("fail") || op.toLowerCase().includes("error"),
@@ -13,7 +15,7 @@ export function deriveDelegationStatus(
 }
 
 export const DELEGATION_STATUS_CONFIG: Record<
-  string,
+  DelegationStatus,
   { label: string; className: string }
 > = {
   completed: {
