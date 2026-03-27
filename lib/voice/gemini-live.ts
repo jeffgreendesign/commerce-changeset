@@ -1,11 +1,11 @@
 /**
- * Gemini Live API client — manages WebSocket connections to the Gemini Live API
- * for real-time voice I/O with affective dialog and proactive audio.
+ * Gemini Live API client — configuration builders for the dual-model
+ * sidecar voice architecture.
  *
  * Architecture:
- *   Browser mic → WebSocket → Gemini Live API → tool calls → existing agents
- *                                              → audio response → browser speaker
- *                                              → affective signals → session insights
+ *   Browser mic → AudioWorklet → 16kHz PCM (shared stream)
+ *     ├─→ Primary (3.1 Flash Live) — conversation, tool calls, audio response
+ *     └─→ Sidecar (2.5 Native Audio) — silent affective signal analysis
  */
 
 import type {
@@ -16,15 +16,18 @@ import type {
   SpeechPace,
 } from "./types";
 
+// ── Model constants ─────────────────────────────────────────────────
+
+/** Primary model — fast conversation, tool calls, audio output. */
+export const PRIMARY_MODEL = "gemini-3.1-flash-live-preview";
+
+/** Sidecar model — affective dialog + proactive audio (silent listener). */
+export const SIDECAR_MODEL =
+  "gemini-2.5-flash-native-audio-preview-12-2025";
+
 // ── Default configuration ────────────────────────────────────────────
 
-const DEFAULT_CONFIG: GeminiLiveConfig = {
-  model: "gemini-live-2.5-flash-native-audio",
-  enableAffectiveDialog: true,
-  enableProactiveAudio: true,
-  voicePreset: "Kore",
-  languageCode: "en-US",
-  systemInstruction: `You are a voice assistant for Commerce Changeset, a commerce operations platform.
+const COMMERCE_SYSTEM_INSTRUCTION = `You are a voice assistant for Commerce Changeset, a commerce operations platform.
 You help users manage product pricing, promotions, and inventory through natural conversation.
 
 Your role:
@@ -47,8 +50,74 @@ When narrating agent activity:
 
 For CIBA approval gates:
 - "Your changeset has 3 operations requiring approval. I've sent a push notification to your phone."
-- "Say 'approve' to confirm by voice, or use your Guardian app."`,
+- "Say 'approve' to confirm by voice, or use your Guardian app."`;
+
+const SIDECAR_SYSTEM_INSTRUCTION = `You are a silent voice affect monitor. Analyze the user's speech patterns for:
+- Stress indicators (pitch elevation, speech rate changes, hesitation)
+- Emotional state (calm, stressed, rushed, uncertain)
+- Speech pace (fast, normal, slow)
+Do not generate spoken responses. Only provide text-based affect analysis.
+When you detect a change in emotional state, describe it briefly (e.g. "stressed: elevated pitch, faster pace").`;
+
+const DEFAULT_CONFIG: GeminiLiveConfig = {
+  model: PRIMARY_MODEL,
+  enableAffectiveDialog: true,
+  enableProactiveAudio: true,
+  voicePreset: "Kore",
+  languageCode: "en-US",
+  systemInstruction: COMMERCE_SYSTEM_INSTRUCTION,
 };
+
+// ── SDK configuration builders ──────────────────────────────────────
+
+/**
+ * Build the SDK config for the primary (3.1 Flash Live) connection.
+ *
+ * Handles conversation, tool calls, and audio output.
+ * 3.1 does NOT support affective dialog or proactive audio.
+ */
+export function buildPrimarySDKConfig(
+  config: GeminiLiveConfig = DEFAULT_CONFIG
+): Record<string, unknown> {
+  return {
+    responseModalities: ["AUDIO"],
+    speechConfig: {
+      voiceConfig: {
+        prebuiltVoiceConfig: {
+          voiceName: config.voicePreset,
+        },
+      },
+    },
+    systemInstruction: config.systemInstruction,
+    tools: buildToolDeclarations(),
+    inputAudioTranscription: {},
+    outputAudioTranscription: {},
+  };
+}
+
+/**
+ * Build the SDK config for the sidecar (2.5 Native Audio) connection.
+ *
+ * Silent listener — TEXT output only, no tools, affective dialog enabled.
+ */
+export function buildSidecarSDKConfig(): Record<string, unknown> {
+  return {
+    responseModalities: ["TEXT"],
+    systemInstruction: {
+      parts: [{ text: SIDECAR_SYSTEM_INSTRUCTION }],
+    },
+    realtimeInputConfig: {
+      automaticActivityDetection: {
+        disabled: false,
+      },
+    },
+    inputAudioTranscription: {},
+    enableAffectiveDialog: true,
+    proactivity: {
+      proactiveAudio: true,
+    },
+  };
+}
 
 // ── Session management ───────────────────────────────────────────────
 
@@ -65,8 +134,7 @@ export interface GeminiLiveSession {
 /**
  * Create a new Gemini Live session configuration.
  *
- * In production this would establish a WebSocket to the Gemini Live API.
- * Currently returns the session config for the API route to use.
+ * Returns the session config for the API route to use.
  */
 export function createSession(
   overrides?: Partial<GeminiLiveConfig>
@@ -83,12 +151,13 @@ export function createSession(
 }
 
 /**
- * Build the Gemini Live API setup message for WebSocket connection.
+ * Build the Gemini Live API setup message for raw WebSocket connection.
  *
- * This is the initial message sent to establish the Live API session,
- * including model config, affective dialog, proactive audio, and tools.
+ * Kept for backward compatibility with the /api/voice init action.
  */
-export function buildSetupMessage(config: GeminiLiveConfig): Record<string, unknown> {
+export function buildSetupMessage(
+  config: GeminiLiveConfig
+): Record<string, unknown> {
   return {
     setup: {
       model: `models/${config.model}`,
@@ -123,12 +192,14 @@ export function buildSetupMessage(config: GeminiLiveConfig): Record<string, unkn
   };
 }
 
+// ── Tool declarations ───────────────────────────────────────────────
+
 /**
  * Build tool declarations for Gemini Live to call back into our agent system.
  *
  * These map to the existing orchestrator/reader/writer/notifier pipeline.
  */
-function buildToolDeclarations(): Record<string, unknown>[] {
+export function buildToolDeclarations(): Record<string, unknown>[] {
   return [
     {
       functionDeclarations: [
@@ -194,7 +265,8 @@ function buildToolDeclarations(): Record<string, unknown>[] {
               },
               confirmation: {
                 type: "STRING",
-                description: "The user's verbal confirmation (e.g. 'yes, approve')",
+                description:
+                  "The user's verbal confirmation (e.g. 'yes, approve')",
               },
             },
             required: ["changesetId", "confirmation"],
@@ -212,10 +284,13 @@ function buildToolDeclarations(): Record<string, unknown>[] {
  *
  * Uses stress level and speech pace to determine overall emotional state.
  */
-export function classifyEmotionalState(metrics: VoiceMetrics): EmotionalState {
+export function classifyEmotionalState(
+  metrics: VoiceMetrics
+): EmotionalState {
   if (metrics.stressLevel > 0.7) return "stressed";
   if (metrics.pace === "fast" && metrics.stressLevel > 0.4) return "rushed";
-  if (metrics.stressLevel > 0.3 && metrics.pitchVariance > 0.6) return "uncertain";
+  if (metrics.stressLevel > 0.3 && metrics.pitchVariance > 0.6)
+    return "uncertain";
   return "calm";
 }
 
@@ -241,7 +316,11 @@ export function aggregateMetrics(samples: VoiceMetrics[]): VoiceMetrics {
     samples.reduce((sum, s) => sum + s.confidence, 0) / samples.length;
 
   // Determine dominant pace
-  const paceCounts: Record<SpeechPace, number> = { fast: 0, normal: 0, slow: 0 };
+  const paceCounts: Record<SpeechPace, number> = {
+    fast: 0,
+    normal: 0,
+    slow: 0,
+  };
   for (const s of samples) {
     paceCounts[s.pace]++;
   }
@@ -261,7 +340,9 @@ export function aggregateMetrics(samples: VoiceMetrics[]): VoiceMetrics {
 /**
  * Parse a Gemini Live affective signal event into VoiceMetrics.
  */
-export function parseAffectiveEvent(event: Extract<GeminiLiveEvent, { type: "affective" }>): VoiceMetrics {
+export function parseAffectiveEvent(
+  event: Extract<GeminiLiveEvent, { type: "affective" }>
+): VoiceMetrics {
   return {
     tone: event.tone,
     pace: event.pace,

@@ -136,3 +136,53 @@ export type GeminiLiveEvent =
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "generation_complete" }
   | { type: "error"; message: string };
+
+// ── Dual-model connection types ─────────────────────────────────────
+
+/** WebSocket connection state for a Gemini Live session. */
+export type GeminiLiveConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "error";
+
+/** Handler for tool calls from Gemini — receives name + args, returns result. */
+export type ToolCallHandler = (
+  name: string,
+  args: Record<string, unknown>
+) => Promise<Record<string, unknown>>;
+
+/** Sidecar status for the affective analysis connection. */
+export interface SidecarStatus {
+  connected: boolean;
+  /** Whether affective signals are being received. */
+  receiving: boolean;
+}
+
+// ── Persistent session analytics ────────────────────────────────────
+
+/** Emotional state transition event — recorded during session for historical analysis. */
+export interface EmotionalStateTransition {
+  time: string;
+  state: EmotionalState;
+}
+
+/** Tool call outcome — recorded during session for historical analysis. */
+export interface ToolCallOutcome {
+  name: string;
+  success: boolean;
+  durationMs: number;
+}
+
+/** Extended session log with granular data for Sheets persistence. */
+export interface ExtendedVoiceSessionLog extends VoiceSessionLog {
+  /** Emotional state changes over the session timeline. */
+  emotionalStateTransitions: EmotionalStateTransition[];
+  /** Summary of all tool calls made during the session. */
+  toolCallSummary: ToolCallOutcome[];
+  /** Highest stress level observed during the session. */
+  peakStressLevel: number;
+  /** Which model config was used. */
+  model: string;
+}
