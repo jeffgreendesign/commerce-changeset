@@ -14,10 +14,12 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { ArrowDownIcon, XIcon, BrainCircuitIcon } from "lucide-react";
+import { ArrowDownIcon, XIcon, BrainCircuitIcon, Loader2Icon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
 import { ChangeSetSkeleton } from "@/components/changeset/changeset-skeleton";
 import { AgentBadge } from "@/components/changeset/agent-badge";
+import { ProductDataView } from "@/components/dashboard/product-data-view";
 import { WorkflowPipeline } from "@/components/dashboard/workflow-pipeline";
 import { CIBAApprovalGate } from "@/components/dashboard/ciba-approval-gate";
 import { AgentActivity } from "@/components/dashboard/agent-activity";
@@ -31,6 +33,12 @@ import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
+import {
+  loadSession,
+  buildChatSession,
+  debouncedSave,
+  type SerializableMessage,
+} from "@/lib/chat-history";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -59,6 +67,8 @@ type Phase =
 interface OrchestratorResponse {
   changeSet: ChangeSet;
   reasoning: string;
+  /** Formatted product/schedule data from the Reader Agent (read-only queries). */
+  readerText?: string;
   repetitionSignal?: RepetitionSignal;
   voiceContext?: {
     emotionalState: EmotionalState;
@@ -130,13 +140,44 @@ function useIsMobile() {
 
 // ── Component ────────────────────────────────────────────────────────
 
-export function Chat() {
-  const [messages, setMessages] = useState<Message[]>([]);
+interface ChatProps {
+  chatId: string;
+}
+
+export function Chat({ chatId }: ChatProps) {
+  // Load persisted session once so all initializers can use it
+  const [restoredSession] = useState(() => loadSession(chatId));
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (restoredSession?.messages) {
+      return restoredSession.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        readResult: m.readResult,
+        changeSet: m.changeSet,
+        reasoning: m.reasoning,
+        repetitionSignal: m.repetitionSignal,
+        rollbackDraftId: m.rollbackDraftId,
+      }));
+    }
+    return [];
+  });
   const [input, setInput] = useState("");
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>(() => {
+    // Restore draft phase if it was mid-workflow; map transient phases to "draft"
+    const saved = restoredSession?.phase;
+    if (saved === "draft" || saved === "complete") return saved;
+    // Transient phases (loading/executing/rolling_back) → resume as draft
+    if (saved === "loading" || saved === "executing" || saved === "rolling_back") return "draft";
+    return "idle";
+  });
   const [error, setError] = useState("");
-  const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
-  const [draftReasoning, setDraftReasoning] = useState("");
+  const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(
+    () => restoredSession?.draftChangeSet ?? null,
+  );
+  const [draftReasoning, setDraftReasoning] = useState(
+    () => restoredSession?.draftReasoning ?? "",
+  );
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const [sessionPattern, setSessionPattern] = useState<string | null>(null);
   const [showScrollPill, setShowScrollPill] = useState(false);
@@ -144,7 +185,37 @@ export function Chat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
+  const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
+  const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
+
+  // Auto-save messages to localStorage on changes
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const serializable: SerializableMessage[] = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      readResult: m.readResult,
+      changeSet: m.changeSet,
+      reasoning: m.reasoning,
+      repetitionSignal: m.repetitionSignal,
+      rollbackDraftId: m.rollbackDraftId,
+    }));
+    const session = buildChatSession(
+      chatId,
+      serializable,
+      sessionTitleRef.current,
+      {
+        changeSet: draftChangeSet ?? undefined,
+        reasoning: draftReasoning || undefined,
+        phase,
+      },
+      createdAtRef.current,
+    );
+    sessionTitleRef.current = session.title;
+    createdAtRef.current = session.createdAt;
+    debouncedSave(session);
+  }, [messages, chatId, draftChangeSet, draftReasoning, phase]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -197,7 +268,11 @@ export function Chat() {
           } else {
             setMessages((prev) => [
               ...prev,
-              { role: "assistant", content: "Here\u2019s what I found:", readResult: data.reasoning },
+              {
+                role: "assistant",
+                content: data.reasoning,
+                readResult: data.readerText,
+              },
             ]);
             setPhase("complete");
           }
@@ -618,8 +693,8 @@ export function Chat() {
             ...prev,
             {
               role: "assistant",
-              content: "Here\u2019s what I found:",
-              readResult: data.reasoning,
+              content: data.reasoning,
+              readResult: data.readerText,
             },
           ]);
           setPhase("complete");
@@ -724,17 +799,25 @@ export function Chat() {
           />
         )}
 
-        {messages.map((msg, i) => (
-          <div key={i} className="space-y-3">
+        {messages.map((msg, i) => {
+          const isLast = i === messages.length - 1;
+          const isLastAssistant = isLast && msg.role === "assistant";
+          const hasOps = !!(msg.changeSet && msg.changeSet.operations.length > 0);
+          const showInlinePipeline = isLastAssistant && hasOps && phase !== "idle" && phase !== "error";
+          const showInlineActivity = isLastAssistant && hasOps && (phase === "loading" || phase === "executing" || phase === "rolling_back" || phase === "complete");
+
+          return (
+          <div key={i} className="animate-message-enter space-y-3">
             <div
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[85%] sm:rounded-lg ${
+                className={cn(
+                  "max-w-[90%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[85%] sm:rounded-lg",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}
+                    : "border-l-2 border-emerald-500/40 bg-muted/60 dark:border-emerald-400/30",
+                )}
               >
                 {msg.content}
               </div>
@@ -765,7 +848,10 @@ export function Chat() {
 
             {msg.readResult && (
               <div className="ml-0 max-w-full rounded-xl border bg-card p-4 text-sm text-card-foreground sm:rounded-lg sm:p-6">
-                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{msg.readResult}</Markdown>
+                <ProductDataView markdown={msg.readResult} />
+                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                  {msg.readResult.replace(/\|[^\n]*\|(\n\|[^\n]*\|)*/g, "").trim()}
+                </Markdown>
               </div>
             )}
 
@@ -804,54 +890,71 @@ export function Chat() {
                 />
               </div>
             )}
+
+            {/* Inline pipeline + agent activity for the last assistant message */}
+            {showInlinePipeline && (
+              <WorkflowPipeline
+                phase={phase}
+                requiresCIBA={
+                  draftChangeSet?.riskSummary.requiresCIBA ??
+                  msg.changeSet?.riskSummary.requiresCIBA ??
+                  false
+                }
+              />
+            )}
+            {showInlineActivity && (
+              <AgentActivity
+                phase={phase}
+                requiresCIBA={
+                  draftChangeSet?.riskSummary.requiresCIBA ??
+                  msg.changeSet?.riskSummary.requiresCIBA ??
+                  false
+                }
+                operationCount={
+                  draftChangeSet?.operations.length ??
+                  msg.changeSet?.operations.length ??
+                  0
+                }
+                results={msg.changeSet?.execution?.results}
+              />
+            )}
           </div>
-        ))}
+          );
+        })}
 
-        {/* Workflow pipeline + contextual loading states */}
-        {(phase === "loading" ||
-          phase === "executing" ||
-          phase === "rolling_back" ||
-          phase === "draft" ||
-          phase === "complete") &&
-          messages.length > 0 && (
-            <WorkflowPipeline
-              phase={phase}
-              requiresCIBA={
-                draftChangeSet?.riskSummary.requiresCIBA ??
-                messages[messages.length - 1]?.changeSet?.riskSummary
-                  .requiresCIBA ??
-                false
-              }
-            />
-          )}
-
-        {/* Agent activity theater — shows live agent traces */}
-        {(phase === "loading" ||
-          phase === "executing" ||
-          phase === "rolling_back" ||
-          phase === "complete") &&
-          messages.length > 0 && (
-          <AgentActivity
-            phase={phase}
-            requiresCIBA={
-              draftChangeSet?.riskSummary.requiresCIBA ??
-              messages[messages.length - 1]?.changeSet?.riskSummary
-                .requiresCIBA ??
-              false
-            }
-            operationCount={
-              draftChangeSet?.operations.length ??
-              messages[messages.length - 1]?.changeSet?.operations.length ??
-              0
-            }
-            results={
-              messages[messages.length - 1]?.changeSet?.execution?.results
-            }
-          />
+        {/* Thinking state — shown during loading before assistant responds */}
+        {phase === "loading" && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
+          <div className="animate-message-enter space-y-3">
+            <div className="flex justify-start">
+              <div className="border-l-2 border-emerald-500/40 bg-muted/60 dark:border-emerald-400/30 rounded-2xl px-4 py-2.5 text-sm sm:rounded-lg">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                  Analyzing your request...
+                </span>
+              </div>
+            </div>
+            {/* Only show workflow components when we know this is a write operation */}
+            {draftChangeSet && draftChangeSet.operations.length > 0 && (
+              <>
+                <WorkflowPipeline
+                  phase={phase}
+                  requiresCIBA={false}
+                />
+                <AgentActivity
+                  phase={phase}
+                  requiresCIBA={false}
+                  operationCount={0}
+                />
+                <ChangeSetSkeleton />
+              </>
+            )}
+          </div>
         )}
 
-        {/* Skeleton loading for orchestrator response */}
-        {phase === "loading" && <ChangeSetSkeleton />}
+        {/* Skeleton loading when assistant has responded with a draft changeset */}
+        {phase === "loading" && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && draftChangeSet && draftChangeSet.operations.length > 0 && (
+          <ChangeSetSkeleton />
+        )}
 
         {/* CIBA approval gate during execution */}
         {phase === "executing" && (

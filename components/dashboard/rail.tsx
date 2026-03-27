@@ -7,6 +7,7 @@ import {
   ZapIcon,
   MenuIcon,
   XIcon,
+  PlusIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ChatHistoryPanel } from "./chat-history-panel";
+import { useLayout } from "./layout-shell";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -30,7 +33,7 @@ import { toast } from "sonner";
 
 const NAV_ITEMS = [
   { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
-  { icon: HistoryIcon, label: "History", id: "history" as const, enabled: false },
+  { icon: HistoryIcon, label: "History", id: "history" as const, enabled: true },
   { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: false },
 ] as const;
 
@@ -110,8 +113,28 @@ function RailNav({
 // ── Main export ──────────────────────────────────────────────────────
 
 export function Rail({ expanded, onToggle, userName }: RailProps) {
-  const [activeItem, setActiveItem] = useState("chat");
+  const { activeChatId, startNewChat, loadChat, activeView, setActiveView } = useLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const activeItem = activeView === "history" ? "history" : "chat";
+
+  const handleSelect = (id: string) => {
+    if (id === "chat") {
+      setActiveView("chat");
+    } else if (id === "history") {
+      setActiveView("history");
+    }
+  };
+
+  const handleNewChat = () => {
+    startNewChat();
+    setMobileOpen(false);
+  };
+
+  const handleSelectChat = (id: string) => {
+    loadChat(id);
+    setMobileOpen(false);
+  };
 
   return (
     <>
@@ -130,28 +153,50 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
 
       {/* Mobile sheet overlay */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="flex w-72 flex-col p-0">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle className="flex items-center gap-2 text-sm">
               <LayoutDashboardIcon className="size-4" />
               Commerce Changeset
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[calc(100%-57px)]">
-            <RailNav
-              expanded
-              activeItem={activeItem}
-              onSelect={(id) => {
-                setActiveItem(id);
-                setMobileOpen(false);
-              }}
+
+          {/* New Chat button */}
+          <div className="border-b px-3 py-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full min-h-[44px] gap-2"
+              onClick={handleNewChat}
+            >
+              <PlusIcon className="size-4" />
+              New Chat
+            </Button>
+          </div>
+
+          <RailNav
+            expanded
+            activeItem={activeItem}
+            onSelect={(id) => {
+              handleSelect(id);
+              if (id === "chat") setMobileOpen(false);
+            }}
+          />
+
+          {/* Show history panel inline in mobile sheet when history is selected */}
+          {activeItem === "history" && (
+            <ChatHistoryPanel
+              activeChatId={activeChatId}
+              onSelectChat={handleSelectChat}
+              onNewChat={handleNewChat}
             />
-            <div className="mt-auto border-t px-4 py-3">
-              <p className="truncate text-xs text-muted-foreground">
-                {userName}
-              </p>
-            </div>
-          </ScrollArea>
+          )}
+
+          <div className="mt-auto border-t px-4 py-3">
+            <p className="truncate text-xs text-muted-foreground">
+              {userName}
+            </p>
+          </div>
         </SheetContent>
       </Sheet>
 
@@ -190,13 +235,51 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
           </Button>
         </div>
 
+        {/* New Chat button */}
+        <div className={cn("border-b", expanded ? "px-3 py-2" : "px-2 py-2")}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size={expanded ? "sm" : "icon"}
+                    className={cn(
+                      "min-h-[44px] min-w-[44px]",
+                      expanded && "w-full gap-2",
+                    )}
+                    onClick={handleNewChat}
+                  />
+                }
+              >
+                <PlusIcon className="size-4" />
+                {expanded && <span>New Chat</span>}
+              </TooltipTrigger>
+              {!expanded && (
+                <TooltipContent side="right">New Chat</TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
         {/* Rail nav */}
         <ScrollArea className="flex-1">
           <RailNav
             expanded={expanded}
             activeItem={activeItem}
-            onSelect={setActiveItem}
+            onSelect={handleSelect}
           />
+
+          {/* Inline history panel when expanded and history is active */}
+          {expanded && activeItem === "history" && (
+            <div className="border-t">
+              <ChatHistoryPanel
+                activeChatId={activeChatId}
+                onSelectChat={(id) => loadChat(id)}
+                onNewChat={startNewChat}
+              />
+            </div>
+          )}
         </ScrollArea>
 
         {/* Rail footer */}

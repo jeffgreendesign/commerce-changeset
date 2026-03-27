@@ -1,0 +1,173 @@
+/**
+ * Chat session persistence via localStorage.
+ *
+ * Stores up to MAX_SESSIONS chat sessions with debounced auto-save.
+ * Each session includes messages, metadata, and a generated title.
+ */
+
+// ── Types ────────────────────────────────────────────────────────────
+
+import type { ChangeSet } from "@/lib/changeset/types";
+import type { RepetitionSignal } from "@/lib/voice/types";
+
+export interface SerializableMessage {
+  role: "user" | "assistant";
+  content: string;
+  readResult?: string;
+  changeSet?: ChangeSet;
+  reasoning?: string;
+  repetitionSignal?: RepetitionSignal;
+  rollbackDraftId?: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: SerializableMessage[];
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+  preview: string;
+  /** Persisted draft state so a pending workflow resumes on reload. */
+  draftChangeSet?: ChangeSet;
+  draftReasoning?: string;
+  phase?: string;
+}
+
+// ── Constants ────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "commerce-changeset-chat-sessions";
+const MAX_SESSIONS = 50;
+const MAX_TITLE_LENGTH = 40;
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+export function generateChatId(): string {
+  return crypto.randomUUID();
+}
+
+export function generateTitle(firstUserMessage: string): string {
+  const cleaned = firstUserMessage.trim().replace(/\n+/g, " ");
+  if (cleaned.length <= MAX_TITLE_LENGTH) return cleaned;
+  return cleaned.slice(0, MAX_TITLE_LENGTH - 1) + "\u2026";
+}
+
+function getPreview(messages: SerializableMessage[]): string {
+  const lastAssistant = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  if (!lastAssistant) return "";
+  const text = lastAssistant.content.trim().replace(/\n+/g, " ");
+  return text.length > 60 ? text.slice(0, 59) + "\u2026" : text;
+}
+
+// ── Storage operations ───────────────────────────────────────────────
+
+export function loadAllSessions(): ChatSession[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const sessions: ChatSession[] = JSON.parse(raw);
+    return sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+  } catch {
+    return [];
+  }
+}
+
+export function loadSession(id: string): ChatSession | null {
+  const sessions = loadAllSessions();
+  return sessions.find((s) => s.id === id) ?? null;
+}
+
+export function saveChatSession(session: ChatSession): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const sessions = loadAllSessions();
+    const existingIndex = sessions.findIndex((s) => s.id === session.id);
+
+    if (existingIndex !== -1) {
+      sessions[existingIndex] = session;
+    } else {
+      sessions.unshift(session);
+    }
+
+    // Enforce max sessions limit
+    const trimmed = sessions
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, MAX_SESSIONS);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    return true;
+  } catch (err) {
+    console.error(`[chat-history] saveChatSession failed for ${session.id}:`, err);
+    return false;
+  }
+}
+
+export function deleteChatSession(id: string): boolean {
+  if (typeof window === "undefined") return false;
+  // Cancel any pending autosave so it can't re-create the deleted session
+  cancelPendingSave(id);
+  try {
+    const sessions = loadAllSessions().filter((s) => s.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    return true;
+  } catch (err) {
+    console.error(`[chat-history] deleteChatSession failed for ${id}:`, err);
+    return false;
+  }
+}
+
+// ── Session builder ──────────────────────────────────────────────────
+
+export function buildChatSession(
+  id: string,
+  messages: SerializableMessage[],
+  existingTitle?: string,
+  draft?: { changeSet?: ChangeSet; reasoning?: string; phase?: string },
+  existingCreatedAt?: number,
+): ChatSession {
+  const firstUserMsg = messages.find((m) => m.role === "user");
+  const title =
+    existingTitle ??
+    (firstUserMsg ? generateTitle(firstUserMsg.content) : "New conversation");
+
+  return {
+    id,
+    title,
+    messages,
+    createdAt: existingCreatedAt ?? Date.now(),
+    updatedAt: Date.now(),
+    messageCount: messages.length,
+    preview: getPreview(messages),
+    draftChangeSet: draft?.changeSet,
+    draftReasoning: draft?.reasoning,
+    phase: draft?.phase,
+  };
+}
+
+// ── Debounced save (per-chat) ────────────────────────────────────────
+
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Cancel a pending autosave for the given session id. */
+export function cancelPendingSave(id: string): void {
+  const timer = saveTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    saveTimers.delete(id);
+  }
+}
+
+export function debouncedSave(session: ChatSession, delayMs = 500): void {
+  const existing = saveTimers.get(session.id);
+  if (existing) clearTimeout(existing);
+  saveTimers.set(
+    session.id,
+    setTimeout(() => {
+      saveChatSession(session);
+      saveTimers.delete(session.id);
+    }, delayMs),
+  );
+}

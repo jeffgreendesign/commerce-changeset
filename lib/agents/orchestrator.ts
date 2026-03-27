@@ -24,6 +24,8 @@ import type { VoiceUserContext, RepetitionSignal } from "@/lib/voice/types";
 export interface OrchestratorResult {
   changeSet: Awaited<ReturnType<typeof buildChangeSet>>;
   reasoning: string;
+  /** Formatted product/schedule data from the Reader Agent (read-only queries). */
+  readerText?: string;
   /** Repetition signal if a repetitive workflow pattern was detected. */
   repetitionSignal?: RepetitionSignal;
 }
@@ -204,6 +206,9 @@ export async function runOrchestratorAgent(
   return {
     changeSet,
     reasoning,
+    // Include the reader's formatted text for read-only queries so the client
+    // can render actual product/schedule data instead of just the LLM reasoning.
+    readerText: changeSet.operations.length === 0 ? readerResult.text : undefined,
     // Returned separately for API consumers; changeSet is for persistence only.
     repetitionSignal: repetitionSignal.isRepetitive
       ? repetitionSignal

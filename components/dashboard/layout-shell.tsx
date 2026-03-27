@@ -10,8 +10,11 @@ import {
 } from "react";
 import { Rail } from "./rail";
 import { Inspector, type InspectableItem } from "./inspector";
+import { generateChatId } from "@/lib/chat-history";
 
 // ── Context ──────────────────────────────────────────────────────────
+
+type ActiveView = "chat" | "history";
 
 interface LayoutContextValue {
   /** Open the right inspector panel with an item. */
@@ -23,6 +26,16 @@ interface LayoutContextValue {
   /** Whether the left rail is expanded (desktop only). */
   railExpanded: boolean;
   toggleRail: () => void;
+  /** Currently active chat session ID. */
+  activeChatId: string;
+  /** Start a new chat session. */
+  startNewChat: () => void;
+  /** Load and switch to an existing chat session. */
+  loadChat: (id: string) => void;
+  /** Which view is currently active. */
+  activeView: ActiveView;
+  /** Switch the active view. */
+  setActiveView: (view: ActiveView) => void;
 }
 
 const LayoutContext = createContext<LayoutContextValue | null>(null);
@@ -45,6 +58,8 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   const [inspectorItem, setInspectorItem] = useState<InspectableItem | null>(
     null,
   );
+  const [activeChatId, setActiveChatId] = useState(() => generateChatId());
+  const [activeView, setActiveView] = useState<ActiveView>("chat");
 
   const inspect = useCallback((item: InspectableItem) => {
     setInspectorItem(item);
@@ -58,6 +73,16 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
     setRailExpanded((prev) => !prev);
   }, []);
 
+  const startNewChat = useCallback(() => {
+    setActiveChatId(generateChatId());
+    setActiveView("chat");
+  }, []);
+
+  const loadChat = useCallback((id: string) => {
+    setActiveChatId(id);
+    setActiveView("chat");
+  }, []);
+
   const ctx = useMemo<LayoutContextValue>(
     () => ({
       inspect,
@@ -65,8 +90,13 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
       inspectorOpen: inspectorItem !== null,
       railExpanded,
       toggleRail,
+      activeChatId,
+      startNewChat,
+      loadChat,
+      activeView,
+      setActiveView,
     }),
-    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail],
+    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView],
   );
 
   return (
