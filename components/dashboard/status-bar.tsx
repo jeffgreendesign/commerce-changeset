@@ -57,7 +57,7 @@ export function StatusBar() {
   const { stats } = useStatusBar();
 
   return (
-    <div className="flex h-7 items-center gap-4 border-b bg-muted/30 px-4 text-[11px] text-muted-foreground">
+    <div className="flex h-8 items-center gap-4 border-b bg-muted/30 px-4 text-xs text-muted-foreground px-safe">
       <span className="flex items-center gap-1.5">
         <ActivityIcon className="size-3" />
         <span className="font-medium">Session</span>

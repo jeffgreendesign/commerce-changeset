@@ -120,12 +120,25 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+    /* Prevent iOS overscroll bounce on the page itself */
+    overflow: hidden;
+  }
+  /* Eliminate 300ms tap delay on interactive elements */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [tabindex] {
+    touch-action: manipulation;
   }
 }
 
@@ -208,7 +221,67 @@
   }
 }
 
-/* Safe area inset for mobile input bar */
+/* ── Safe area insets for iOS (all sides) ──────────────────────────── */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── Liquid Glass frosted backdrop ─────────────────────────────────── */
+.glass {
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  background-color: oklch(1 0 0 / 72%);
+}
+:is(.dark) .glass {
+  background-color: oklch(0.145 0 0 / 72%);
+}
+.glass-subtle {
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  background-color: oklch(1 0 0 / 60%);
+}
+:is(.dark) .glass-subtle {
+  background-color: oklch(0.145 0 0 / 60%);
+}
+
+/* ── Voice dock animations ─────────────────────────────────────────── */
+@keyframes voice-dock-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-voice-dock-enter {
+  animation: voice-dock-enter 0.25s ease-out forwards;
+}
+
+@keyframes slide-down-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-down-fade {
+  animation: slide-down-fade 0.3s ease-out forwards;
 }
