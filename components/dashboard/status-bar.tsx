@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext, useMemo, type ReactNode } from "react";
-import { ActivityIcon } from "lucide-react";
+// ActivityIcon removed — replaced with live dot indicator
 
 // ── Stats context — allows chat.tsx to push stats up ─────────────────
 
@@ -57,25 +57,27 @@ export function StatusBar() {
   const { stats } = useStatusBar();
 
   return (
-    <div className="flex h-8 items-center gap-4 border-b bg-muted/30 px-4 text-xs text-muted-foreground px-safe">
+    <div className="flex h-7 items-center gap-2 border-b bg-muted/20 pl-14 pr-4 text-[11px] text-muted-foreground md:pl-4 px-safe">
       <span className="flex items-center gap-1.5">
-        <ActivityIcon className="size-3" />
+        <span className="relative flex size-1.5">
+          <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+        </span>
         <span className="font-medium">Session</span>
       </span>
-      <span>
+      <span className="rounded-full bg-muted px-1.5 py-0.5 tabular-nums">
         {stats.changesets} changeset{stats.changesets !== 1 ? "s" : ""}
       </span>
-      <span className="hidden sm:inline">
-        {stats.operations} operation{stats.operations !== 1 ? "s" : ""} executed
+      <span className="hidden rounded-full bg-muted px-1.5 py-0.5 tabular-nums sm:inline">
+        {stats.operations} op{stats.operations !== 1 ? "s" : ""}
       </span>
       {stats.failures > 0 && (
-        <span className="text-destructive">
-          {stats.failures} failure{stats.failures !== 1 ? "s" : ""}
+        <span className="rounded-full bg-red-100 px-1.5 py-0.5 tabular-nums text-red-700 dark:bg-red-900/30 dark:text-red-400">
+          {stats.failures} fail{stats.failures !== 1 ? "s" : ""}
         </span>
       )}
       {stats.failures === 0 && stats.changesets > 0 && (
-        <span className="text-emerald-600 dark:text-emerald-400">
-          0 failures
+        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+          0 fails
         </span>
       )}
     </div>

@@ -1,0 +1,85 @@
+"use client";
+
+import { PlusIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Chat } from "./chat";
+import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
+import { StatusBarProvider, StatusBar } from "@/components/dashboard/status-bar";
+import { ThemeToggle } from "@/components/dashboard/theme-toggle";
+import { ChatHistoryPanel } from "@/components/dashboard/chat-history-panel";
+
+// ── Inner content that has access to layout context ──────────────────
+
+function DashboardContent({ userName }: { userName: string }) {
+  const { activeChatId, startNewChat, loadChat, activeView } = useLayout();
+
+  return (
+    <div className="flex h-dvh flex-col overflow-hidden">
+      {/* Global header — frosted glass */}
+      <header className="glass sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3 pt-safe px-safe sm:px-6">
+        {/* Spacer on mobile for hamburger offset */}
+        <div className="w-12 md:hidden" />
+        <h1 className="text-sm font-semibold tracking-tight sm:text-lg">
+          <span className="md:hidden">Changeset</span>
+          <span className="hidden md:inline">Commerce Changeset</span>
+        </h1>
+        <div className="flex items-center gap-1 text-sm sm:gap-2">
+          {/* New Chat button — mobile accessible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-h-[44px] min-w-[44px] md:hidden"
+            onClick={startNewChat}
+            aria-label="New chat"
+          >
+            <PlusIcon className="size-5" />
+          </Button>
+          <span className="hidden text-muted-foreground sm:inline">
+            {userName}
+          </span>
+          <ThemeToggle />
+          <a
+            href="/auth/logout"
+            className="inline-flex min-h-[44px] items-center px-2 text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Log out
+          </a>
+        </div>
+      </header>
+
+      {/* Status bar */}
+      <StatusBar />
+
+      {/* Content area — switches between chat and history */}
+      {activeView === "chat" ? (
+        <Chat key={activeChatId} chatId={activeChatId} />
+      ) : (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="border-b px-4 py-3 sm:px-6">
+            <h2 className="text-sm font-semibold">Chat History</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Return to any previous conversation
+            </p>
+          </div>
+          <ChatHistoryPanel
+            activeChatId={activeChatId}
+            onSelectChat={loadChat}
+            onNewChat={startNewChat}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main export ──────────────────────────────────────────────────────
+
+export function DashboardClient({ userName }: { userName: string }) {
+  return (
+    <StatusBarProvider>
+      <LayoutShell userName={userName}>
+        <DashboardContent userName={userName} />
+      </LayoutShell>
+    </StatusBarProvider>
+  );
+}

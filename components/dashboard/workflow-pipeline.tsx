@@ -68,12 +68,11 @@ function getStepStatus(
   phase: ChatPhase,
   requiresCIBA: boolean,
 ): StepStatus {
-  // Phase ordering for mapping
   const phaseOrder: Record<ChatPhase, number> = {
     idle: -1,
-    loading: 1, // gather + analyze
+    loading: 1,
     draft: 2,
-    executing: requiresCIBA ? 4 : 3, // approve (3) then execute (4) if CIBA
+    executing: requiresCIBA ? 4 : 3,
     rolling_back: 5,
     complete: 6,
     error: -2,
@@ -93,16 +92,7 @@ function getStepStatus(
   const thisStepOrder = stepOrder[step];
 
   if (phase === "error") {
-    // Mark the currently-active step as failed, prior steps as completed
-    // Determine what step the error likely occurred at
-    const errorStepOrder =
-      phase === "error"
-        ? // error could happen at any active step — use loading→gather, executing→execute, etc.
-          phaseOrder.loading // fallback; we refine below
-        : currentPhaseOrder;
-
-    // We don't track exactly which step errored, so show all prior as done
-    // and the last active as failed
+    const errorStepOrder = phaseOrder.loading;
     if (thisStepOrder < errorStepOrder) return "completed";
     if (thisStepOrder === errorStepOrder) return "failed";
     return "pending";
@@ -115,64 +105,43 @@ function getStepStatus(
   return "pending";
 }
 
-// ── Step icon ────────────────────────────────────────────────────────
+// ── Step dot (compact) ───────────────────────────────────────────────
 
-function StepIcon({ status }: { status: StepStatus }) {
+function StepDot({ status }: { status: StepStatus }) {
   switch (status) {
     case "completed":
       return (
-        <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 animate-step-enter dark:bg-emerald-900/40 dark:text-emerald-400">
-          <CheckIcon className="size-3.5" />
+        <div className="flex size-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 animate-step-enter dark:bg-emerald-900/40 dark:text-emerald-400 sm:size-6">
+          <CheckIcon className="size-3 sm:size-3.5" />
         </div>
       );
     case "active":
       return (
-        <div className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground animate-pulse-glow">
-          <Loader2Icon className="size-3.5 animate-spin" />
+        <div className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground animate-pulse-glow sm:size-6">
+          <Loader2Icon className="size-3 animate-spin sm:size-3.5" />
         </div>
       );
     case "failed":
       return (
-        <div className="flex size-6 items-center justify-center rounded-full bg-destructive/10 text-destructive animate-step-enter">
-          <XIcon className="size-3.5" />
+        <div className="flex size-5 items-center justify-center rounded-full bg-destructive/10 text-destructive animate-step-enter sm:size-6">
+          <XIcon className="size-3 sm:size-3.5" />
         </div>
       );
     default:
       return (
-        <div className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <CircleIcon className="size-2.5" />
+        <div className="flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground sm:size-6">
+          <CircleIcon className="size-2 sm:size-2.5" />
         </div>
       );
   }
 }
 
-// ── Connector line between steps ─────────────────────────────────────
+// ── Connector line ───────────────────────────────────────────────────
 
-function Connector({
-  fromStatus,
-  orientation,
-}: {
-  fromStatus: StepStatus;
-  orientation: "horizontal" | "vertical";
-}) {
+function Connector({ fromStatus }: { fromStatus: StepStatus }) {
   const filled = fromStatus === "completed";
-
-  if (orientation === "vertical") {
-    return (
-      <div className="flex justify-center py-0.5">
-        <div
-          className={cn(
-            "w-px transition-colors duration-300",
-            filled ? "bg-emerald-500 dark:bg-emerald-400" : "bg-border",
-            "h-4",
-          )}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-1 items-center px-1">
+    <div className="flex flex-1 items-center px-0.5 sm:px-1">
       <div
         className={cn(
           "h-px w-full transition-colors duration-300",
@@ -192,21 +161,26 @@ interface WorkflowPipelineProps {
 
 export function WorkflowPipeline({ phase, requiresCIBA }: WorkflowPipelineProps) {
   const steps = buildPipelineSteps(phase, requiresCIBA);
+  const allComplete = phase === "complete";
 
-  // Don't render in idle state
   if (phase === "idle") return null;
 
   return (
-    <div className="rounded-lg border bg-card p-3">
-      {/* Horizontal layout (md+) */}
-      <div className="hidden items-center md:flex">
+    <div
+      className={cn(
+        "rounded-lg border bg-card/80 px-3 py-2 backdrop-blur-sm sm:p-3",
+        allComplete && "animate-shimmer-sweep",
+      )}
+    >
+      {/* Single horizontal layout for all breakpoints */}
+      <div className="flex items-center">
         {steps.map((step, i) => (
           <div key={step.id} className="flex flex-1 items-center">
-            <div className="flex flex-col items-center gap-1">
-              <StepIcon status={step.status} />
+            <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+              <StepDot status={step.status} />
               <span
                 className={cn(
-                  "text-[10px] font-medium transition-colors",
+                  "text-[9px] font-medium leading-none transition-colors sm:text-[10px]",
                   step.status === "active" && "text-foreground",
                   step.status === "completed" &&
                     "text-emerald-700 dark:text-emerald-400",
@@ -218,35 +192,7 @@ export function WorkflowPipeline({ phase, requiresCIBA }: WorkflowPipelineProps)
               </span>
             </div>
             {i < steps.length - 1 && (
-              <Connector fromStatus={step.status} orientation="horizontal" />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Vertical layout (< md) */}
-      <div className="flex flex-col md:hidden">
-        {steps.map((step, i) => (
-          <div key={step.id}>
-            <div className="flex items-center gap-3">
-              <StepIcon status={step.status} />
-              <span
-                className={cn(
-                  "text-xs font-medium transition-colors",
-                  step.status === "active" && "text-foreground",
-                  step.status === "completed" &&
-                    "text-emerald-700 dark:text-emerald-400",
-                  step.status === "failed" && "text-destructive",
-                  step.status === "pending" && "text-muted-foreground",
-                )}
-              >
-                {step.label}
-              </span>
-            </div>
-            {i < steps.length - 1 && (
-              <div className="ml-[11px]">
-                <Connector fromStatus={step.status} orientation="vertical" />
-              </div>
+              <Connector fromStatus={step.status} />
             )}
           </div>
         ))}

@@ -212,11 +212,73 @@
   animation: step-enter 0.3s ease-out forwards;
 }
 
+/* Pipeline completion shimmer sweep */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -100% 0;
+  }
+  50% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.animate-shimmer-sweep {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.85 0.15 145 / 12%) 45%,
+    oklch(0.85 0.15 145 / 20%) 50%,
+    oklch(0.85 0.15 145 / 12%) 55%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.5s ease-out 1;
+}
+:is(.dark) .animate-shimmer-sweep {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.5 0.15 145 / 10%) 45%,
+    oklch(0.5 0.15 145 / 15%) 50%,
+    oklch(0.5 0.15 145 / 10%) 55%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Hide scrollbar for product card carousel */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Message entrance animation */
+@keyframes message-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-message-enter {
+  animation: message-enter 0.2s ease-out forwards;
+}
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer,
   .animate-pulse-glow,
   .animate-step-enter,
+  .animate-shimmer-sweep,
+  .animate-message-enter,
   .animate-voice-dock-enter,
   .animate-slide-down-fade {
     animation: none;
