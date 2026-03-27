@@ -186,6 +186,7 @@ export function Chat({ chatId }: ChatProps) {
   const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
   const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
+  const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
 
   // Auto-save messages to localStorage on changes
@@ -200,12 +201,19 @@ export function Chat({ chatId }: ChatProps) {
       repetitionSignal: m.repetitionSignal,
       rollbackDraftId: m.rollbackDraftId,
     }));
-    const session = buildChatSession(chatId, serializable, sessionTitleRef.current, {
-      changeSet: draftChangeSet ?? undefined,
-      reasoning: draftReasoning || undefined,
-      phase,
-    });
+    const session = buildChatSession(
+      chatId,
+      serializable,
+      sessionTitleRef.current,
+      {
+        changeSet: draftChangeSet ?? undefined,
+        reasoning: draftReasoning || undefined,
+        phase,
+      },
+      createdAtRef.current,
+    );
     sessionTitleRef.current = session.title;
+    createdAtRef.current = session.createdAt;
     debouncedSave(session);
   }, [messages, chatId, draftChangeSet, draftReasoning, phase]);
 

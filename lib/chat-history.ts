@@ -80,8 +80,8 @@ export function loadSession(id: string): ChatSession | null {
   return sessions.find((s) => s.id === id) ?? null;
 }
 
-export function saveChatSession(session: ChatSession): void {
-  if (typeof window === "undefined") return;
+export function saveChatSession(session: ChatSession): boolean {
+  if (typeof window === "undefined") return false;
   try {
     const sessions = loadAllSessions();
     const existingIndex = sessions.findIndex((s) => s.id === session.id);
@@ -98,20 +98,24 @@ export function saveChatSession(session: ChatSession): void {
       .slice(0, MAX_SESSIONS);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-  } catch {
-    // localStorage might be full or unavailable — silently fail
+    return true;
+  } catch (err) {
+    console.error(`[chat-history] saveChatSession failed for ${session.id}:`, err);
+    return false;
   }
 }
 
-export function deleteChatSession(id: string): void {
-  if (typeof window === "undefined") return;
+export function deleteChatSession(id: string): boolean {
+  if (typeof window === "undefined") return false;
   // Cancel any pending autosave so it can't re-create the deleted session
   cancelPendingSave(id);
   try {
     const sessions = loadAllSessions().filter((s) => s.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-  } catch {
-    // Silently fail
+    return true;
+  } catch (err) {
+    console.error(`[chat-history] deleteChatSession failed for ${id}:`, err);
+    return false;
   }
 }
 
@@ -122,6 +126,7 @@ export function buildChatSession(
   messages: SerializableMessage[],
   existingTitle?: string,
   draft?: { changeSet?: ChangeSet; reasoning?: string; phase?: string },
+  existingCreatedAt?: number,
 ): ChatSession {
   const firstUserMsg = messages.find((m) => m.role === "user");
   const title =
@@ -132,7 +137,7 @@ export function buildChatSession(
     id,
     title,
     messages,
-    createdAt: Date.now(),
+    createdAt: existingCreatedAt ?? Date.now(),
     updatedAt: Date.now(),
     messageCount: messages.length,
     preview: getPreview(messages),
