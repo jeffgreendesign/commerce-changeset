@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { ArrowDownIcon, XIcon, BrainCircuitIcon } from "lucide-react";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
 import { ChangeSetSkeleton } from "@/components/changeset/changeset-skeleton";
 import { AgentBadge } from "@/components/changeset/agent-badge";
@@ -105,6 +106,28 @@ const mdComponents = {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+/** Fire haptic feedback on mobile devices. Gracefully no-ops on desktop. */
+function haptic(pattern: number | number[]) {
+  try {
+    navigator?.vibrate?.(pattern);
+  } catch {
+    // Not supported — no-op
+  }
+}
+
+/** Detect mobile viewport via matchMedia (SSR-safe). */
+const mobileSubscribe = (cb: () => void) => {
+  const mql = window.matchMedia("(max-width: 639px)");
+  mql.addEventListener("change", cb);
+  return () => mql.removeEventListener("change", cb);
+};
+const mobileSnapshot = () => window.matchMedia("(max-width: 639px)").matches;
+const mobileServerSnapshot = () => false;
+
+function useIsMobile() {
+  return useSyncExternalStore(mobileSubscribe, mobileSnapshot, mobileServerSnapshot);
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function Chat() {
@@ -116,9 +139,12 @@ export function Chat() {
   const [draftReasoning, setDraftReasoning] = useState("");
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const [sessionPattern, setSessionPattern] = useState<string | null>(null);
+  const [showScrollPill, setShowScrollPill] = useState(false);
+  const [patternDismissed, setPatternDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
+  const isMobile = useIsMobile();
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -128,6 +154,18 @@ export function Chat() {
       });
     });
   }, []);
+
+  // Track scroll position for "scroll to latest" pill
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      setShowScrollPill(!atBottom && messages.length > 0);
+    };
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, [messages.length]);
 
   // ── Gemini Live voice (dual-model sidecar) ─────────────────────────
 
@@ -317,6 +355,7 @@ export function Chat() {
         toast.success(
           `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
         );
+        haptic(200); // Long pulse on execution complete
       } else {
         toast.warning(`Execution finished with status: ${data.changeSet.status}`);
       }
@@ -492,6 +531,8 @@ export function Chat() {
 
     // Connect to Gemini Live (mic + dual WebSocket)
     await geminiLive.connect();
+    haptic(50); // Short pulse on connection
+    setPatternDismissed(false);
   }, [geminiLive]);
 
   const handleVoiceDeactivate = useCallback(async () => {
@@ -601,6 +642,7 @@ export function Chat() {
           toast.info(
             `Changeset drafted \u2014 ${data.changeSet.operations.length} operation${data.changeSet.operations.length !== 1 ? "s" : ""}${data.changeSet.riskSummary.requiresCIBA ? ", CIBA approval required" : ""}`,
           );
+          haptic([50, 50, 50]); // Double pulse on draft
           scrollToBottom();
         }
       } catch (err) {
@@ -646,15 +688,40 @@ export function Chat() {
     },
   });
 
+  const showMobileVoiceDock = isMobile && (voiceActive || geminiLive.connectionState === "connecting");
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Command Palette (Cmd+K) */}
       <CommandPalette onSubmitPrompt={submitMessage} />
 
+      {/* Session pattern card — top of chat, frosted glass */}
+      {voiceActive && sessionPattern && !patternDismissed && (
+        <div className="glass-subtle animate-slide-down-fade border-b px-4 py-3 sm:px-6">
+          <div className="flex items-start gap-3">
+            <BrainCircuitIcon className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="flex-1 text-sm text-amber-800 dark:text-amber-300">
+              {sessionPattern}
+            </p>
+            <button
+              onClick={() => setPatternDismissed(true)}
+              className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              aria-label="Dismiss"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div ref={scrollRef} className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 sm:p-6 sm:space-y-6">
         {messages.length === 0 && phase === "idle" && (
-          <IntentCards onSelect={submitMessage} />
+          <IntentCards
+            onSelect={submitMessage}
+            onVoiceActivate={handleVoiceActivate}
+            voiceAvailable
+          />
         )}
 
         {messages.map((msg, i) => (
@@ -663,7 +730,7 @@ export function Chat() {
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-lg px-4 py-2.5 text-sm ${
+                className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[85%] sm:rounded-lg ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
@@ -697,7 +764,7 @@ export function Chat() {
             )}
 
             {msg.readResult && (
-              <div className="ml-0 max-w-full rounded-lg border bg-card p-6 text-sm text-card-foreground">
+              <div className="ml-0 max-w-full rounded-xl border bg-card p-4 text-sm text-card-foreground sm:rounded-lg sm:p-6">
                 <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{msg.readResult}</Markdown>
               </div>
             )}
@@ -717,7 +784,6 @@ export function Chat() {
                 signal={msg.repetitionSignal}
                 onAccept={handleBulkAccept}
                 onDismiss={() => {
-                  // Remove repetition signal from message to dismiss
                   setMessages((prev) =>
                     prev.map((m, idx) =>
                       idx === i ? { ...m, repetitionSignal: undefined } : m
@@ -799,36 +865,48 @@ export function Chat() {
 
         {/* Error */}
         {phase === "error" && error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:rounded-lg dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">
             <p className="font-medium">Error</p>
             <p>{error}</p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-2"
+              className="mt-2 min-h-[44px]"
               onClick={handleReset}
             >
               Try again
             </Button>
           </div>
         )}
+
+        {/* Scroll-to-latest floating pill */}
+        {showScrollPill && (
+          <button
+            onClick={scrollToBottom}
+            className="glass sticky bottom-2 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-lg transition-all hover:text-foreground active:scale-95"
+          >
+            <ArrowDownIcon className="size-3" />
+            Latest
+          </button>
+        )}
       </div>
 
       {/* Execute bar */}
       {phase === "draft" && draftChangeSet && (
-        <div className="border-t bg-muted/50 px-6 py-3">
-          <div className="flex items-center justify-between">
+        <div className="glass border-t px-4 py-3 sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm">
               <span className="font-medium">
                 {draftChangeSet.operations.length} operation
                 {draftChangeSet.operations.length !== 1 ? "s" : ""}
               </span>{" "}
-              <span className="text-muted-foreground">
+              <span className="hidden text-muted-foreground sm:inline">
                 ready &mdash; {draftReasoning.slice(0, 80)}
                 {draftReasoning.length > 80 ? "..." : ""}
               </span>
+              <span className="text-muted-foreground sm:hidden"> ready</span>
             </div>
-            <Button onClick={handleExecute}>
+            <Button onClick={handleExecute} className="min-h-[44px] w-full sm:w-auto">
               Execute Change Set
               <kbd className="ml-1.5 hidden rounded bg-primary-foreground/20 px-1 py-0.5 text-[10px] font-mono sm:inline">
                 {"\u2318\u21B5"}
@@ -838,49 +916,63 @@ export function Chat() {
         </div>
       )}
 
-      {/* Session pattern banner */}
-      {voiceActive && sessionPattern && (
-        <div className="border-t bg-amber-50/50 px-6 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-          {sessionPattern}
-        </div>
+      {/* Mobile voice dock — immersive bottom panel */}
+      {showMobileVoiceDock && (
+        <VoiceControls
+          isActive={voiceActive}
+          emotionalState={geminiLive.emotionalState}
+          stressLevel={geminiLive.stressLevel}
+          inputLevel={geminiLive.inputLevel}
+          connectionState={geminiLive.connectionState}
+          isSpeaking={geminiLive.isSpeaking}
+          sidecarStatus={geminiLive.sidecarStatus}
+          disabled={isBusy}
+          onActivate={handleVoiceActivate}
+          onDeactivate={handleVoiceDeactivate}
+          mobile
+        />
       )}
 
-      {/* Input */}
-      <div className="border-t px-6 py-4 pb-safe">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSubmit();
-          }}
-          className="flex gap-3"
-        >
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={voiceActive ? "Listening... or type here" : "Describe a commerce change..."}
-            disabled={isBusy}
-            className="flex-1"
-          />
-          <VoiceControls
-            isActive={voiceActive}
-            emotionalState={geminiLive.emotionalState}
-            stressLevel={geminiLive.stressLevel}
-            inputLevel={geminiLive.inputLevel}
-            connectionState={geminiLive.connectionState}
-            isSpeaking={geminiLive.isSpeaking}
-            sidecarStatus={geminiLive.sidecarStatus}
-            disabled={isBusy}
-            onActivate={handleVoiceActivate}
-            onDeactivate={handleVoiceDeactivate}
-          />
-          <Button
-            type="submit"
-            disabled={!input.trim() || isBusy}
+      {/* Input bar — hidden when mobile voice dock is active */}
+      {!showMobileVoiceDock && (
+        <div className="glass border-t px-4 py-3 pb-safe sm:px-6 sm:py-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            className="flex gap-2 sm:gap-3"
           >
-            Send
-          </Button>
-        </form>
-      </div>
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={voiceActive ? "Listening... or type here" : "Describe a commerce change..."}
+              disabled={isBusy}
+              className="flex-1"
+            />
+            <VoiceControls
+              isActive={voiceActive}
+              emotionalState={geminiLive.emotionalState}
+              stressLevel={geminiLive.stressLevel}
+              inputLevel={geminiLive.inputLevel}
+              connectionState={geminiLive.connectionState}
+              isSpeaking={geminiLive.isSpeaking}
+              sidecarStatus={geminiLive.sidecarStatus}
+              disabled={isBusy}
+              onActivate={handleVoiceActivate}
+              onDeactivate={handleVoiceDeactivate}
+            />
+            <Button
+              type="submit"
+              disabled={!input.trim() || isBusy}
+              className="min-h-[44px] min-w-[44px]"
+            >
+              <span className="hidden sm:inline">Send</span>
+              <span className="sm:hidden">Go</span>
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

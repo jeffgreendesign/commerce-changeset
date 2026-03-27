@@ -15,22 +15,23 @@ export default async function DashboardPage() {
 
   return (
     <StatusBarProvider>
-      <div className="flex flex-1 flex-col">
-        {/* Global header */}
-        <header className="flex items-center justify-between border-b px-6 py-3">
-          <h1 className="hidden text-lg font-semibold tracking-tight md:block">
-            Commerce Changeset
-          </h1>
+      <div className="flex h-dvh flex-col overflow-hidden">
+        {/* Global header — frosted glass for Liquid Glass harmony */}
+        <header className="glass sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3 pt-safe px-safe sm:px-6">
           {/* Spacer on mobile for hamburger offset */}
           <div className="w-12 md:hidden" />
-          <div className="flex items-center gap-2 text-sm">
+          <h1 className="text-sm font-semibold tracking-tight sm:text-lg">
+            <span className="md:hidden">Changeset</span>
+            <span className="hidden md:inline">Commerce Changeset</span>
+          </h1>
+          <div className="flex items-center gap-1 text-sm sm:gap-2">
             <span className="hidden text-muted-foreground sm:inline">
               {userName}
             </span>
             <ThemeToggle />
             <a
               href="/auth/logout"
-              className="text-muted-foreground underline-offset-4 hover:underline"
+              className="inline-flex min-h-[44px] items-center px-2 text-muted-foreground underline-offset-4 hover:underline"
             >
               Log out
             </a>

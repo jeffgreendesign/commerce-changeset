@@ -24,13 +24,14 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { toast } from "sonner";
 
 // ── Nav items ────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { icon: MessageSquareIcon, label: "Chat", id: "chat" as const },
-  { icon: HistoryIcon, label: "History", id: "history" as const },
-  { icon: ZapIcon, label: "Quick Actions", id: "actions" as const },
+  { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
+  { icon: HistoryIcon, label: "History", id: "history" as const, enabled: false },
+  { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: false },
 ] as const;
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -68,18 +69,35 @@ function RailNav({
                     className={cn(
                       "min-h-[44px] min-w-[44px]",
                       expanded && "justify-start gap-3 px-3",
+                      !item.enabled && "opacity-50",
                     )}
-                    onClick={() => onSelect(item.id)}
+                    onClick={() => {
+                      if (item.enabled) {
+                        onSelect(item.id);
+                      } else {
+                        toast.info(`${item.label} — coming soon`);
+                      }
+                    }}
                   />
                 }
               >
                 <Icon className="size-4 shrink-0" />
                 {expanded && (
-                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-sm font-medium">
+                    {item.label}
+                    {!item.enabled && (
+                      <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
+                        Soon
+                      </span>
+                    )}
+                  </span>
                 )}
               </TooltipTrigger>
               {!expanded && (
-                <TooltipContent side="right">{item.label}</TooltipContent>
+                <TooltipContent side="right">
+                  {item.label}
+                  {!item.enabled && " (coming soon)"}
+                </TooltipContent>
               )}
             </Tooltip>
           );
@@ -97,12 +115,12 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
 
   return (
     <>
-      {/* Mobile hamburger — only visible below md */}
-      <div className="fixed top-3 left-3 z-40 md:hidden">
+      {/* Mobile hamburger — only visible below md, safe area aware */}
+      <div className="fixed top-[max(0.75rem,env(safe-area-inset-top,0.75rem))] left-[max(0.75rem,env(safe-area-inset-left,0.75rem))] z-40 md:hidden">
         <Button
           variant="outline"
           size="icon"
-          className="min-h-[44px] min-w-[44px] bg-background"
+          className="glass min-h-[44px] min-w-[44px] shadow-xs"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation"
         >
