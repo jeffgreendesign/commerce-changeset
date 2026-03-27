@@ -87,16 +87,30 @@ function hasPromoPrice(promoPrice: string): boolean {
   return !!promoPrice && promoPrice !== "" && promoPrice !== "$0.00";
 }
 
+// ── Case-insensitive field lookup ────────────────────────────────────
+
+/** Find a row value by trying multiple candidate header names, case-insensitive. */
+function findField(row: ProductRow, candidates: string[]): string {
+  const normalized = new Map(
+    Object.entries(row).map(([k, v]) => [k.toLowerCase().trim(), v]),
+  );
+  for (const c of candidates) {
+    const val = normalized.get(c.toLowerCase().trim());
+    if (val !== undefined && val !== "") return val;
+  }
+  return "";
+}
+
 // ── Product Card (mobile) ────────────────────────────────────────────
 
 function ProductCard({ row, headers }: { row: ProductRow; headers: string[] }) {
-  const name = row["Name"] ?? row["Product"] ?? row["Product Name"] ?? headers.map((h) => row[h]).find(Boolean) ?? "";
-  const sku = row["SKU"] ?? row["ID"] ?? "";
-  const basePrice = row["Base Price"] ?? row["Price"] ?? "";
-  const promoPrice = row["Promo Price"] ?? row["Sale Price"] ?? "";
-  const promoActive = row["Promo Active"] ?? row["On Sale"] ?? "";
-  const category = row["Category"] ?? "";
-  const inventory = row["Inventory"] ?? row["Stock"] ?? "";
+  const name = findField(row, ["Name", "Product", "Product Name"]) || headers.map((h) => row[h]).find(Boolean) || "";
+  const sku = findField(row, ["SKU", "ID"]);
+  const basePrice = findField(row, ["Base Price", "Price"]);
+  const promoPrice = findField(row, ["Promo Price", "Sale Price"]);
+  const promoActive = findField(row, ["Promo Active", "On Sale"]);
+  const category = findField(row, ["Category"]);
+  const inventory = findField(row, ["Inventory", "Stock"]);
 
   const isPromoActive = isPromoActiveFlag(promoActive);
   const hasPromo = hasPromoPrice(promoPrice);
@@ -187,7 +201,7 @@ function EnhancedTable({ headers, rows }: { headers: string[]; rows: string[][] 
                 key={h}
                 className={cn(
                   "text-xs font-semibold whitespace-nowrap",
-                  (h.includes("Price") || h.includes("Cost") || h === "Inventory") && "text-right",
+                  (/price|cost/i.test(h) || /^inventory$/i.test(h)) && "text-right",
                 )}
               >
                 {h}
@@ -206,16 +220,18 @@ function EnhancedTable({ headers, rows }: { headers: string[]; rows: string[][] 
             >
               {row.map((cell, ci) => {
                 const header = headers[ci] ?? "";
-                const isPromoActive = header === "Promo Active" && isPromoActiveFlag(cell);
-                const isPriceCol = header.includes("Price") || header.includes("Cost");
+                const hLower = header.toLowerCase().trim();
+                const isPromoCol = /promo\s*active|on\s*sale/i.test(header);
+                const isPromoActive = isPromoCol && isPromoActiveFlag(cell);
+                const isPriceCol = /price|cost/i.test(header);
                 return (
                   <TableCell
                     key={ci}
                     className={cn(
                       "text-sm whitespace-nowrap",
                       isPriceCol && "text-right tabular-nums font-medium",
-                      header === "SKU" && "font-mono text-xs",
-                      header === "Inventory" && "text-right tabular-nums",
+                      hLower === "sku" && "font-mono text-xs",
+                      hLower === "inventory" && "text-right tabular-nums",
                     )}
                   >
                     {isPromoActive ? (
@@ -226,7 +242,7 @@ function EnhancedTable({ headers, rows }: { headers: string[]; rows: string[][] 
                         </span>
                         <span className="text-emerald-600 dark:text-emerald-400 font-medium">Active</span>
                       </span>
-                    ) : header === "Promo Active" && cell ? (
+                    ) : isPromoCol && cell ? (
                       <span className="text-muted-foreground">{cell}</span>
                     ) : isPriceCol && isPrice(cell) ? (
                       formatPrice(cell)

@@ -28,6 +28,10 @@ export interface ChatSession {
   updatedAt: number;
   messageCount: number;
   preview: string;
+  /** Persisted draft state so a pending workflow resumes on reload. */
+  draftChangeSet?: ChangeSet;
+  draftReasoning?: string;
+  phase?: string;
 }
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -101,6 +105,8 @@ export function saveChatSession(session: ChatSession): void {
 
 export function deleteChatSession(id: string): void {
   if (typeof window === "undefined") return;
+  // Cancel any pending autosave so it can't re-create the deleted session
+  cancelPendingSave(id);
   try {
     const sessions = loadAllSessions().filter((s) => s.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
@@ -115,6 +121,7 @@ export function buildChatSession(
   id: string,
   messages: SerializableMessage[],
   existingTitle?: string,
+  draft?: { changeSet?: ChangeSet; reasoning?: string; phase?: string },
 ): ChatSession {
   const firstUserMsg = messages.find((m) => m.role === "user");
   const title =
@@ -129,12 +136,24 @@ export function buildChatSession(
     updatedAt: Date.now(),
     messageCount: messages.length,
     preview: getPreview(messages),
+    draftChangeSet: draft?.changeSet,
+    draftReasoning: draft?.reasoning,
+    phase: draft?.phase,
   };
 }
 
 // ── Debounced save (per-chat) ────────────────────────────────────────
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Cancel a pending autosave for the given session id. */
+export function cancelPendingSave(id: string): void {
+  const timer = saveTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    saveTimers.delete(id);
+  }
+}
 
 export function debouncedSave(session: ChatSession, delayMs = 500): void {
   const existing = saveTimers.get(session.id);

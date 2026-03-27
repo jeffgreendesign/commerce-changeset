@@ -145,11 +145,12 @@ interface ChatProps {
 }
 
 export function Chat({ chatId }: ChatProps) {
+  // Load persisted session once so all initializers can use it
+  const [restoredSession] = useState(() => loadSession(chatId));
+
   const [messages, setMessages] = useState<Message[]>(() => {
-    // Load persisted messages on mount
-    const session = loadSession(chatId);
-    if (session?.messages) {
-      return session.messages.map((m) => ({
+    if (restoredSession?.messages) {
+      return restoredSession.messages.map((m) => ({
         role: m.role,
         content: m.content,
         readResult: m.readResult,
@@ -163,12 +164,20 @@ export function Chat({ chatId }: ChatProps) {
   });
   const [input, setInput] = useState("");
   const [phase, setPhase] = useState<Phase>(() => {
-    // If we loaded messages, start in idle (not loading)
+    // Restore draft phase if it was mid-workflow; map transient phases to "draft"
+    const saved = restoredSession?.phase;
+    if (saved === "draft" || saved === "complete") return saved;
+    // Transient phases (loading/executing/rolling_back) → resume as draft
+    if (saved === "loading" || saved === "executing" || saved === "rolling_back") return "draft";
     return "idle";
   });
   const [error, setError] = useState("");
-  const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
-  const [draftReasoning, setDraftReasoning] = useState("");
+  const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(
+    () => restoredSession?.draftChangeSet ?? null,
+  );
+  const [draftReasoning, setDraftReasoning] = useState(
+    () => restoredSession?.draftReasoning ?? "",
+  );
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const [sessionPattern, setSessionPattern] = useState<string | null>(null);
   const [showScrollPill, setShowScrollPill] = useState(false);
@@ -176,7 +185,7 @@ export function Chat({ chatId }: ChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
-  const sessionTitleRef = useRef<string | undefined>(undefined);
+  const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
   const isMobile = useIsMobile();
 
   // Auto-save messages to localStorage on changes
@@ -191,10 +200,14 @@ export function Chat({ chatId }: ChatProps) {
       repetitionSignal: m.repetitionSignal,
       rollbackDraftId: m.rollbackDraftId,
     }));
-    const session = buildChatSession(chatId, serializable, sessionTitleRef.current);
+    const session = buildChatSession(chatId, serializable, sessionTitleRef.current, {
+      changeSet: draftChangeSet ?? undefined,
+      reasoning: draftReasoning || undefined,
+      phase,
+    });
     sessionTitleRef.current = session.title;
     debouncedSave(session);
-  }, [messages, chatId]);
+  }, [messages, chatId, draftChangeSet, draftReasoning, phase]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -912,21 +925,26 @@ export function Chat({ chatId }: ChatProps) {
                 </span>
               </div>
             </div>
-            <WorkflowPipeline
-              phase={phase}
-              requiresCIBA={false}
-            />
-            <AgentActivity
-              phase={phase}
-              requiresCIBA={false}
-              operationCount={0}
-            />
-            <ChangeSetSkeleton />
+            {/* Only show workflow components when we know this is a write operation */}
+            {draftChangeSet && draftChangeSet.operations.length > 0 && (
+              <>
+                <WorkflowPipeline
+                  phase={phase}
+                  requiresCIBA={false}
+                />
+                <AgentActivity
+                  phase={phase}
+                  requiresCIBA={false}
+                  operationCount={0}
+                />
+                <ChangeSetSkeleton />
+              </>
+            )}
           </div>
         )}
 
-        {/* Skeleton loading when assistant has already started responding */}
-        {phase === "loading" && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
+        {/* Skeleton loading when assistant has responded with a draft changeset */}
+        {phase === "loading" && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && draftChangeSet && draftChangeSet.operations.length > 0 && (
           <ChangeSetSkeleton />
         )}
 

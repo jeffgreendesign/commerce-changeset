@@ -54,9 +54,11 @@ export function ChatHistoryPanel({
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       deleteChatSession(id);
-      // Reload from storage to stay in sync
-      setSessions(loadAllSessions());
-      if (id === activeChatId) {
+      // Reload from storage and verify the session is actually gone
+      const refreshed = loadAllSessions();
+      setSessions(refreshed);
+      const stillExists = refreshed.some((s) => s.id === id);
+      if (!stillExists && id === activeChatId) {
         onNewChat();
       }
     },
@@ -99,7 +101,7 @@ export function ChatHistoryPanel({
               tabIndex={0}
               onClick={() => onSelectChat(session.id)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
                   e.preventDefault();
                   onSelectChat(session.id);
                 }
