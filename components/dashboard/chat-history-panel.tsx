@@ -54,8 +54,8 @@ export function ChatHistoryPanel({
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       deleteChatSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      // If deleting the active chat, start a new one
+      // Reload from storage to stay in sync
+      setSessions(loadAllSessions());
       if (id === activeChatId) {
         onNewChat();
       }
@@ -93,12 +93,19 @@ export function ChatHistoryPanel({
         {sessions.map((session) => {
           const isActive = session.id === activeChatId;
           return (
-            <button
+            <div
               key={session.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectChat(session.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectChat(session.id);
+                }
+              }}
               className={cn(
-                "group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors min-h-[44px]",
+                "group flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors min-h-[44px]",
                 isActive
                   ? "bg-accent text-accent-foreground"
                   : "hover:bg-muted/60 active:bg-muted",
@@ -134,7 +141,7 @@ export function ChatHistoryPanel({
               >
                 <Trash2Icon className="size-3.5 text-muted-foreground" />
               </Button>
-            </button>
+            </div>
           );
         })}
       </div>

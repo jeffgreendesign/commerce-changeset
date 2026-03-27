@@ -57,7 +57,7 @@ export function StatusBar() {
   const { stats } = useStatusBar();
 
   return (
-    <div className="flex h-7 items-center gap-2 border-b bg-muted/20 pl-14 pr-4 text-[11px] text-muted-foreground md:pl-4 px-safe">
+    <div className="flex h-7 items-center gap-2 border-b bg-muted/20 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] text-[11px] text-muted-foreground md:pl-4 md:pr-4">
       <span className="flex items-center gap-1.5">
         <span className="relative flex size-1.5">
           <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />

@@ -153,6 +153,10 @@ export function Chat({ chatId }: ChatProps) {
         role: m.role,
         content: m.content,
         readResult: m.readResult,
+        changeSet: m.changeSet,
+        reasoning: m.reasoning,
+        repetitionSignal: m.repetitionSignal,
+        rollbackDraftId: m.rollbackDraftId,
       }));
     }
     return [];
@@ -182,6 +186,10 @@ export function Chat({ chatId }: ChatProps) {
       role: m.role,
       content: m.content,
       readResult: m.readResult,
+      changeSet: m.changeSet,
+      reasoning: m.reasoning,
+      repetitionSignal: m.repetitionSignal,
+      rollbackDraftId: m.rollbackDraftId,
     }));
     const session = buildChatSession(chatId, serializable, sessionTitleRef.current);
     sessionTitleRef.current = session.title;
@@ -239,7 +247,11 @@ export function Chat({ chatId }: ChatProps) {
           } else {
             setMessages((prev) => [
               ...prev,
-              { role: "assistant", content: "Here\u2019s what I found:", readResult: data.readerText ?? data.reasoning },
+              {
+                role: "assistant",
+                content: data.reasoning,
+                readResult: data.readerText,
+              },
             ]);
             setPhase("complete");
           }
@@ -660,8 +672,8 @@ export function Chat({ chatId }: ChatProps) {
             ...prev,
             {
               role: "assistant",
-              content: "Here\u2019s what I found:",
-              readResult: data.readerText ?? data.reasoning,
+              content: data.reasoning,
+              readResult: data.readerText,
             },
           ]);
           setPhase("complete");
@@ -769,8 +781,9 @@ export function Chat({ chatId }: ChatProps) {
         {messages.map((msg, i) => {
           const isLast = i === messages.length - 1;
           const isLastAssistant = isLast && msg.role === "assistant";
-          const showInlinePipeline = isLastAssistant && phase !== "idle" && phase !== "error";
-          const showInlineActivity = isLastAssistant && (phase === "loading" || phase === "executing" || phase === "rolling_back" || phase === "complete");
+          const hasOps = !!(msg.changeSet && msg.changeSet.operations.length > 0);
+          const showInlinePipeline = isLastAssistant && hasOps && phase !== "idle" && phase !== "error";
+          const showInlineActivity = isLastAssistant && hasOps && (phase === "loading" || phase === "executing" || phase === "rolling_back" || phase === "complete");
 
           return (
           <div key={i} className="animate-message-enter space-y-3">

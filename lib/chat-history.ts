@@ -7,11 +7,17 @@
 
 // ── Types ────────────────────────────────────────────────────────────
 
+import type { ChangeSet } from "@/lib/changeset/types";
+import type { RepetitionSignal } from "@/lib/voice/types";
+
 export interface SerializableMessage {
   role: "user" | "assistant";
   content: string;
   readResult?: string;
-  /** We intentionally exclude non-serializable fields like changeSet. */
+  changeSet?: ChangeSet;
+  reasoning?: string;
+  repetitionSignal?: RepetitionSignal;
+  rollbackDraftId?: string;
 }
 
 export interface ChatSession {
@@ -126,14 +132,18 @@ export function buildChatSession(
   };
 }
 
-// ── Debounced save ───────────────────────────────────────────────────
+// ── Debounced save (per-chat) ────────────────────────────────────────
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function debouncedSave(session: ChatSession, delayMs = 500): void {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    saveChatSession(session);
-    saveTimer = null;
-  }, delayMs);
+  const existing = saveTimers.get(session.id);
+  if (existing) clearTimeout(existing);
+  saveTimers.set(
+    session.id,
+    setTimeout(() => {
+      saveChatSession(session);
+      saveTimers.delete(session.id);
+    }, delayMs),
+  );
 }

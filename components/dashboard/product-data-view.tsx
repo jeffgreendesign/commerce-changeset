@@ -76,6 +76,17 @@ function formatPrice(val: string): string {
   return `$${num.toFixed(2)}`;
 }
 
+/** Normalize promo active flag from various sources. */
+function isPromoActiveFlag(value: string): boolean {
+  const v = value.trim().toUpperCase();
+  return v === "TRUE" || v === "YES" || v === "ACTIVE" || v === "1";
+}
+
+/** Check if a promo price value represents an actual promo. */
+function hasPromoPrice(promoPrice: string): boolean {
+  return !!promoPrice && promoPrice !== "" && promoPrice !== "$0.00";
+}
+
 // ── Product Card (mobile) ────────────────────────────────────────────
 
 function ProductCard({ row, headers }: { row: ProductRow; headers: string[] }) {
@@ -87,8 +98,8 @@ function ProductCard({ row, headers }: { row: ProductRow; headers: string[] }) {
   const category = row["Category"] ?? "";
   const inventory = row["Inventory"] ?? row["Stock"] ?? "";
 
-  const isPromoActive = promoActive.toUpperCase() === "TRUE" || promoActive === "Yes";
-  const hasPromo = promoPrice && promoPrice !== "" && promoPrice !== "$0.00";
+  const isPromoActive = isPromoActiveFlag(promoActive);
+  const hasPromo = hasPromoPrice(promoPrice);
 
   return (
     <div className="group relative min-w-[240px] snap-center rounded-xl border bg-card/80 p-4 backdrop-blur-sm transition-all active:scale-[0.98]">
@@ -195,7 +206,7 @@ function EnhancedTable({ headers, rows }: { headers: string[]; rows: string[][] 
             >
               {row.map((cell, ci) => {
                 const header = headers[ci] ?? "";
-                const isPromoActive = header === "Promo Active" && cell.toUpperCase() === "TRUE";
+                const isPromoActive = header === "Promo Active" && isPromoActiveFlag(cell);
                 const isPriceCol = header.includes("Price") || header.includes("Cost");
                 return (
                   <TableCell
