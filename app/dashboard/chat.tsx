@@ -26,6 +26,7 @@ import { VoiceControls } from "@/components/dashboard/voice-controls";
 import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card";
 import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
+import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
@@ -104,20 +105,6 @@ const mdComponents = {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function dominantPace(history: Array<"fast" | "normal" | "slow">): "fast" | "normal" | "slow" {
-  if (history.length === 0) return "normal";
-  const counts = { fast: 0, normal: 0, slow: 0 };
-  for (const p of history) counts[p]++;
-  if (counts.fast >= counts.normal && counts.fast >= counts.slow) return "fast";
-  if (counts.slow >= counts.normal) return "slow";
-  return "normal";
-}
-
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((sum, v) => sum + v, 0) / values.length;
-}
-
 // ── Component ────────────────────────────────────────────────────────
 
 export function Chat() {
@@ -128,16 +115,10 @@ export function Chat() {
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(null);
   const [draftReasoning, setDraftReasoning] = useState("");
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
-  const [voiceActive, setVoiceActive] = useState(false);
-  const [voiceSessionId, setVoiceSessionId] = useState<string | null>(null);
-  const [emotionalState, setEmotionalState] = useState<EmotionalState>("calm");
-  const [stressLevel, setStressLevel] = useState(0);
   const [sessionPattern, setSessionPattern] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
-  const paceHistoryRef = useRef<Array<"fast" | "normal" | "slow">>([]);
-  const stressHistoryRef = useRef<number[]>([]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -147,6 +128,146 @@ export function Chat() {
       });
     });
   }, []);
+
+  // ── Gemini Live voice (dual-model sidecar) ─────────────────────────
+
+  const handleGeminiToolCall = useCallback(
+    async (name: string, args: Record<string, unknown>) => {
+      switch (name) {
+        case "submit_commerce_change": {
+          const res = await fetch("/api/orchestrator", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: args.request }),
+          });
+          if (!res.ok) throw new Error("Orchestrator request failed");
+          const data: OrchestratorResponse = await res.json();
+          if (data.changeSet.operations.length > 0) {
+            setDraftChangeSet(data.changeSet);
+            setDraftReasoning(data.reasoning);
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: data.reasoning,
+                changeSet: data.changeSet,
+                reasoning: data.reasoning,
+                repetitionSignal: data.repetitionSignal,
+              },
+            ]);
+            setPhase("draft");
+          } else {
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "Here\u2019s what I found:", readResult: data.reasoning },
+            ]);
+            setPhase("complete");
+          }
+          return {
+            success: true,
+            operationCount: data.changeSet.operations.length,
+            reasoning: data.reasoning,
+          };
+        }
+        case "execute_changeset": {
+          if (!draftChangeSet) return { error: "No draft changeset to execute" };
+          setPhase("executing");
+          const res = await fetch("/api/orchestrator/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ changeSet: draftChangeSet }),
+          });
+          if (!res.ok) throw new Error("Execution failed");
+          const data: ExecuteChangeSetResult = await res.json();
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `Execution ${data.changeSet.status === "completed" ? "completed successfully" : "finished: " + data.changeSet.status}.`,
+              changeSet: data.changeSet,
+            },
+          ]);
+          setDraftChangeSet(null);
+          setPhase("complete");
+          return { success: true, status: data.changeSet.status };
+        }
+        case "query_product_data": {
+          const res = await fetch("/api/reader", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: args.query }),
+          });
+          if (!res.ok) throw new Error("Reader request failed");
+          const data = (await res.json()) as { text: string };
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "Here\u2019s what I found:", readResult: data.text },
+          ]);
+          return { data: data.text };
+        }
+        case "voice_approve": {
+          // Voice approval — trigger execution with CIBA
+          if (!draftChangeSet) return { error: "No changeset to approve" };
+          setPhase("executing");
+          const res = await fetch("/api/orchestrator/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ changeSet: draftChangeSet }),
+          });
+          if (!res.ok) throw new Error("Approval/execution failed");
+          const data: ExecuteChangeSetResult = await res.json();
+          setDraftChangeSet(null);
+          setPhase("complete");
+          return { approved: true, status: data.changeSet.status };
+        }
+        default:
+          return { error: `Unknown tool: ${name}` };
+      }
+    },
+    [draftChangeSet]
+  );
+
+  const handleUserTranscript = useCallback(
+    (text: string) => {
+      console.log("[chat] Adding user transcript to messages:", text);
+      setMessages((prev) => {
+        const next = [...prev, { role: "user" as const, content: text }];
+        console.log("[chat] Messages count:", next.length);
+        return next;
+      });
+      scrollToBottom();
+    },
+    [scrollToBottom]
+  );
+
+  const handleModelTranscript = useCallback(
+    (text: string) => {
+      console.log("[chat] Adding model transcript to messages:", text);
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...last,
+            content: last.content + text,
+          };
+          return updated;
+        }
+        return [...prev, { role: "assistant" as const, content: text }];
+      });
+      scrollToBottom();
+    },
+    [scrollToBottom]
+  );
+
+  const geminiLive = useGeminiLive({
+    onToolCall: handleGeminiToolCall,
+    onUserTranscript: handleUserTranscript,
+    onModelTranscript: handleModelTranscript,
+    onError: (msg) => toast.error(`Voice error: ${msg}`),
+  });
+
+  const voiceActive = geminiLive.connectionState === "connected";
 
   const handleSubmit = () => {
     submitMessage(input.trim());
@@ -349,77 +470,69 @@ export function Chat() {
   // ── Voice mode handlers ────────────────────────────────────────────
 
   const handleVoiceActivate = useCallback(async () => {
+    voiceStartTimeRef.current = Date.now();
+
+    // Init server-side session logging + pattern detection
     try {
       const res = await fetch("/api/voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "init" }),
       });
-
-      if (!res.ok) {
-        toast.error("Failed to initialize voice session");
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sessionPattern) {
+          setSessionPattern(data.sessionPattern.description);
+          toast.info(data.sessionPattern.description, { duration: 8000 });
+        }
       }
-
-      const data = await res.json();
-      setVoiceSessionId(data.sessionId);
-      setVoiceActive(true);
-      voiceStartTimeRef.current = Date.now();
-
-      if (data.sessionPattern) {
-        setSessionPattern(data.sessionPattern.description);
-        toast.info(data.sessionPattern.description, { duration: 8000 });
-      }
-
-      toast.success("Voice mode activated");
-    } catch (error) {
-      console.error("Failed to start voice session", error);
-      toast.error("Failed to start voice session");
+    } catch {
+      // Non-critical — pattern detection failure shouldn't block voice
     }
-  }, []);
+
+    // Connect to Gemini Live (mic + dual WebSocket)
+    await geminiLive.connect();
+  }, [geminiLive]);
 
   const handleVoiceDeactivate = useCallback(async () => {
-    // Capture the session being closed before any state changes
-    const closingSessionId = voiceSessionId;
-    setVoiceActive(false);
+    geminiLive.disconnect();
 
-    if (closingSessionId) {
-      const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
-      try {
-        await fetch("/api/voice", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "end_session",
-            sessionId: closingSessionId,
-            sessionDurationMinutes: durationMinutes,
-            operationCount: messages.reduce((acc, m) => acc + (m.changeSet?.operations.length ?? 0), 0),
-            operationTypes: messages
-              .flatMap((m) => m.changeSet?.operations.map((o) => o.action) ?? []),
-            errorCount: errorCountRef.current,
-            avgStressLevel: mean(stressHistoryRef.current),
-            avgSpeechPace: dominantPace(paceHistoryRef.current),
-          }),
-        });
-      } catch {
-        // Non-critical — session logging failure shouldn't block the user
-      }
+    // Log session to server (for Sheets persistence + pattern analysis)
+    const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
+    try {
+      await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "end_session",
+          sessionId: crypto.randomUUID(),
+          sessionDurationMinutes: durationMinutes,
+          operationCount: messages.reduce(
+            (acc, m) => acc + (m.changeSet?.operations.length ?? 0),
+            0
+          ),
+          operationTypes: messages.flatMap(
+            (m) => m.changeSet?.operations.map((o) => o.action) ?? []
+          ),
+          errorCount: errorCountRef.current,
+          avgStressLevel: geminiLive.stressLevel,
+          avgSpeechPace: geminiLive.voiceMetrics.pace,
+          peakStressLevel: geminiLive.peakStressLevel,
+          emotionalStateTransitions: geminiLive.emotionalStateTransitions,
+          toolCallSummary: geminiLive.toolCallOutcomes,
+          model: geminiLive.sidecarStatus.connected
+            ? "3.1-primary+2.5-sidecar"
+            : "3.1-primary-only",
+        }),
+      });
+    } catch {
+      // Non-critical
     }
 
-    // Only clear state if no new session was started while we were awaiting
-    setVoiceSessionId((prev) => {
-      if (prev !== null && prev !== closingSessionId) return prev;
-      // Safe to clean up — no new session was started
-      setEmotionalState("calm");
-      setStressLevel(0);
-      setSessionPattern(null);
-      errorCountRef.current = 0;
-      paceHistoryRef.current = [];
-      stressHistoryRef.current = [];
-      return null;
-    });
+    setSessionPattern(null);
+    errorCountRef.current = 0;
     toast.info("Voice mode deactivated");
-  }, [voiceSessionId, messages]);
+  }, [geminiLive, messages]);
 
   // Shared submit helper used by both form submit and command palette
   const submitMessage = useCallback(
@@ -436,34 +549,19 @@ export function Chat() {
       scrollToBottom();
 
       try {
-        // Route through voice API when voice session is active
-        const useVoiceRoute = voiceActive && voiceSessionId;
-        const res = await fetch(
-          useVoiceRoute ? "/api/voice" : "/api/orchestrator",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(
-              useVoiceRoute
-                ? {
-                    action: "submit" as const,
-                    sessionId: voiceSessionId,
-                    message: prompt,
-                    voiceMetrics: {
-                      tone: "neutral",
-                      pace: dominantPace(paceHistoryRef.current),
-                      pitchVariance: 0.5,
-                      stressLevel,
-                      confidence: 0.8,
-                    },
-                    sessionDurationMinutes:
-                      (Date.now() - voiceStartTimeRef.current) / 60000,
-                    errorCount: errorCountRef.current,
-                  }
-                : { message: prompt }
-            ),
-          }
-        );
+        // When voice is active, send typed text to Gemini for tool-call routing
+        if (voiceActive) {
+          geminiLive.sendText(prompt);
+          setPhase("loading");
+          // Gemini will handle the response via tool calls + transcripts
+          return;
+        }
+
+        const res = await fetch("/api/orchestrator", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: prompt }),
+        });
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -473,20 +571,6 @@ export function Chat() {
         }
 
         const data: OrchestratorResponse = await res.json();
-
-        // Update voice state from response (when using voice API)
-        if (data.voiceContext) {
-          setEmotionalState(data.voiceContext.emotionalState);
-          setStressLevel(data.voiceContext.voiceMetrics.stressLevel);
-          stressHistoryRef.current.push(data.voiceContext.voiceMetrics.stressLevel);
-          if (data.voiceContext.voiceMetrics.pace) {
-            paceHistoryRef.current.push(data.voiceContext.voiceMetrics.pace);
-          }
-        }
-
-        if (data.fatigueWarning) {
-          toast.warning(data.fatigueWarning, { duration: 10000 });
-        }
 
         if (data.changeSet.operations.length === 0) {
           setMessages((prev) => [
@@ -528,7 +612,7 @@ export function Chat() {
         scrollToBottom();
       }
     },
-    [isBusy, scrollToBottom, voiceActive, voiceSessionId, stressLevel],
+    [isBusy, scrollToBottom, voiceActive, geminiLive],
   );
 
   const handleApplyFix = useCallback(
@@ -779,8 +863,12 @@ export function Chat() {
           />
           <VoiceControls
             isActive={voiceActive}
-            emotionalState={emotionalState}
-            stressLevel={stressLevel}
+            emotionalState={geminiLive.emotionalState}
+            stressLevel={geminiLive.stressLevel}
+            inputLevel={geminiLive.inputLevel}
+            connectionState={geminiLive.connectionState}
+            isSpeaking={geminiLive.isSpeaking}
+            sidecarStatus={geminiLive.sidecarStatus}
             disabled={isBusy}
             onActivate={handleVoiceActivate}
             onDeactivate={handleVoiceDeactivate}
