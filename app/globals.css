@@ -216,7 +216,9 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer,
   .animate-pulse-glow,
-  .animate-step-enter {
+  .animate-step-enter,
+  .animate-voice-dock-enter,
+  .animate-slide-down-fade {
     animation: none;
   }
 }

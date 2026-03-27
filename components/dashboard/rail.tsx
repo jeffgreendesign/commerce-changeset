@@ -120,7 +120,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
         <Button
           variant="outline"
           size="icon"
-          className="glass min-h-[44px] min-w-[44px] shadow-sm"
+          className="glass min-h-[44px] min-w-[44px] shadow-xs"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation"
         >
