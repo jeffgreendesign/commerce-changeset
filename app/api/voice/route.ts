@@ -1,13 +1,11 @@
 /**
- * Voice API route — Gemini Live session management and voice-enriched orchestration.
+ * Voice API route — Gemini Live session management, voice-enriched orchestration,
+ * and persistent session analytics via Google Sheets.
  *
  * POST /api/voice
- *   Creates a Gemini Live session config and returns session details.
- *   Used by the client to initialize the voice interface.
- *
- * POST /api/voice (with action: "submit")
- *   Submits a voice-transcribed commerce change request with voice context
- *   (stress level, emotional state, speech pace) through the orchestrator.
+ *   action: "init"  — initialize session, load historical patterns from Sheets
+ *   action: "submit" — voice-enriched orchestrator call (unchanged)
+ *   action: "end_session" — persist session log to Sheets + in-memory cache
  */
 
 import { NextResponse } from "next/server";
@@ -15,11 +13,30 @@ import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
 import { setAIContext } from "@auth0/ai-vercel";
+import { Auth0AI, getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
+import { tool } from "ai";
 import { runOrchestratorAgent } from "@/lib/agents/orchestrator";
-import { createSession, buildSetupMessage, classifyEmotionalState } from "@/lib/voice/gemini-live";
-import { recordSession, detectPatterns, checkSessionFatigue } from "@/lib/voice/session-insights";
-import type { VoiceUserContext } from "@/lib/voice/types";
+import {
+  createSession,
+  buildSetupMessage,
+  classifyEmotionalState,
+} from "@/lib/voice/gemini-live";
+import {
+  recordSession,
+  getSessionLogs,
+  detectPatterns,
+  checkSessionFatigue,
+} from "@/lib/voice/session-insights";
+import {
+  appendSessionToSheet,
+  readUserSessionsFromSheet,
+} from "@/lib/voice/sheets-persistence";
+import type { VoiceUserContext, ExtendedVoiceSessionLog } from "@/lib/voice/types";
+
+// ── Token Vault setup (singleton) ───────────────────────────────────
+
+const auth0AI = new Auth0AI();
 
 // ── Request schemas ──────────────────────────────────────────────────
 
@@ -55,6 +72,26 @@ const EndSessionSchema = z.object({
   errorCount: z.number().min(0),
   avgStressLevel: z.number().min(0).max(1),
   avgSpeechPace: z.enum(["fast", "normal", "slow"]),
+  // Extended fields from dual-model sidecar
+  peakStressLevel: z.number().min(0).max(1).optional(),
+  emotionalStateTransitions: z
+    .array(
+      z.object({
+        time: z.string(),
+        state: z.enum(["calm", "stressed", "rushed", "uncertain"]),
+      })
+    )
+    .optional(),
+  toolCallSummary: z
+    .array(
+      z.object({
+        name: z.string(),
+        success: z.boolean(),
+        durationMs: z.number(),
+      })
+    )
+    .optional(),
+  model: z.string().optional(),
 });
 
 const RequestBody = z.discriminatedUnion("action", [
@@ -62,6 +99,48 @@ const RequestBody = z.discriminatedUnion("action", [
   SubmitVoiceSchema,
   EndSessionSchema,
 ]);
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+/** Get a Google access token via Token Vault OBO. Returns null on failure. */
+async function getGoogleAccessToken(
+  refreshToken: string
+): Promise<string | null> {
+  try {
+    const withGoogle = auth0AI.withTokenVault({
+      connection: "google-oauth2",
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      refreshToken: async () => refreshToken,
+    });
+
+    let accessToken: string | null = null;
+
+    const tokenGrabber = withGoogle(
+      tool({
+        description: "Get Google access token",
+        inputSchema: z.object({}),
+        execute: async () => {
+          accessToken = getAccessTokenFromTokenVault();
+          return { ok: true };
+        },
+      })
+    );
+
+    const executeFn = tokenGrabber.execute as (
+      input: Record<string, never>,
+      ctx: { toolCallId: string; messages: unknown[] }
+    ) => Promise<unknown>;
+
+    await executeFn({} as Record<string, never>, {
+      toolCallId: "voice-session-token",
+      messages: [],
+    });
+
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   const session = await auth0.getSession();
@@ -80,7 +159,7 @@ export async function POST(request: Request) {
 
   const userId = session.user.sub;
 
-  // ── Init: Create a Gemini Live session config ──────────────────────
+  // ── Init: Create session config + load historical patterns ─────────
   if (parsed.data.action === "init") {
     const geminiSession = createSession({
       languageCode: parsed.data.languageCode,
@@ -88,15 +167,38 @@ export async function POST(request: Request) {
     });
 
     const setupMessage = buildSetupMessage(geminiSession.config);
-    const patterns = detectPatterns(userId);
 
-    console.log(`[voice] Session ${geminiSession.sessionId.slice(0, 8)} initialized for user ${userId}`);
+    // Load historical sessions from Sheets for pattern detection
+    let logs = getSessionLogs(userId); // in-memory cache first
+    const refreshToken = session.tokenSet.refreshToken;
+
+    if (refreshToken) {
+      try {
+        const accessToken = await getGoogleAccessToken(refreshToken);
+        if (accessToken) {
+          const sheetsLogs = await readUserSessionsFromSheet(
+            userId,
+            accessToken
+          );
+          if (sheetsLogs.length > logs.length) {
+            logs = sheetsLogs; // Sheets has more data than memory
+          }
+        }
+      } catch (err) {
+        console.warn("[voice] Failed to load Sheets history, using in-memory:", err);
+      }
+    }
+
+    const patterns = detectPatterns(logs);
+
+    console.log(
+      `[voice] Session ${geminiSession.sessionId.slice(0, 8)} initialized — ${logs.length} historical sessions, pattern: ${patterns ? "yes" : "none"}`
+    );
 
     return NextResponse.json({
       sessionId: geminiSession.sessionId,
       config: geminiSession.config,
       setupMessage,
-      // Surface any detected behavioral patterns to the client
       sessionPattern: patterns,
     });
   }
@@ -108,7 +210,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "missing_refresh_token",
-          message: "Session has no refresh token. Re-login with offline_access scope.",
+          message:
+            "Session has no refresh token. Re-login with offline_access scope.",
         },
         { status: 403 }
       );
@@ -116,9 +219,9 @@ export async function POST(request: Request) {
 
     setAIContext({ threadID: `voice-${parsed.data.sessionId}` });
 
-    // Build voice user context from metrics
     const emotionalState = classifyEmotionalState(parsed.data.voiceMetrics);
-    const patterns = detectPatterns(userId);
+    const logs = getSessionLogs(userId);
+    const patterns = detectPatterns(logs);
 
     const voiceContext: VoiceUserContext = {
       emotionalState,
@@ -126,13 +229,17 @@ export async function POST(request: Request) {
       sessionPattern: patterns ?? undefined,
     };
 
-    // Check for session fatigue
     const fatigueWarning = parsed.data.sessionDurationMinutes
-      ? checkSessionFatigue(parsed.data.sessionDurationMinutes, parsed.data.errorCount ?? 0)
+      ? checkSessionFatigue(
+          parsed.data.sessionDurationMinutes,
+          parsed.data.errorCount ?? 0
+        )
       : null;
 
     const routeStart = performance.now();
-    console.log(`[voice] Submit — user: ${userId}, stress: ${parsed.data.voiceMetrics.stressLevel.toFixed(2)}, state: ${emotionalState}, message: "${parsed.data.message.slice(0, 60)}..."`);
+    console.log(
+      `[voice] Submit — user: ${userId}, stress: ${parsed.data.voiceMetrics.stressLevel.toFixed(2)}, state: ${emotionalState}, message: "${parsed.data.message.slice(0, 60)}..."`
+    );
 
     try {
       const result = await runOrchestratorAgent(
@@ -144,7 +251,9 @@ export async function POST(request: Request) {
           sessionDurationMinutes: parsed.data.sessionDurationMinutes,
         }
       );
-      console.log(`[voice] Completed in ${Math.round(performance.now() - routeStart)}ms — ${result.changeSet.operations.length} operations`);
+      console.log(
+        `[voice] Completed in ${Math.round(performance.now() - routeStart)}ms — ${result.changeSet.operations.length} operations`
+      );
 
       return NextResponse.json({
         ...result,
@@ -156,7 +265,8 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error: "google_connection_required",
-            message: "Connect your Google account before using this feature.",
+            message:
+              "Connect your Google account before using this feature.",
           },
           { status: 403 }
         );
@@ -166,18 +276,24 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── End session: Record session log for pattern analysis ───────────
+  // ── End session: Persist to Sheets + in-memory cache ──────────────
   if (parsed.data.action === "end_session") {
     const now = new Date();
+    const dayOfWeek = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ][now.getDay()];
 
-    recordSession({
+    const extendedLog: ExtendedVoiceSessionLog = {
       userId,
       sessionId: parsed.data.sessionId,
       timestamp: now.toISOString(),
-      dayOfWeek: [
-        "Sunday", "Monday", "Tuesday", "Wednesday",
-        "Thursday", "Friday", "Saturday",
-      ][now.getDay()],
+      dayOfWeek,
       hourOfDay: now.getHours(),
       avgStressLevel: parsed.data.avgStressLevel,
       avgSpeechPace: parsed.data.avgSpeechPace,
@@ -185,9 +301,34 @@ export async function POST(request: Request) {
       operationTypes: parsed.data.operationTypes,
       errorCount: parsed.data.errorCount,
       sessionDurationMinutes: parsed.data.sessionDurationMinutes,
-    });
+      peakStressLevel: parsed.data.peakStressLevel ?? parsed.data.avgStressLevel,
+      emotionalStateTransitions: parsed.data.emotionalStateTransitions ?? [],
+      toolCallSummary: parsed.data.toolCallSummary ?? [],
+      model: parsed.data.model ?? "unknown",
+    };
 
-    console.log(`[voice] Session ${parsed.data.sessionId.slice(0, 8)} ended — ${parsed.data.operationCount} ops, ${parsed.data.sessionDurationMinutes.toFixed(0)}min, stress: ${parsed.data.avgStressLevel.toFixed(2)}`);
+    // In-memory cache (hot path)
+    recordSession(extendedLog);
+
+    // Persist to Google Sheets (non-critical, best-effort)
+    const refreshToken = session.tokenSet.refreshToken;
+    if (refreshToken) {
+      try {
+        const accessToken = await getGoogleAccessToken(refreshToken);
+        if (accessToken) {
+          await appendSessionToSheet(extendedLog, accessToken);
+          console.log(
+            `[voice] Session ${parsed.data.sessionId.slice(0, 8)} persisted to Sheets`
+          );
+        }
+      } catch (err) {
+        console.warn("[voice] Failed to persist session to Sheets:", err);
+      }
+    }
+
+    console.log(
+      `[voice] Session ${parsed.data.sessionId.slice(0, 8)} ended — ${parsed.data.operationCount} ops, ${parsed.data.sessionDurationMinutes.toFixed(0)}min, stress: ${parsed.data.avgStressLevel.toFixed(2)}, model: ${extendedLog.model}`
+    );
 
     return NextResponse.json({ recorded: true });
   }
