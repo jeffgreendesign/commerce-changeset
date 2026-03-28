@@ -280,7 +280,8 @@
   .animate-shimmer-sweep,
   .animate-message-enter,
   .animate-voice-dock-enter,
-  .animate-slide-down-fade {
+  .animate-slide-down-fade,
+  .input-glow:focus-within {
     animation: none;
   }
 }
@@ -319,6 +320,36 @@
 }
 :is(.dark) .glass-subtle {
   background-color: oklch(0.145 0 0 / 60%);
+}
+
+/* Premium elevated glass — stronger blur for header/input bar */
+.glass-elevated {
+  -webkit-backdrop-filter: blur(24px) saturate(2);
+  backdrop-filter: blur(24px) saturate(2);
+  background-color: oklch(1 0 0 / 80%);
+}
+:is(.dark) .glass-elevated {
+  background-color: oklch(0.17 0 0 / 82%);
+}
+
+/* Subtle focus glow for input containers */
+@keyframes focus-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px oklch(0.488 0.243 264.376 / 0.08);
+  }
+  50% {
+    box-shadow: 0 0 12px 3px oklch(0.488 0.243 264.376 / 0.15);
+  }
+}
+.input-glow:focus-within {
+  animation: focus-glow 2.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .input-glow:focus-within {
+    animation: none;
+    box-shadow: 0 0 0 2px oklch(0.488 0.243 264.376 / 0.12);
+  }
 }
 
 /* ── Voice dock animations ─────────────────────────────────────────── */

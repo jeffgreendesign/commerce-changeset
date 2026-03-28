@@ -27,9 +27,9 @@ export function IntentCards({ onSelect, onVoiceActivate, voiceAvailable }: Inten
   const modKey = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 pt-8 text-center sm:pt-20">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 pt-8 text-center sm:pt-12 lg:gap-8 lg:pt-16">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight sm:text-xl">
+        <h2 className="text-xl font-semibold tracking-tight lg:text-2xl">
           What commerce changes would you like to make?
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -37,7 +37,7 @@ export function IntentCards({ onSelect, onVoiceActivate, voiceAvailable }: Inten
         </p>
       </div>
 
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
+      <div className="grid w-full max-w-2xl grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 lg:max-w-4xl lg:gap-5">
         {ACTIONS.map((intent) => {
           const Icon = intent.icon;
           return (
@@ -45,7 +45,7 @@ export function IntentCards({ onSelect, onVoiceActivate, voiceAvailable }: Inten
               key={intent.id}
               role="button"
               tabIndex={0}
-              className="cursor-pointer transition-all hover:ring-2 hover:ring-ring/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-px active:scale-[0.98]"
+              className="cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-ring/30 hover:shadow-lg hover:shadow-foreground/[0.04] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-px active:scale-[0.98]"
               onClick={() => onSelect(intent.prompt)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -54,17 +54,17 @@ export function IntentCards({ onSelect, onVoiceActivate, voiceAvailable }: Inten
                 }
               }}
             >
-              <CardContent className="flex min-h-[80px] flex-col items-center justify-center gap-2 p-4 text-center sm:min-h-0">
+              <CardContent className="flex min-h-[80px] flex-col items-center justify-center gap-2 p-4 text-center md:min-h-[120px] md:gap-3 md:p-6">
                 <div
                   className={cn(
-                    "flex size-12 items-center justify-center rounded-xl sm:size-10 sm:rounded-lg",
+                    "flex size-12 items-center justify-center rounded-xl md:size-14 md:rounded-2xl",
                     intent.iconBg,
                   )}
                 >
-                  <Icon className={cn("size-6 sm:size-5", intent.iconColor)} />
+                  <Icon className={cn("size-6 md:size-7", intent.iconColor)} />
                 </div>
-                <span className="text-base font-medium sm:text-sm">{intent.title}</span>
-                <span className="text-xs text-muted-foreground leading-tight sm:text-[11px]">
+                <span className="text-sm font-medium md:text-base">{intent.title}</span>
+                <span className="text-xs text-muted-foreground leading-tight md:text-sm">
                   {intent.description}
                 </span>
               </CardContent>

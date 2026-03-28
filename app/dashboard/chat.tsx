@@ -790,7 +790,8 @@ export function Chat({ chatId }: ChatProps) {
       )}
 
       {/* Messages */}
-      <div ref={scrollRef} className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 sm:p-6 sm:space-y-6">
+      <div ref={scrollRef} className="relative flex-1 overflow-y-auto overscroll-contain">
+      <div className="mx-auto max-w-4xl px-4 py-4 space-y-4 sm:px-6 sm:space-y-6 lg:px-8 lg:space-y-8">
         {messages.length === 0 && phase === "idle" && (
           <IntentCards
             onSelect={submitMessage}
@@ -813,7 +814,7 @@ export function Chat({ chatId }: ChatProps) {
             >
               <div
                 className={cn(
-                  "max-w-[90%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[85%] sm:rounded-lg",
+                  "max-w-[90%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[85%] md:max-w-[80%]",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "border-l-2 border-emerald-500/40 bg-muted/60 dark:border-emerald-400/30",
@@ -993,11 +994,12 @@ export function Chat({ chatId }: ChatProps) {
           </button>
         )}
       </div>
+      </div>
 
       {/* Execute bar */}
       {phase === "draft" && draftChangeSet && (
-        <div className="glass border-t px-4 py-3 sm:px-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="glass-elevated border-t px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm">
               <span className="font-medium">
                 {draftChangeSet.operations.length} operation
@@ -1038,13 +1040,13 @@ export function Chat({ chatId }: ChatProps) {
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
-        <div className="glass border-t px-4 py-3 pb-safe sm:px-6 sm:py-4">
+        <div className="glass-elevated input-glow border-t px-4 py-3 pb-safe sm:px-6 sm:py-4 lg:px-8">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSubmit();
             }}
-            className="flex gap-2 sm:gap-3"
+            className="mx-auto max-w-4xl flex gap-2 sm:gap-3"
           >
             <Input
               value={input}

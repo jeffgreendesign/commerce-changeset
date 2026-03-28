@@ -4,7 +4,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chat } from "./chat";
 import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
-import { StatusBarProvider, StatusBar } from "@/components/dashboard/status-bar";
+import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/status-bar";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { ChatHistoryPanel } from "@/components/dashboard/chat-history-panel";
 
@@ -15,40 +15,44 @@ function DashboardContent({ userName }: { userName: string }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      {/* Global header — frosted glass */}
-      <header className="glass sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3 pt-safe px-safe sm:px-6">
-        {/* Spacer on mobile for hamburger offset */}
-        <div className="w-12 md:hidden" />
-        <h1 className="text-sm font-semibold tracking-tight sm:text-lg">
-          <span className="md:hidden">Changeset</span>
-          <span className="hidden md:inline">Commerce Changeset</span>
-        </h1>
-        <div className="flex items-center gap-1 text-sm sm:gap-2">
-          {/* New Chat button — mobile accessible */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="min-h-[44px] min-w-[44px] md:hidden"
-            onClick={startNewChat}
-            aria-label="New chat"
-          >
-            <PlusIcon className="size-5" />
-          </Button>
-          <span className="hidden text-muted-foreground sm:inline">
-            {userName}
-          </span>
-          <ThemeToggle />
-          <a
-            href="/auth/logout"
-            className="inline-flex min-h-[44px] items-center px-2 text-muted-foreground underline-offset-4 hover:underline"
-          >
-            Log out
-          </a>
+      {/* Global header — elevated glass with integrated status bar */}
+      <header className="glass-elevated sticky top-0 z-30 flex flex-col border-b pt-safe">
+        {/* Row 1: Nav */}
+        <div className="flex items-center justify-between px-4 py-2.5 px-safe md:px-6 lg:px-8">
+          {/* Spacer on mobile for hamburger offset */}
+          <div className="w-12 md:hidden" />
+          <h1 className="text-sm font-semibold tracking-tight sm:text-lg">
+            <span className="md:hidden">Changeset</span>
+            <span className="hidden md:inline">Commerce Changeset</span>
+          </h1>
+          <div className="flex items-center gap-1 text-sm sm:gap-2">
+            {/* New Chat button — mobile accessible */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-h-[44px] min-w-[44px] md:hidden"
+              onClick={startNewChat}
+              aria-label="New chat"
+            >
+              <PlusIcon className="size-5" />
+            </Button>
+            <span className="hidden text-muted-foreground sm:inline">
+              {userName}
+            </span>
+            <ThemeToggle />
+            <a
+              href="/auth/logout"
+              className="inline-flex min-h-[44px] items-center px-2 text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Log out
+            </a>
+          </div>
+        </div>
+        {/* Row 2: Status bar (integrated) */}
+        <div className="flex items-center gap-2 border-t border-foreground/5 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] py-1.5 text-[11px] text-muted-foreground md:pl-6 md:pr-6 lg:pl-8 lg:pr-8">
+          <StatusBarContent />
         </div>
       </header>
-
-      {/* Status bar */}
-      <StatusBar />
 
       {/* Content area — switches between chat and history */}
       {activeView === "chat" ? (
