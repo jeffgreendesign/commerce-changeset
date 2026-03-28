@@ -57,7 +57,7 @@ function RailNav({
   onSelect: (id: string) => void;
 }) {
   return (
-    <nav className="flex flex-col gap-1 px-2 py-2">
+    <nav className="flex flex-col gap-1.5 px-2.5 py-3">
       <TooltipProvider>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -204,13 +204,13 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
       <aside
         className={cn(
           "hidden flex-col border-r bg-sidebar transition-[width] duration-200 ease-in-out md:flex",
-          expanded ? "w-56" : "w-16",
+          expanded ? "w-60" : "w-16",
         )}
       >
         {/* Rail header */}
         <div
           className={cn(
-            "flex h-[53px] items-center border-b",
+            "flex min-h-[53px] items-center border-b",
             expanded ? "justify-between px-4" : "justify-center px-2",
           )}
         >

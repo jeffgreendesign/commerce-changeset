@@ -110,7 +110,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
         />
 
         {/* Center stage */}
-        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col @container/main">{children}</main>
 
         {/* Right inspector — slides in on demand */}
         <Inspector item={inspectorItem} onClose={closeInspector} />

@@ -51,13 +51,13 @@ export function StatusBarProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ── Status bar visual ────────────────────────────────────────────────
+// ── Status bar content (embeddable, no wrapper) ─────────────────────
 
-export function StatusBar() {
+export function StatusBarContent() {
   const { stats } = useStatusBar();
 
   return (
-    <div className="flex h-7 items-center gap-2 border-b bg-muted/20 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] text-[11px] text-muted-foreground md:pl-4 md:pr-4">
+    <>
       <span className="flex items-center gap-1.5">
         <span className="relative flex size-1.5">
           <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
@@ -80,6 +80,16 @@ export function StatusBar() {
           0 fails
         </span>
       )}
+    </>
+  );
+}
+
+// ── Standalone status bar (legacy, kept for backwards compatibility) ──
+
+export function StatusBar() {
+  return (
+    <div className="flex h-7 items-center gap-2 border-b bg-muted/20 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] text-[11px] text-muted-foreground md:pl-4 md:pr-4">
+      <StatusBarContent />
     </div>
   );
 }
