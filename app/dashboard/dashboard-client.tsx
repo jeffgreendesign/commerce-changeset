@@ -18,7 +18,7 @@ function DashboardContent({ userName }: { userName: string }) {
       {/* Global header — elevated glass with integrated status bar */}
       <header className="glass-elevated sticky top-0 z-30 flex flex-col border-b pt-safe">
         {/* Row 1: Nav */}
-        <div className="flex items-center justify-between px-4 py-2.5 px-safe md:px-6 lg:px-8">
+        <div className="flex items-center justify-between px-4 py-2.5 md:px-6 lg:px-8">
           {/* Spacer on mobile for hamburger offset */}
           <div className="w-12 md:hidden" />
           <h1 className="text-sm font-semibold tracking-tight sm:text-lg">
