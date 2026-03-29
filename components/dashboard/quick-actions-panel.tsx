@@ -47,14 +47,14 @@ function AgentBadge({ tag }: { tag: AgentTag }) {
       )}
     >
       {tag === "writer" ? (
-        <PenToolIcon className="size-2.5" />
+        <PenToolIcon aria-hidden="true" className="size-2.5" />
       ) : tag === "both" ? (
         <>
-          <BookOpenIcon className="size-2.5" />
-          <PenToolIcon className="size-2.5" />
+          <BookOpenIcon aria-hidden="true" className="size-2.5" />
+          <PenToolIcon aria-hidden="true" className="size-2.5" />
         </>
       ) : (
-        <BookOpenIcon className="size-2.5" />
+        <BookOpenIcon aria-hidden="true" className="size-2.5" />
       )}
       {config.label}
     </span>
@@ -277,7 +277,7 @@ export function QuickActionsPanel() {
 
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <SearchIcon className="mb-2 size-6 text-muted-foreground/50" />
+              <SearchIcon aria-hidden="true" className="mb-2 size-6 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">
                 No actions match &ldquo;{filter}&rdquo;
               </p>
