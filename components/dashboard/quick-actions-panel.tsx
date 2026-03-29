@@ -48,6 +48,11 @@ function AgentBadge({ tag }: { tag: AgentTag }) {
     >
       {tag === "writer" ? (
         <PenToolIcon className="size-2.5" />
+      ) : tag === "both" ? (
+        <>
+          <BookOpenIcon className="size-2.5" />
+          <PenToolIcon className="size-2.5" />
+        </>
       ) : (
         <BookOpenIcon className="size-2.5" />
       )}
@@ -213,6 +218,7 @@ export function QuickActionsPanel() {
         <div className="relative mt-2">
           <SearchIcon className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
+            aria-label="Filter actions"
             placeholder="Filter actions..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
