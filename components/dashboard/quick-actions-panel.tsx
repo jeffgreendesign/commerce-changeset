@@ -175,7 +175,7 @@ export function QuickActionsPanel() {
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return ACTIONS;
-    const q = filter.toLowerCase();
+    const q = filter.trim().toLowerCase();
     return ACTIONS.filter(
       (a) =>
         a.title.toLowerCase().includes(q) ||
