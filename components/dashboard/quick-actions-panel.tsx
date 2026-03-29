@@ -99,17 +99,10 @@ function AgentWorkflowCard({
   const Icon = action.icon;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="agent-card-glow cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <button
+      type="button"
+      className="agent-card-glow cursor-pointer rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => onSelect(action)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect(action);
-        }
-      }}
     >
       {/* Inner card — solid bg masks the gradient border except at the 1px edge */}
       <div className="flex h-full min-h-[44px] flex-col rounded-xl bg-card ring-1 ring-foreground/[0.07] transition-shadow duration-200 hover:shadow-lg hover:shadow-foreground/[0.04]">
@@ -165,7 +158,7 @@ function AgentWorkflowCard({
           <RiskIndicator level={action.riskLevel} />
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 

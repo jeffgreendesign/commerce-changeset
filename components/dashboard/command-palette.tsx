@@ -57,7 +57,7 @@ export function CommandPalette({ onSubmitPrompt }: CommandPaletteProps) {
             const Icon = cmd.icon;
             return (
               <CommandItem
-                key={cmd.title}
+                key={cmd.id}
                 onSelect={() => handleSelect(cmd.prompt)}
               >
                 <Icon className="size-4 shrink-0" />
