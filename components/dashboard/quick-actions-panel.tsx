@@ -110,7 +110,7 @@ function AgentWorkflowCard({
       onClick={() => onSelect(action)}
     >
       {/* Inner card — solid bg masks the gradient border except at the 1px edge */}
-      <div className="flex h-full min-h-[44px] flex-col rounded-xl bg-card ring-1 ring-foreground/[0.07] transition-shadow duration-200 hover:shadow-lg hover:shadow-foreground/[0.04]">
+      <div className="flex h-full min-h-[44px] flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/[0.07] transition-shadow duration-200 hover:shadow-lg hover:shadow-foreground/[0.04]">
         {/* Header */}
         <div className="flex items-start gap-3 p-3 pb-2">
           <div
@@ -123,7 +123,7 @@ function AgentWorkflowCard({
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium leading-tight">
+              <span className="text-sm font-medium leading-tight break-words">
                 {action.title}
               </span>
               <AgentBadge tag={action.agentTag} />
@@ -228,7 +228,7 @@ export function QuickActionsPanel() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-6 px-4 py-4 sm:px-6">
           {grouped.map(({ category, actions }, catIdx) => {
             const meta = CATEGORY_META[category];
