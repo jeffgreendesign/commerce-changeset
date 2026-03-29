@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   ACTIONS,
   CATEGORY_META,
+  RISK_META,
   type ActionDefinition,
   type ActionCategory,
   type AgentTag,
@@ -63,17 +64,8 @@ function AgentBadge({ tag }: { tag: AgentTag }) {
 
 // ── Risk dots ────────────────────────────────────────────────────────
 
-const RISK_CONFIG: Record<
-  RiskLevel,
-  { dots: number; color: string; label: string }
-> = {
-  safe: { dots: 1, color: "bg-emerald-500", label: "Safe" },
-  moderate: { dots: 2, color: "bg-amber-500", label: "Moderate" },
-  elevated: { dots: 3, color: "bg-red-500", label: "Elevated" },
-};
-
 function RiskIndicator({ level }: { level: RiskLevel }) {
-  const config = RISK_CONFIG[level];
+  const config = RISK_META[level];
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex gap-0.5">

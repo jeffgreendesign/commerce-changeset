@@ -11,18 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { ActionDefinition } from "@/lib/actions";
-
-// ── Risk dots (mirrored from quick-actions-panel for dialog) ────────
-
-const RISK_CONFIG: Record<
-  ActionDefinition["riskLevel"],
-  { dots: number; color: string; label: string }
-> = {
-  safe: { dots: 1, color: "bg-emerald-500", label: "Safe" },
-  moderate: { dots: 2, color: "bg-amber-500", label: "Moderate" },
-  elevated: { dots: 3, color: "bg-red-500", label: "Elevated" },
-};
+import { RISK_META, type ActionDefinition } from "@/lib/actions";
 
 // ── Component ───────────────────────────────────────────────────────
 
@@ -40,7 +29,7 @@ export function QuickActionConfirmDialog({
   if (!action) return null;
 
   const Icon = action.icon;
-  const risk = RISK_CONFIG[action.riskLevel];
+  const risk = RISK_META[action.riskLevel];
 
   return (
     <Dialog
