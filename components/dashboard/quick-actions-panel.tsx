@@ -187,6 +187,7 @@ export function QuickActionsPanel() {
 
   const grouped = useMemo(() => {
     const categoryOrder: ActionCategory[] = [
+      "catalog",
       "pricing",
       "promos",
       "inventory",

@@ -197,7 +197,11 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       validatePromoStatus(promoActive);
       if (inventory !== "") validateInventoryFlag(inventory);
 
-      // Duplicate check (live, not cached)
+      // Duplicate check (live, not cached).
+      // Note: this check-then-append is not atomic (TOCTOU). In practice the race
+      // window is negligible: requests are single-user-per-session and serialized
+      // through the CIBA approval gate (120s block). The orchestrator LLM also
+      // pre-checks for duplicates against reader data before generating the op.
       if (await skuExists(sku)) {
         throw new Error(`SKU "${sku}" already exists in the Products sheet. Cannot create duplicate.`);
       }

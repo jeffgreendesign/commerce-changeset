@@ -85,7 +85,7 @@ function generateRollback(op: ParsedOperation): RollbackInstruction {
       };
     case "create_product":
       return {
-        action: "delete_product",
+        action: "manual_review",
         params: {
           note: "Remove the created row from the Products sheet. Automatic deletion requires manual review.",
           target: op.target,

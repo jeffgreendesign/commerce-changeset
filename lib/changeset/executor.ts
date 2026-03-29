@@ -46,7 +46,6 @@ const ACTION_FIELD_MAP: Record<string, string> = {
   set_promo_status: "Promo Active",
   update_inventory_flag: "Inventory",
   bulk_price_change: "Promo Price",
-  create_product: "SKU",
 };
 
 /**
