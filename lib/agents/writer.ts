@@ -144,7 +144,10 @@ function validateSkuFormat(sku: string): void {
 
 /** Validate a price value is a finite non-negative number. */
 function validatePrice(value: string | number | boolean, label: string): void {
-  const num = typeof value === "number" ? value : parseFloat(String(value));
+  if (typeof value === "boolean") {
+    throw new Error(`Invalid ${label}: "${value}". Must be a non-negative number, not a boolean.`);
+  }
+  const num = typeof value === "number" ? value : Number(String(value).trim());
   if (!Number.isFinite(num) || num < 0) {
     throw new Error(`Invalid ${label}: "${value}". Must be a non-negative number.`);
   }
@@ -168,6 +171,22 @@ function validateInventoryFlag(value: string): void {
   }
 }
 
+/**
+ * Escape a string value to prevent formula injection in Google Sheets.
+ * USER_ENTERED mode interprets leading =, +, -, @, tab, CR, LF as formulas.
+ * Prefixing with a single quote forces Sheets to treat the cell as plain text.
+ */
+function escapeSheetValue(value: string): string {
+  if (value.length > 0 && /^[=+\-@\t\r\n]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+const ALLOWED_PRODUCT_FIELDS = new Set([
+  "SKU", "Name", "Category", "Base Price", "Promo Price", "Promo Active", "Inventory",
+]);
+
 // ── Operation dispatch ───────────────────────────────────────────────
 
 async function executeOperation(op: Operation): Promise<OperationResult> {
@@ -175,14 +194,22 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
   try {
     // ── create_product: append a new row ────────────────────────────
     if (op.action === "create_product") {
+      // Reject unknown diff fields
+      for (const d of op.diff) {
+        if (!ALLOWED_PRODUCT_FIELDS.has(d.field)) {
+          throw new Error(`Unknown product field in create_product diff: "${d.field}". Allowed: ${[...ALLOWED_PRODUCT_FIELDS].join(", ")}.`);
+        }
+      }
+
       const fieldMap = Object.fromEntries(op.diff.map((d) => [d.field, d.after]));
       const sku = String(fieldMap["SKU"] ?? "");
       const name = String(fieldMap["Name"] ?? "");
       const category = String(fieldMap["Category"] ?? "");
       const basePrice = String(fieldMap["Base Price"] ?? "");
       const promoPrice = String(fieldMap["Promo Price"] ?? "");
-      const promoActive = String(fieldMap["Promo Active"] ?? "FALSE");
-      const inventory = String(fieldMap["Inventory"] ?? "in_stock");
+      // Normalize blank optionals to defaults (empty string is not nullish, so ?? doesn't catch it)
+      const promoActive = String(fieldMap["Promo Active"] ?? "FALSE") || "FALSE";
+      const inventory = String(fieldMap["Inventory"] ?? "in_stock") || "in_stock";
 
       // Guardrails
       if (!sku || !name || !category || !basePrice) {
@@ -190,12 +217,12 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       }
       validateSkuFormat(sku);
       validatePrice(basePrice, "Base Price");
-      if (parseFloat(basePrice) <= 0) {
+      if (Number(basePrice) <= 0) {
         throw new Error(`Base Price must be greater than 0. Got: ${basePrice}`);
       }
       if (promoPrice !== "") validatePrice(promoPrice, "Promo Price");
       validatePromoStatus(promoActive);
-      if (inventory !== "") validateInventoryFlag(inventory);
+      validateInventoryFlag(inventory);
 
       // Duplicate check (live, not cached).
       // Note: this check-then-append is not atomic (TOCTOU). In practice the race
@@ -206,7 +233,16 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
         throw new Error(`SKU "${sku}" already exists in the Products sheet. Cannot create duplicate.`);
       }
 
-      await appendSheet("Products!A:G", [sku, name, category, basePrice, promoPrice, promoActive, inventory]);
+      // Sanitize free-text fields against formula injection (USER_ENTERED mode)
+      await appendSheet("Products!A:G", [
+        escapeSheetValue(sku),
+        escapeSheetValue(name),
+        escapeSheetValue(category),
+        escapeSheetValue(basePrice),
+        escapeSheetValue(promoPrice),
+        escapeSheetValue(promoActive),
+        escapeSheetValue(inventory),
+      ]);
       console.log(`[writer] ✓ create_product ${sku} "${name}" appended in ${Math.round(performance.now() - start)}ms`);
       return { operationId: op.id, status: "success", duration: performance.now() - start };
     }
