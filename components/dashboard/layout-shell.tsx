@@ -3,6 +3,7 @@
 import {
   useState,
   useCallback,
+  useRef,
   createContext,
   useContext,
   useMemo,
@@ -14,7 +15,7 @@ import { generateChatId } from "@/lib/chat-history";
 
 // ── Context ──────────────────────────────────────────────────────────
 
-type ActiveView = "chat" | "history";
+type ActiveView = "chat" | "history" | "actions";
 
 interface LayoutContextValue {
   /** Open the right inspector panel with an item. */
@@ -36,6 +37,12 @@ interface LayoutContextValue {
   activeView: ActiveView;
   /** Switch the active view. */
   setActiveView: (view: ActiveView) => void;
+  /** Pending prompt to be consumed by the chat view (set by Quick Actions). */
+  pendingPrompt: string | null;
+  /** Set a pending prompt and switch to chat view. */
+  setPendingPrompt: (prompt: string) => void;
+  /** Consume (read + clear) the pending prompt. Returns prompt or null. */
+  consumePendingPrompt: () => string | null;
 }
 
 const LayoutContext = createContext<LayoutContextValue | null>(null);
@@ -60,6 +67,8 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   );
   const [activeChatId, setActiveChatId] = useState(() => generateChatId());
   const [activeView, setActiveView] = useState<ActiveView>("chat");
+  const [pendingPrompt, setPendingPromptState] = useState<string | null>(null);
+  const pendingPromptRef = useRef<string | null>(null);
 
   const inspect = useCallback((item: InspectableItem) => {
     setInspectorItem(item);
@@ -83,6 +92,21 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
     setActiveView("chat");
   }, []);
 
+  const setPendingPrompt = useCallback((prompt: string) => {
+    pendingPromptRef.current = prompt;
+    setPendingPromptState(prompt);
+    setActiveView("chat");
+  }, []);
+
+  const consumePendingPrompt = useCallback(() => {
+    const p = pendingPromptRef.current;
+    if (p) {
+      pendingPromptRef.current = null;
+      setPendingPromptState(null);
+    }
+    return p;
+  }, []);
+
   const ctx = useMemo<LayoutContextValue>(
     () => ({
       inspect,
@@ -95,8 +119,11 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
       loadChat,
       activeView,
       setActiveView,
+      pendingPrompt,
+      setPendingPrompt,
+      consumePendingPrompt,
     }),
-    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView],
+    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, pendingPrompt, setPendingPrompt, consumePendingPrompt],
   );
 
   return (

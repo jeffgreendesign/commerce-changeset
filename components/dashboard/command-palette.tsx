@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RotateCcwIcon, SunIcon, MoonIcon } from "lucide-react";
+import { SunIcon, MoonIcon } from "lucide-react";
 import {
   CommandDialog,
   CommandInput,
@@ -19,17 +19,6 @@ import { ACTIONS } from "@/lib/actions";
 interface CommandPaletteProps {
   onSubmitPrompt: (prompt: string) => void;
 }
-
-// ── Extra commands beyond shared ACTIONS ─────────────────────────────
-
-const EXTRA_COMMANDS = [
-  {
-    icon: RotateCcwIcon,
-    title: "Bulk Price Change",
-    description: "Update prices across multiple products",
-    prompt: "Apply a 15% discount to all running shoes",
-  },
-];
 
 // ── Component ────────────────────────────────────────────────────────
 
@@ -64,7 +53,7 @@ export function CommandPalette({ onSubmitPrompt }: CommandPaletteProps) {
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Actions">
-          {[...ACTIONS, ...EXTRA_COMMANDS].map((cmd) => {
+          {ACTIONS.map((cmd) => {
             const Icon = cmd.icon;
             return (
               <CommandItem
