@@ -220,9 +220,11 @@ export function Chat({ chatId }: ChatProps) {
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: "smooth",
+        });
       });
     });
   }, []);
@@ -1051,7 +1053,7 @@ export function Chat({ chatId }: ChatProps) {
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
-        <div className="glass-elevated input-glow border-t px-4 py-3 pb-safe sm:px-6 sm:py-4 lg:px-8">
+        <div className="glass-elevated input-glow border-t px-4 py-4 pb-safe sm:px-6 lg:px-8">
           <form
             onSubmit={(e) => {
               e.preventDefault();

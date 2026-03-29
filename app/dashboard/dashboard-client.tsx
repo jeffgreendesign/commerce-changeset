@@ -22,7 +22,7 @@ function DashboardContent({ userName }: { userName: string }) {
         <div className="flex items-center justify-between px-4 py-2.5 md:px-6 lg:px-8">
           {/* Spacer on mobile for hamburger offset */}
           <div className="w-12 md:hidden" />
-          <h1 className="text-sm font-semibold tracking-tight sm:text-lg">
+          <h1 className="min-w-0 truncate text-sm font-semibold tracking-tight sm:text-lg">
             <span className="md:hidden">Changeset</span>
             <span className="hidden md:inline">Commerce Changeset</span>
           </h1>
