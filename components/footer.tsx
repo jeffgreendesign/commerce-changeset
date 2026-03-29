@@ -19,7 +19,7 @@ export function Footer() {
           </span>
           <span className="hidden sm:inline">Auth0 Hackathon 2026</span>
         </div>
-        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        <nav aria-label="Footer navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
           {navLinks.map((link) => (
             <Link
               key={link.href}

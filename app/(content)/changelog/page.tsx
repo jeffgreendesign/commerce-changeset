@@ -112,7 +112,7 @@ export default function ChangelogPage() {
 
       <div className="mt-12 space-y-10">
         {entries.map((entry) => (
-          <div key={entry.date} className="flex gap-6">
+          <div key={`${entry.date}-${entry.title}`} className="flex gap-6">
             <div className="w-20 shrink-0 pt-1 text-sm font-medium text-muted-foreground">
               {entry.date}
             </div>

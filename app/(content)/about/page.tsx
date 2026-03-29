@@ -183,6 +183,9 @@ export default function AboutPage() {
               <span className={`text-sm font-semibold ${tier.color}`}>
                 {tier.tier}
               </span>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
+                {tier.decision}
+              </span>
               <span className="text-sm text-muted-foreground">
                 {tier.description}
               </span>
