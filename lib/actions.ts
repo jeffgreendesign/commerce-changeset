@@ -13,6 +13,7 @@ import {
   ArrowDownUpIcon,
   CalendarCheckIcon,
   TrendingDownIcon,
+  PlusCircleIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,7 +26,8 @@ export type ActionCategory =
   | "promos"
   | "inventory"
   | "analytics"
-  | "campaigns";
+  | "campaigns"
+  | "catalog";
 
 export interface WorkflowStep {
   label: string;
@@ -78,11 +80,37 @@ export const CATEGORY_META: Record<
     icon: RocketIcon,
     gradient: "bg-gradient-to-br from-rose-500 to-rose-700",
   },
+  catalog: {
+    label: "Catalog",
+    icon: PlusCircleIcon,
+    gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700",
+  },
 };
 
 // ── Actions ──────────────────────────────────────────────────────────
 
 export const ACTIONS: ActionDefinition[] = [
+  // ── Catalog ──────────────────────────────────────────────────────
+  {
+    id: "create-product",
+    icon: PlusCircleIcon,
+    title: "Create Product",
+    description: "Add a new product to the catalog",
+    prompt:
+      "Create a new product STR-010 Ultra Racer in the Running category with a base price of $149.99",
+    iconBg: "bg-cyan-100 dark:bg-cyan-900/30",
+    iconColor: "text-cyan-700 dark:text-cyan-400",
+    category: "catalog",
+    agentTag: "both",
+    riskLevel: "moderate",
+    workflowSteps: [
+      { label: "Check for duplicate SKU", agent: "reader" },
+      { label: "Validate product data", agent: "reader" },
+      { label: "Append new product row", agent: "writer" },
+    ],
+    featured: true,
+  },
+
   // ── Pricing ──────────────────────────────────────────────────────
   {
     id: "price-change",

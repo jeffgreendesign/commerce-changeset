@@ -101,6 +101,34 @@ function buildVerificationChecks(
       continue;
     }
 
+    if (op.action === "create_product") {
+      // Verify the new product was appended by checking key fields
+      const skuDiff = op.diff.find((d) => d.field === "SKU");
+      const newSku = skuDiff ? String(skuDiff.after) : undefined;
+      const product = newSku
+        ? products.find((p) => p["SKU"] === newSku)
+        : undefined;
+
+      for (const diff of op.diff) {
+        const actual = product?.[diff.field] ?? "not_found";
+        const expectedStr = String(diff.after).trim().toUpperCase();
+        const actualStr = String(actual).trim().toUpperCase();
+        checks.push({
+          operationId: op.id,
+          field: diff.field,
+          expected: diff.after,
+          actual,
+          status:
+            expectedStr === "" && actualStr === ""
+              ? "pass"
+              : actualStr === expectedStr
+                ? "pass"
+                : "fail",
+        });
+      }
+      continue;
+    }
+
     const sku = extractSku(op.target);
     const product = products.find((p) => p["SKU"] === sku);
     const fieldName = ACTION_FIELD_MAP[op.action];
@@ -174,7 +202,7 @@ async function buildExecutionReceipt(
       {
         agent: "writer",
         actingOnBehalfOf: userId,
-        toolsGranted: ["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change"],
+        toolsGranted: ["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change", "create_product"],
         contextReceived: "approved change set operations only",
         tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
         operationsPerformed: writerResults

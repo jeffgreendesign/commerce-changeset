@@ -48,7 +48,7 @@ const OperationDiffSchema = z.object({
 
 const ParsedOperationSchema = z.object({
   agent: z.enum(["reader", "writer", "notifier"]),
-  action: z.enum(["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change"]),
+  action: z.enum(["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change", "create_product"]),
   target: z.string(),
   diff: z.array(OperationDiffSchema),
   operationType: z.enum(["read", "notify", "write"]),
@@ -65,6 +65,7 @@ Allowed writer actions (use EXACTLY these names):
 - "set_promo_status" — modifies the Promo Active flag for a single SKU
 - "update_inventory_flag" — modifies the Inventory flag for a single SKU
 - "bulk_price_change" — batch price update across multiple SKUs (use when same discount applies to 2+ products)
+- "create_product" — creates a new product row in the Products sheet with all fields (SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory)
 Do not invent other action names. Every write operation must use one of these actions.
 
 Diff semantics (CRITICAL):
@@ -73,6 +74,7 @@ Diff semantics (CRITICAL):
 - "before" and "after" MUST be different. If they are identical the operation is a no-op and will be discarded.
 - For update_price: the field is "Promo Price". "before" is the current Promo Price from the sheet (may be blank). "after" is the newly calculated discounted price.
 - For set_promo_status: the field is "Promo Active". "before" is the current value (e.g., "FALSE"). "after" is the desired value (e.g., "TRUE").
+- For create_product: create one diff entry per field. "before" MUST be "" (empty string) for ALL fields since the product does not exist yet. "after" is the desired value. Required fields: SKU (must follow STR-NNN format, e.g., STR-010), Name, Category, Base Price (must be > 0). Optional fields default to: Promo Price = "", Promo Active = "FALSE", Inventory = "in_stock". Always include all 7 fields in the diff array.
 
 Rules:
 - Setting a discount or launching a promo ALWAYS requires BOTH:
@@ -87,6 +89,7 @@ Rules:
 - All write operations should have agent: "writer", operationType: "write".
 - Notification operations should have agent: "notifier", operationType: "notify".
 - Include the product name in the target for single-record ops (e.g., "STR-001 Classic Runner").
+- For create_product: verify the requested SKU does NOT already appear in the current product data. If the SKU already exists, return an empty operations array and explain in the reasoning that the product already exists. The SKU must follow the STR-NNN format. Set affectedRecords: 1. Set target to "SKU Name" (e.g., "STR-010 Ultra Racer").
 - If the user's request is purely informational (asking about current state, prices, schedule, etc.) and requires no changes, return an empty operations array. Do not fabricate operations for read-only queries.
 - If the requested change is already reflected in the current state (e.g., the discount is already applied, the promo is already active), return an empty operations array.
 - Always provide a "reasoning" field: 1-2 sentences explaining what changes you identified and why. If no changes are needed, explain clearly why (e.g., "STR-001 Classic Runner already has a 20% discount active at $71.99 promo price.").
@@ -121,6 +124,21 @@ Bulk discount — "Apply 15% off to all running shoes" (3 SKUs, Promo Active all
       { "field": "Promo Price (STR-003)", "before": "", "after": 84.99 }
     ],
     "operationType": "write", "affectedRecords": 3, "priceChangePercent": 15 }
+]
+
+Create product — "Add a new product STR-010 Ultra Racer, Running category, base price $149.99" (STR-010 does not exist in current data):
+[
+  { "agent": "writer", "action": "create_product", "target": "STR-010 Ultra Racer",
+    "diff": [
+      { "field": "SKU", "before": "", "after": "STR-010" },
+      { "field": "Name", "before": "", "after": "Ultra Racer" },
+      { "field": "Category", "before": "", "after": "Running" },
+      { "field": "Base Price", "before": "", "after": 149.99 },
+      { "field": "Promo Price", "before": "", "after": "" },
+      { "field": "Promo Active", "before": "", "after": "FALSE" },
+      { "field": "Inventory", "before": "", "after": "in_stock" }
+    ],
+    "operationType": "write", "affectedRecords": 1 }
 ]
 
 Return a JSON array of operations.`;

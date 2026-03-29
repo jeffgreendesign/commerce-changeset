@@ -83,6 +83,15 @@ function generateRollback(op: ParsedOperation): RollbackInstruction {
           ),
         },
       };
+    case "create_product":
+      return {
+        action: "manual_review",
+        params: {
+          note: "Remove the created row from the Products sheet. Automatic deletion requires manual review.",
+          target: op.target,
+          sku: op.diff.find((d) => d.field === "SKU")?.after ?? "unknown",
+        },
+      };
     default:
       return {
         action: "manual_review",
