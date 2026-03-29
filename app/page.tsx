@@ -1,9 +1,11 @@
 import { auth0 } from "@/lib/auth0";
+import { Footer } from "@/components/footer";
 
 export default async function Home() {
   const session = await auth0.getSession();
 
   return (
+    <>
     <div className="flex flex-col flex-1 items-center justify-center font-sans px-safe">
       <main className="flex w-full max-w-md flex-col items-center gap-8 p-6 sm:p-16">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -46,5 +48,7 @@ export default async function Home() {
         )}
       </main>
     </div>
+    <Footer />
+    </>
   );
 }

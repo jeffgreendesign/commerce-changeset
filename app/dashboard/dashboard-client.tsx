@@ -1,6 +1,7 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import Link from "next/link";
+import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chat } from "./chat";
 import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
@@ -37,6 +38,13 @@ function DashboardContent({ userName }: { userName: string }) {
             >
               <PlusIcon className="size-5" />
             </Button>
+            <Link
+              href="/blog"
+              className="hidden items-center gap-1 text-muted-foreground underline-offset-4 hover:underline sm:inline-flex"
+            >
+              <BookOpenIcon className="size-3.5" />
+              <span className="text-sm">Blog</span>
+            </Link>
             <span className="hidden text-muted-foreground sm:inline">
               {userName}
             </span>
