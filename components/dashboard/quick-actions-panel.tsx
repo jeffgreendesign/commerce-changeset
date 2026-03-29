@@ -148,10 +148,11 @@ function AgentWorkflowCard({
               </span>
               <span className="text-muted-foreground">{step.label}</span>
               {step.agent === "reader" ? (
-                <BookOpenIcon className="ml-auto size-2.5 shrink-0 text-violet-500/60" />
+                <BookOpenIcon aria-hidden="true" className="ml-auto size-2.5 shrink-0 text-violet-500/60" />
               ) : (
-                <PenToolIcon className="ml-auto size-2.5 shrink-0 text-emerald-500/60" />
+                <PenToolIcon aria-hidden="true" className="ml-auto size-2.5 shrink-0 text-emerald-500/60" />
               )}
+              <span className="sr-only">{step.agent}</span>
             </div>
           ))}
         </div>
@@ -216,7 +217,7 @@ export function QuickActionsPanel() {
           Agent workflows for common merchant tasks
         </p>
         <div className="relative mt-2">
-          <SearchIcon className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <SearchIcon aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="Filter actions"
             placeholder="Filter actions..."
@@ -235,6 +236,7 @@ export function QuickActionsPanel() {
             return (
               <section
                 key={category}
+                aria-labelledby={`${category}-heading`}
                 className="animate-category-enter"
                 style={{ animationDelay: `${catIdx * 80}ms` }}
               >
@@ -246,11 +248,14 @@ export function QuickActionsPanel() {
                       meta.gradient,
                     )}
                   >
-                    <CatIcon className="size-3.5 text-white" />
+                    <CatIcon aria-hidden="true" className="size-3.5 text-white" />
                   </div>
-                  <span className="text-xs font-semibold uppercase tracking-wide">
+                  <h3
+                    id={`${category}-heading`}
+                    className="text-xs font-semibold uppercase tracking-wide"
+                  >
                     {meta.label}
-                  </span>
+                  </h3>
                   <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {actions.length}
                   </span>
