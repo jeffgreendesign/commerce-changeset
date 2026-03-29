@@ -82,6 +82,28 @@ async function updateSheet(range: string, value: string): Promise<void> {
   }
 }
 
+/** Append a row to a sheet via the Sheets values.append API. */
+async function appendSheet(range: string, row: (string | number | boolean)[]): Promise<void> {
+  const accessToken = getAccessTokenFromTokenVault();
+  const sheetId = getSheetId();
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append` +
+    `?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ range, values: [row] }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Google Sheets API APPEND ${res.status}: ${body}`);
+  }
+}
+
 // ── SKU helpers ──────────────────────────────────────────────────────
 
 /** Extract SKU prefix (e.g. "STR-001") from an operation target like "STR-001 Classic Runner". */
@@ -105,17 +127,97 @@ async function lookupSkuRow(sku: string): Promise<number> {
   throw new Error(`SKU "${sku}" not found in Products sheet`);
 }
 
+/** Check whether a SKU already exists in the Products sheet (non-throwing). */
+async function skuExists(sku: string): Promise<boolean> {
+  const rows = await fetchSheet("Products!A:A");
+  return rows.some((row, i) => i > 0 && row[0] === sku);
+}
+
+// ── Validation helpers ──────────────────────────────────────────────
+
+/** Validate SKU format (STR-NNN). */
+function validateSkuFormat(sku: string): void {
+  if (!/^STR-\d{3}$/.test(sku)) {
+    throw new Error(`Invalid SKU format "${sku}". Expected STR-NNN (e.g., STR-010).`);
+  }
+}
+
+/** Validate a price value is a finite non-negative number. */
+function validatePrice(value: string | number | boolean, label: string): void {
+  const num = typeof value === "number" ? value : parseFloat(String(value));
+  if (!Number.isFinite(num) || num < 0) {
+    throw new Error(`Invalid ${label}: "${value}". Must be a non-negative number.`);
+  }
+}
+
+/** Validate promo status is TRUE or FALSE. */
+function validatePromoStatus(value: string): void {
+  const upper = value.toUpperCase();
+  if (upper !== "TRUE" && upper !== "FALSE") {
+    throw new Error(`Invalid Promo Active value: "${value}". Must be TRUE or FALSE.`);
+  }
+}
+
+/** Validate inventory flag is a known status. */
+const VALID_INVENTORY_FLAGS = ["in_stock", "low_stock", "out_of_stock", "discontinued", "pre_order"];
+function validateInventoryFlag(value: string): void {
+  if (!VALID_INVENTORY_FLAGS.includes(value.toLowerCase())) {
+    throw new Error(
+      `Invalid inventory flag: "${value}". Allowed values: ${VALID_INVENTORY_FLAGS.join(", ")}.`
+    );
+  }
+}
+
 // ── Operation dispatch ───────────────────────────────────────────────
 
 async function executeOperation(op: Operation): Promise<OperationResult> {
   const start = performance.now();
   try {
+    // ── create_product: append a new row ────────────────────────────
+    if (op.action === "create_product") {
+      const fieldMap = Object.fromEntries(op.diff.map((d) => [d.field, d.after]));
+      const sku = String(fieldMap["SKU"] ?? "");
+      const name = String(fieldMap["Name"] ?? "");
+      const category = String(fieldMap["Category"] ?? "");
+      const basePrice = String(fieldMap["Base Price"] ?? "");
+      const promoPrice = String(fieldMap["Promo Price"] ?? "");
+      const promoActive = String(fieldMap["Promo Active"] ?? "FALSE");
+      const inventory = String(fieldMap["Inventory"] ?? "in_stock");
+
+      // Guardrails
+      if (!sku || !name || !category || !basePrice) {
+        throw new Error("create_product requires SKU, Name, Category, and Base Price.");
+      }
+      validateSkuFormat(sku);
+      validatePrice(basePrice, "Base Price");
+      if (parseFloat(basePrice) <= 0) {
+        throw new Error(`Base Price must be greater than 0. Got: ${basePrice}`);
+      }
+      if (promoPrice !== "") validatePrice(promoPrice, "Promo Price");
+      validatePromoStatus(promoActive);
+      if (inventory !== "") validateInventoryFlag(inventory);
+
+      // Duplicate check (live, not cached)
+      if (await skuExists(sku)) {
+        throw new Error(`SKU "${sku}" already exists in the Products sheet. Cannot create duplicate.`);
+      }
+
+      await appendSheet("Products!A:G", [sku, name, category, basePrice, promoPrice, promoActive, inventory]);
+      console.log(`[writer] ✓ create_product ${sku} "${name}" appended in ${Math.round(performance.now() - start)}ms`);
+      return { operationId: op.id, status: "success", duration: performance.now() - start };
+    }
+
+    // ── Existing update actions ─────────────────────────────────────
     const column = ACTION_COLUMN[op.action];
     if (!column) {
       throw new Error(`Unknown writer action: "${op.action}"`);
     }
 
     if (op.action === "bulk_price_change") {
+      // Validate all prices before writing any
+      for (const diff of op.diff) {
+        validatePrice(diff.after, `Promo Price in "${diff.field}"`);
+      }
       // Bulk operation: each diff encodes SKU in field "Promo Price (STR-001)"
       for (const diff of op.diff) {
         const skuMatch = diff.field.match(/\((STR-\d{3})\)/);
@@ -141,6 +243,15 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
     const diff = op.diff[0];
     if (!diff) {
       throw new Error(`Operation ${op.id} has no diff entries`);
+    }
+
+    // Per-action validation guardrails
+    if (op.action === "update_price") {
+      validatePrice(diff.after, "Promo Price");
+    } else if (op.action === "set_promo_status") {
+      validatePromoStatus(String(diff.after));
+    } else if (op.action === "update_inventory_flag") {
+      validateInventoryFlag(String(diff.after));
     }
 
     let value: string;
