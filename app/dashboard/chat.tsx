@@ -28,6 +28,7 @@ import { CommandPalette } from "@/components/dashboard/command-palette";
 import { VoiceControls } from "@/components/dashboard/voice-controls";
 import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card";
 import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
+import { useLayout } from "@/components/dashboard/layout-shell";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
@@ -751,6 +752,16 @@ export function Chat({ chatId }: ChatProps) {
     },
     [submitMessage, isBusy]
   );
+
+  // Consume pending prompt from Quick Actions panel
+  const { consumePendingPrompt } = useLayout();
+  useEffect(() => {
+    const prompt = consumePendingPrompt();
+    if (prompt) {
+      const timer = setTimeout(() => submitMessage(prompt), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [consumePendingPrompt, submitMessage]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({

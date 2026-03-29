@@ -7,6 +7,7 @@ import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
 import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/status-bar";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { ChatHistoryPanel } from "@/components/dashboard/chat-history-panel";
+import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
 
 // ── Inner content that has access to layout context ──────────────────
 
@@ -54,9 +55,11 @@ function DashboardContent({ userName }: { userName: string }) {
         </div>
       </header>
 
-      {/* Content area — switches between chat and history */}
+      {/* Content area — switches between chat, actions, and history */}
       {activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />
+      ) : activeView === "actions" ? (
+        <QuickActionsPanel />
       ) : (
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="border-b px-4 py-3 sm:px-6">

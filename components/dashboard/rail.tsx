@@ -34,7 +34,7 @@ import { toast } from "sonner";
 const NAV_ITEMS = [
   { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
   { icon: HistoryIcon, label: "History", id: "history" as const, enabled: true },
-  { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: false },
+  { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: true },
 ] as const;
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -116,13 +116,20 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
   const { activeChatId, startNewChat, loadChat, activeView, setActiveView } = useLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const activeItem = activeView === "history" ? "history" : "chat";
+  const activeItem =
+    activeView === "history"
+      ? "history"
+      : activeView === "actions"
+        ? "actions"
+        : "chat";
 
   const handleSelect = (id: string) => {
     if (id === "chat") {
       setActiveView("chat");
     } else if (id === "history") {
       setActiveView("history");
+    } else if (id === "actions") {
+      setActiveView("actions");
     }
   };
 

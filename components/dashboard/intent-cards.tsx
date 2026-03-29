@@ -5,7 +5,7 @@ import { MicIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ACTIONS } from "@/lib/actions";
+import { FEATURED_ACTIONS } from "@/lib/actions";
 
 // Detect Mac platform without hydration mismatch
 const subscribe = () => () => {};
@@ -38,7 +38,7 @@ export function IntentCards({ onSelect, onVoiceActivate, voiceAvailable }: Inten
       </div>
 
       <div className="grid w-full max-w-2xl grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 lg:max-w-4xl lg:gap-5">
-        {ACTIONS.map((intent) => {
+        {FEATURED_ACTIONS.map((intent) => {
           const Icon = intent.icon;
           return (
             <Card
