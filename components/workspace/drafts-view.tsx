@@ -26,7 +26,7 @@ const TIER_LABEL: Record<number, { label: string; className: string }> = {
 };
 
 export function DraftsView() {
-  const { draftChangeset, phase, executeChangeset, cancelDraft } =
+  const { draftChangeset, phase, executeChangeset, cancelDraft, executionError } =
     useWorkspace();
 
   if (!draftChangeset) {
@@ -67,12 +67,21 @@ export function DraftsView() {
         <div className="rounded-lg border bg-card p-4">
           {/* Status pill */}
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                phase === "error"
+                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+              )}
+            >
               {phase === "executing"
                 ? "Executing"
                 : phase === "complete"
                   ? "Complete"
-                  : "Draft"}
+                  : phase === "error"
+                    ? "Error"
+                    : "Draft"}
             </span>
             <span className="text-[11px] text-muted-foreground">
               {draftChangeset.id.slice(0, 8)}
@@ -115,8 +124,13 @@ export function DraftsView() {
             </ul>
           )}
 
-          {/* Actions */}
-          {phase === "preview" && (
+          {/* Error message */}
+          {phase === "error" && executionError && (
+            <p className="mt-2 text-xs text-destructive">{executionError}</p>
+          )}
+
+          {/* Actions — visible during preview and error (retry) */}
+          {(phase === "preview" || phase === "error") && (
             <div className="mt-3 flex items-center gap-2 border-t pt-3">
               <Button
                 variant="ghost"
@@ -135,7 +149,7 @@ export function DraftsView() {
                 disabled={isExecuting}
               >
                 <PlayIcon className="size-3.5" />
-                Execute
+                {phase === "error" ? "Retry" : "Execute"}
               </Button>
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { WorkspaceProvider, useWorkspace } from "@/components/workspace/workspace-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { ContextSpine } from "@/components/workspace/context-spine";
 import { LivingSurface } from "@/components/workspace/living-surface";
 import { IntentBar } from "@/components/workspace/intent-bar";
@@ -8,7 +8,7 @@ import { ChangesetSummary } from "@/components/workspace/changeset-summary";
 import { DraftsView } from "@/components/workspace/drafts-view";
 import { useLayout } from "@/components/dashboard/layout-shell";
 
-function WorkspaceInner() {
+export function Workspace() {
   const { activeView } = useLayout();
   const { draftChangeset, phase, cancelDraft, executeChangeset } =
     useWorkspace();
@@ -37,13 +37,5 @@ function WorkspaceInner() {
         </div>
       )}
     </div>
-  );
-}
-
-export function Workspace() {
-  return (
-    <WorkspaceProvider>
-      <WorkspaceInner />
-    </WorkspaceProvider>
   );
 }

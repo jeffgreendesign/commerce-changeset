@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Chat } from "./chat";
 import { Workspace } from "./workspace";
 import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
+import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/status-bar";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { ChatHistoryPanel } from "@/components/dashboard/chat-history-panel";
@@ -97,7 +98,9 @@ export function DashboardClient({ userName }: { userName: string }) {
   return (
     <StatusBarProvider>
       <LayoutShell userName={userName}>
-        <DashboardContent userName={userName} />
+        <WorkspaceProvider>
+          <DashboardContent userName={userName} />
+        </WorkspaceProvider>
       </LayoutShell>
     </StatusBarProvider>
   );

@@ -121,7 +121,11 @@ export function ProductTile({
       role="option"
       tabIndex={0}
       aria-selected={selected}
-      aria-label={`${product.name}, ${product.sku}, $${product.price.toFixed(2)}`}
+      aria-label={
+        showDiff && diffs?.priceDiff
+          ? `${product.name}, ${product.sku}, price $${parseCurrencyValue(diffs.priceDiff.before).toFixed(2)} to $${newPrice.toFixed(2)}, risk tier ${operation?.tier ?? 0}`
+          : `${product.name}, ${product.sku}, $${product.price.toFixed(2)}`
+      }
       data-selected={selected}
       data-promo={product.promoStatus}
       data-category={product.category}
@@ -146,10 +150,10 @@ export function ProductTile({
       </p>
 
       {/* Price — with optional diff overlay */}
-      {showDiff && hasPriceDiff ? (
+      {showDiff && hasPriceDiff && diffs?.priceDiff ? (
         <div className="mt-2 flex items-baseline gap-2 flex-wrap">
           <span className="tile-price-old text-2xl font-bold tracking-tight">
-            ${product.price.toFixed(2)}
+            ${parseCurrencyValue(diffs.priceDiff.before).toFixed(2)}
           </span>
           <span className="tile-price-new text-2xl font-bold tracking-tight">
             ${(Number.isNaN(newPrice) ? product.price : newPrice).toFixed(2)}

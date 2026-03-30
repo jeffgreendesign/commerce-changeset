@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import { z } from "zod/v4";
@@ -251,7 +252,8 @@ function applyDiffsToProducts(
   const diffsByTarget = new Map<string, OperationDiff[]>();
   for (const op of operations) {
     if (typeof op.target === "string" && Array.isArray(op.diff)) {
-      diffsByTarget.set(op.target, op.diff);
+      const existing = diffsByTarget.get(op.target) ?? [];
+      diffsByTarget.set(op.target, [...existing, ...op.diff]);
     }
   }
   return products.map((p) => {
@@ -297,6 +299,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<WorkspacePhase>("idle");
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [fetchAttempt, setFetchAttempt] = useState(0);
+  const executeInFlightRef = useRef(false);
 
   const wsTemperature = temperatureFromPhase(phase);
 
@@ -411,6 +414,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const submitIntent = useCallback(
     async (text: string) => {
       setPhase("preview");
+      setExecutionError(null);
       try {
         const selectedProducts = products.filter((p) =>
           selectedIds.has(p.id),
@@ -456,7 +460,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const executeChangeset = useCallback(async () => {
-    if (!draftChangeset) return;
+    if (!draftChangeset || executeInFlightRef.current) return;
+    executeInFlightRef.current = true;
     setPhase("executing");
     setExecutionError(null);
     try {
@@ -477,6 +482,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
         setExecutionError(msg);
         setPhase("error");
+        executeInFlightRef.current = false;
         return;
       }
       setProducts((prev) =>
@@ -487,17 +493,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setDraftChangeset(null);
         setPhase("idle");
         setExecutionError(null);
+        executeInFlightRef.current = false;
       }, 2000);
     } catch (err) {
       setExecutionError(
         err instanceof Error ? err.message : "Network error — check your connection",
       );
       setPhase("error");
+      executeInFlightRef.current = false;
     }
   }, [draftChangeset]);
 
   const cancelDraft = useCallback(() => {
     setDraftChangeset(null);
+    setExecutionError(null);
+    executeInFlightRef.current = false;
     setPhase("idle");
   }, []);
 
