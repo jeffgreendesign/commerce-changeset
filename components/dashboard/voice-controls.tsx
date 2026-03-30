@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { MicIcon, MicOffIcon, ActivityIcon, Loader2Icon } from "lucide-react";
+import { MicIcon, MicOffIcon, ActivityIcon, Loader2Icon, Volume2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -33,6 +33,10 @@ interface VoiceControlsProps {
   onActivate: () => void;
   /** Called when user toggles voice mode off. */
   onDeactivate: () => void;
+  /** Current output volume (0-1). */
+  volume?: number;
+  /** Called when user adjusts volume. */
+  onVolumeChange?: (volume: number) => void;
   /** Render as mobile voice dock (expanded layout). */
   mobile?: boolean;
 }
@@ -235,6 +239,8 @@ function MobileVoiceDock({
   isSpeaking = false,
   sidecarStatus,
   disabled = false,
+  volume,
+  onVolumeChange,
   onToggle,
   isConnecting,
   isTransitioning,
@@ -247,6 +253,8 @@ function MobileVoiceDock({
   isSpeaking?: boolean;
   sidecarStatus?: SidecarStatus;
   disabled?: boolean;
+  volume?: number;
+  onVolumeChange?: (volume: number) => void;
   onToggle: () => void;
   isConnecting: boolean;
   isTransitioning: boolean;
@@ -316,6 +324,23 @@ function MobileVoiceDock({
         />
       </div>
 
+      {/* Volume slider */}
+      {isActive && onVolumeChange && (
+        <div className="flex w-full max-w-[200px] items-center gap-2">
+          <Volume2Icon className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume ?? 1}
+            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            className="h-1 w-full accent-primary"
+            aria-label="Output volume"
+          />
+        </div>
+      )}
+
       <span className="text-xs text-muted-foreground">
         {isActive ? "Tap to stop" : "Tap to speak"}
       </span>
@@ -334,6 +359,8 @@ export function VoiceControls({
   isSpeaking,
   sidecarStatus,
   disabled = false,
+  volume,
+  onVolumeChange,
   onActivate,
   onDeactivate,
   mobile = false,
@@ -379,6 +406,8 @@ export function VoiceControls({
         isSpeaking={isSpeaking}
         sidecarStatus={sidecarStatus}
         disabled={disabled}
+        volume={volume}
+        onVolumeChange={onVolumeChange}
         onToggle={handleToggle}
         isConnecting={isConnecting}
         isTransitioning={isTransitioning}
@@ -411,6 +440,23 @@ export function VoiceControls({
           inputLevel={inputLevel}
           isSpeaking={isSpeaking}
         />
+      )}
+
+      {/* Volume slider (inline) */}
+      {isActive && onVolumeChange && (
+        <div className="hidden items-center gap-1.5 sm:flex">
+          <Volume2Icon className="size-3 text-muted-foreground" />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume ?? 1}
+            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            className="h-1 w-16 accent-primary"
+            aria-label="Output volume"
+          />
+        </div>
       )}
 
       {/* Mic toggle button */}

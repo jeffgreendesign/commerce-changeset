@@ -102,11 +102,11 @@ export function OperationCard({
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex flex-wrap items-center gap-2">
           <AgentBadge agent={operation.agent} />
-          <span className="font-mono text-sm">{operation.action}</span>
+          <span className="min-w-0 font-mono text-sm">{operation.action}</span>
           <span className="text-muted-foreground">&rarr;</span>
-          <span className="text-sm">{operation.target}</span>
+          <span className="min-w-0 truncate text-sm">{operation.target}</span>
           <RiskBadge tier={operation.tier} policyExplanation={operation.policyExplanation} />
           <AutonomyBadge decision={operation.policyExplanation.decision} />
           {result && <StatusBadge status={result.status} />}

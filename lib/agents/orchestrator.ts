@@ -74,6 +74,7 @@ Diff semantics (CRITICAL):
 - "before" and "after" MUST be different. If they are identical the operation is a no-op and will be discarded.
 - For update_price: the field is "Promo Price". "before" is the current Promo Price from the sheet (may be blank). "after" is the newly calculated discounted price.
 - For set_promo_status: the field is "Promo Active". "before" is the current value (e.g., "FALSE"). "after" is the desired value (e.g., "TRUE").
+- For update_inventory_flag: the field is "Inventory". "before" is the current value from the sheet (one of: "in_stock", "low_stock", "out_of_stock", "discontinued", "pre_order"). "after" is the desired flag value (must be one of the same five values). These are text flags, NOT numeric quantities. If the user requests a numeric inventory count, map it deterministically: 0 → "out_of_stock", 1–10 → "low_stock", >10 → "in_stock". Only use "pre_order" or "discontinued" when the user explicitly requests those statuses.
 - For create_product: create one diff entry per field. "before" MUST be "" (empty string) for ALL fields since the product does not exist yet. "after" is the desired value. Required fields: SKU (must follow STR-NNN format, e.g., STR-010), Name, Category, Base Price (must be > 0). Optional fields default to: Promo Price = "", Promo Active = "FALSE", Inventory = "in_stock". Always include all 7 fields in the diff array.
 
 Rules:
@@ -138,6 +139,13 @@ Create product — "Add a new product STR-010 Ultra Racer, Running category, bas
       { "field": "Promo Active", "before": "", "after": "FALSE" },
       { "field": "Inventory", "before": "", "after": "in_stock" }
     ],
+    "operationType": "write", "affectedRecords": 1 }
+]
+
+Single-SKU inventory change — "Mark STR-003 TrainFlex X4 as out of stock" (Inventory currently "in_stock"):
+[
+  { "agent": "writer", "action": "update_inventory_flag", "target": "STR-003 TrainFlex X4",
+    "diff": [{ "field": "Inventory", "before": "in_stock", "after": "out_of_stock" }],
     "operationType": "write", "affectedRecords": 1 }
 ]
 

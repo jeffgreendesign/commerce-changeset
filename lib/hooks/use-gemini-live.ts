@@ -51,6 +51,10 @@ export interface UseGeminiLiveReturn {
   toolCallOutcomes: ToolCallOutcome[];
   /** Peak stress level observed during this session. */
   peakStressLevel: number;
+  /** Current output volume (0-1). */
+  volume: number;
+  /** Set the output volume (0-1). */
+  setVolume: (volume: number) => void;
   connect: () => Promise<void>;
   disconnect: () => void;
   sendText: (message: string) => void;
@@ -126,6 +130,7 @@ export function useGeminiLive(
     []
   );
   const [peakStressLevel, setPeakStressLevel] = useState(0);
+  const [volume, setVolumeState] = useState(1.0);
 
   // ── Refs (not in render cycle) ───────────────────────────────────
   const primarySessionRef = useRef<Session | null>(null);
@@ -136,6 +141,8 @@ export function useGeminiLive(
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const nextPlaybackTimeRef = useRef(0);
   const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const volumeRef = useRef(1.0);
   const disconnectingRef = useRef(false);
   const primaryReadyRef = useRef(false);
   const sidecarReadyRef = useRef(false);
@@ -158,6 +165,11 @@ export function useGeminiLive(
     if (!playbackContextRef.current || playbackContextRef.current.state === "closed") {
       playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
       nextPlaybackTimeRef.current = playbackContextRef.current.currentTime;
+      // Create a persistent GainNode for volume control
+      const gain = playbackContextRef.current.createGain();
+      gain.gain.value = volumeRef.current;
+      gain.connect(playbackContextRef.current.destination);
+      gainNodeRef.current = gain;
     }
     return playbackContextRef.current;
   }, []);
@@ -170,7 +182,7 @@ export function useGeminiLive(
 
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(ctx.destination);
+      source.connect(gainNodeRef.current ?? ctx.destination);
 
       if (nextPlaybackTimeRef.current < ctx.currentTime) {
         nextPlaybackTimeRef.current = ctx.currentTime;
@@ -205,6 +217,18 @@ export function useGeminiLive(
     scheduledSourcesRef.current = [];
     nextPlaybackTimeRef.current = 0;
     setIsSpeaking(false);
+  }, []);
+
+  const handleSetVolume = useCallback((newVolume: number) => {
+    const clamped = Math.max(0, Math.min(1, newVolume));
+    volumeRef.current = clamped;
+    setVolumeState(clamped);
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.setValueAtTime(
+        clamped,
+        gainNodeRef.current.context.currentTime
+      );
+    }
   }, []);
 
   // ── Primary message handler ──────────────────────────────────────
@@ -659,6 +683,8 @@ export function useGeminiLive(
     emotionalStateTransitions,
     toolCallOutcomes,
     peakStressLevel,
+    volume,
+    setVolume: handleSetVolume,
     connect,
     disconnect,
     sendText,

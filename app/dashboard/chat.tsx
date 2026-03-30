@@ -1045,6 +1045,8 @@ export function Chat({ chatId }: ChatProps) {
           isSpeaking={geminiLive.isSpeaking}
           sidecarStatus={geminiLive.sidecarStatus}
           disabled={isBusy}
+          volume={geminiLive.volume}
+          onVolumeChange={geminiLive.setVolume}
           onActivate={handleVoiceActivate}
           onDeactivate={handleVoiceDeactivate}
           mobile
@@ -1077,6 +1079,8 @@ export function Chat({ chatId }: ChatProps) {
               isSpeaking={geminiLive.isSpeaking}
               sidecarStatus={geminiLive.sidecarStatus}
               disabled={isBusy}
+              volume={geminiLive.volume}
+              onVolumeChange={geminiLive.setVolume}
               onActivate={handleVoiceActivate}
               onDeactivate={handleVoiceDeactivate}
             />
