@@ -440,7 +440,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
         // Schema validates structural shape; cast through unknown since Zod passthrough
         // infers a wider type than the full ChangeSet with its deep nested types
-        setDraftChangeset(validated.data.changeSet as unknown as ChangeSet);
+        const cs = validated.data.changeSet as unknown as ChangeSet;
+        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
+          console.error("[workspace] Orchestrator returned changeset with 0 operations");
+          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+          setPhase("error");
+          return;
+        }
+        setDraftChangeset(cs);
       } catch {
         setPhase("error");
       }

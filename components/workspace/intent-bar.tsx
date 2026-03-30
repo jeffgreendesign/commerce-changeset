@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   ArrowRightIcon,
   LoaderIcon,
@@ -11,8 +11,17 @@ import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { useLayout } from "@/components/dashboard/layout-shell";
 
-const SINGLE_CHIPS = ["Change price", "Toggle promo", "View history"];
-const MULTI_CHIPS = ["Bulk price change", "Compare", "Toggle promo"];
+// Chips prefill the input with a template — user must complete the detail
+const SINGLE_CHIPS = [
+  { label: "Change price", prefill: "Change price to $" },
+  { label: "Toggle promo", prefill: "Toggle promo status" },
+  { label: "View history", prefill: "Show change history" },
+];
+const MULTI_CHIPS = [
+  { label: "Bulk price change", prefill: "Change all prices by " },
+  { label: "Compare", prefill: "Compare selected products" },
+  { label: "Toggle promo", prefill: "Toggle promo status" },
+];
 
 export function IntentBar() {
   const {
@@ -26,6 +35,7 @@ export function IntentBar() {
   } = useWorkspace();
   const { setActiveView } = useLayout();
   const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedProducts = useMemo(
     () => products.filter((p) => selectedIds.has(p.id)),
@@ -95,18 +105,21 @@ export function IntentBar() {
         </div>
       )}
 
-      {/* Selection-based suggestion chips (only when no draft) */}
+      {/* Selection-based suggestion chips — prefill input, don't auto-submit */}
       {!hasDraft && chips.length > 0 && !isBusy && phase !== "complete" && (
         <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
           {chips.map((chip) => (
             <button
-              key={chip}
+              key={chip.label}
               type="button"
               className="intent-suggestion shrink-0 min-h-[32px]"
-              onClick={() => handleSubmit(chip)}
+              onClick={() => {
+                setInput(chip.prefill);
+                inputRef.current?.focus();
+              }}
               disabled={isBusy}
             >
-              {chip}
+              {chip.label}
             </button>
           ))}
         </div>
@@ -128,6 +141,7 @@ export function IntentBar() {
 
         {/* Text input */}
         <input
+          ref={inputRef}
           type="text"
           className="flex-1 bg-transparent text-base placeholder:text-muted-foreground focus:outline-none md:text-sm"
           placeholder={placeholder}
