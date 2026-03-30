@@ -17,7 +17,7 @@ import type { ActionDefinition } from "@/lib/actions";
 
 // ── Context ──────────────────────────────────────────────────────────
 
-type ActiveView = "chat" | "history" | "actions" | "workspace";
+type ActiveView = "chat" | "history" | "actions" | "workspace" | "drafts";
 
 interface LayoutContextValue {
   /** Open the right inspector panel with an item. */
@@ -155,7 +155,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
     <LayoutContext.Provider value={ctx}>
       <div className="flex h-full min-h-0 flex-1">
         {/* Left rail — hidden on mobile, icon-only by default on md+, replaced by Context Spine in workspace view */}
-        {activeView !== "workspace" && (
+        {activeView !== "workspace" && activeView !== "drafts" && (
           <Rail
             expanded={railExpanded}
             onToggle={toggleRail}

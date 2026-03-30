@@ -4,10 +4,21 @@ import { useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
+import type { Operation } from "@/lib/changeset/types";
 
 export function LivingSurface() {
-  const { products, loading, fetchError, selectedIds, select, multiSelect, deselectAll, phase, retryFetch } =
-    useWorkspace();
+  const {
+    products,
+    loading,
+    fetchError,
+    selectedIds,
+    select,
+    multiSelect,
+    deselectAll,
+    phase,
+    retryFetch,
+    draftChangeset,
+  } = useWorkspace();
 
   // Group products by category
   const grouped = useMemo(() => {
@@ -24,12 +35,17 @@ export function LivingSurface() {
     return map;
   }, [products]);
 
-  // Count promo-active products for timeline
-  const promoStats = useMemo(() => {
-    const total = products.length;
-    const active = products.filter((p) => p.promoStatus === "active").length;
-    return { total, active, pct: total > 0 ? (active / total) * 100 : 0 };
-  }, [products]);
+  // Build operation lookup: target (SKU) → Operation
+  const operationsByTarget = useMemo(() => {
+    if (!draftChangeset) return new Map<string, Operation>();
+    const map = new Map<string, Operation>();
+    for (const op of draftChangeset.operations) {
+      if (typeof op.target === "string") {
+        map.set(op.target, op);
+      }
+    }
+    return map;
+  }, [draftChangeset]);
 
   const handleTileClick = useCallback(
     (id: string, modifiers: TileClickModifiers) => {
@@ -115,7 +131,7 @@ export function LivingSurface() {
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             {category}
           </h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
             {categoryProducts.map((product) => (
               <ProductTile
                 key={product.id}
@@ -124,29 +140,17 @@ export function LivingSurface() {
                 onClick={(modifiers) =>
                   handleTileClick(product.id, modifiers)
                 }
+                operation={
+                  operationsByTarget.get(product.sku) ??
+                  operationsByTarget.get(product.id)
+                }
+                phase={phase}
               />
             ))}
           </div>
         </section>
       ))}
 
-      {/* Promo timeline bar */}
-      {promoStats.active > 0 && (
-        <div className="mt-auto pt-4">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <span className="shrink-0">Active Promotions</span>
-            <div className="promo-timeline flex-1">
-              <div
-                className="promo-timeline-fill"
-                style={{ width: `${promoStats.pct}%` }}
-              />
-            </div>
-            <span className="shrink-0">
-              {promoStats.active} of {promoStats.total}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

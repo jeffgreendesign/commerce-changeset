@@ -22,7 +22,7 @@ const SPINE_ITEMS = [
   { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
   { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
   { icon: ClockIcon, label: "Timeline", id: "timeline" as const, enabled: false },
-  { icon: LayersIcon, label: "Drafts", id: "drafts" as const, enabled: false },
+  { icon: LayersIcon, label: "Drafts", id: "drafts" as const, enabled: true },
   { icon: ActivityIcon, label: "Activity", id: "activity" as const, enabled: false },
 ] as const;
 
@@ -32,7 +32,7 @@ export function ContextSpine() {
   const { activeView, setActiveView } = useLayout();
 
   const handleSelect = (id: SpineItemId) => {
-    if (id === "workspace" || id === "chat") {
+    if (id === "workspace" || id === "chat" || id === "drafts") {
       setActiveView(id);
     } else {
       toast.info(`${SPINE_ITEMS.find((i) => i.id === id)?.label} — coming soon`);

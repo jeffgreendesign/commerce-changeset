@@ -7,10 +7,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import { z } from "zod/v4";
-import type { ChangeSet } from "@/lib/changeset/types";
+import type { ChangeSet, Operation, OperationDiff } from "@/lib/changeset/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ interface WorkspaceContextValue {
   products: Product[];
   loading: boolean;
   fetchError: string | null;
+  executionError: string | null;
   selectedIds: Set<string>;
   draftChangeset: ChangeSet | null;
   phase: WorkspacePhase;
@@ -43,6 +45,7 @@ interface WorkspaceContextValue {
   multiSelect: (ids: string[]) => void;
   deselectAll: () => void;
   submitIntent: (text: string) => Promise<void>;
+  executeChangeset: () => Promise<void>;
   cancelDraft: () => void;
   retryFetch: () => void;
 }
@@ -240,6 +243,51 @@ function temperatureFromPhase(phase: WorkspacePhase): number {
   }
 }
 
+// ── Apply diffs to products after execution ────────────────────────
+
+function applyDiffsToProducts(
+  products: Product[],
+  operations: Operation[],
+): Product[] {
+  const diffsByTarget = new Map<string, OperationDiff[]>();
+  for (const op of operations) {
+    if (typeof op.target === "string" && Array.isArray(op.diff)) {
+      const existing = diffsByTarget.get(op.target) ?? [];
+      diffsByTarget.set(op.target, [...existing, ...op.diff]);
+    }
+  }
+  return products.map((p) => {
+    const diffs = diffsByTarget.get(p.sku) ?? diffsByTarget.get(p.id);
+    if (!diffs) return p;
+    const updated = { ...p };
+    for (const d of diffs) {
+      const field = d.field.toLowerCase();
+      if (field.includes("price")) {
+        const val =
+          typeof d.after === "number"
+            ? d.after
+            : parseFloat(String(d.after).replace(/[^0-9.]/g, ""));
+        if (!Number.isNaN(val)) updated.price = val;
+      }
+      if (field.includes("inventory") || field.includes("stock")) {
+        const val =
+          typeof d.after === "number"
+            ? d.after
+            : parseInt(String(d.after).replace(/[^0-9]/g, ""), 10);
+        if (!Number.isNaN(val)) updated.inventory = val;
+      }
+      if (field.includes("promo") || field.includes("status")) {
+        const val = String(d.after).toLowerCase();
+        updated.promoStatus =
+          val === "active" || val === "true" || val === "yes" || val === "on"
+            ? "active"
+            : "inactive";
+      }
+    }
+    return updated;
+  });
+}
+
 // ── Provider ────────────────────────────────────────────────────────
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
@@ -249,7 +297,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [draftChangeset, setDraftChangeset] = useState<ChangeSet | null>(null);
   const [phase, setPhase] = useState<WorkspacePhase>("idle");
+  const [executionError, setExecutionError] = useState<string | null>(null);
   const [fetchAttempt, setFetchAttempt] = useState(0);
+  const executeInFlightRef = useRef(false);
 
   const wsTemperature = temperatureFromPhase(phase);
 
@@ -364,6 +414,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const submitIntent = useCallback(
     async (text: string) => {
       setPhase("preview");
+      setExecutionError(null);
       try {
         const selectedProducts = products.filter((p) =>
           selectedIds.has(p.id),
@@ -393,7 +444,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
         // Schema validates structural shape; cast through unknown since Zod passthrough
         // infers a wider type than the full ChangeSet with its deep nested types
-        setDraftChangeset(validated.data.changeSet as unknown as ChangeSet);
+        const cs = validated.data.changeSet as unknown as ChangeSet;
+        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
+          console.error("[workspace] Orchestrator returned changeset with 0 operations");
+          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+          setPhase("error");
+          return;
+        }
+        setDraftChangeset(cs);
       } catch {
         setPhase("error");
       }
@@ -401,8 +459,55 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [products, selectedIds],
   );
 
+  const executeChangeset = useCallback(async () => {
+    if (!draftChangeset || executeInFlightRef.current) return;
+    executeInFlightRef.current = true;
+    setPhase("executing");
+    setExecutionError(null);
+    try {
+      const res = await fetch("/api/orchestrator/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changeSet: draftChangeset }),
+      });
+      if (!res.ok) {
+        let msg = "Execution failed";
+        try {
+          const errBody = (await res.json()) as Record<string, unknown>;
+          if (typeof errBody.message === "string") msg = errBody.message;
+          else if (typeof errBody.error === "string") msg = errBody.error;
+        } catch {
+          // body wasn't JSON, use status text
+          msg = `Execution failed (${res.status})`;
+        }
+        setExecutionError(msg);
+        setPhase("error");
+        executeInFlightRef.current = false;
+        return;
+      }
+      setProducts((prev) =>
+        applyDiffsToProducts(prev, draftChangeset.operations),
+      );
+      setPhase("complete");
+      setTimeout(() => {
+        setDraftChangeset(null);
+        setPhase("idle");
+        setExecutionError(null);
+        executeInFlightRef.current = false;
+      }, 2000);
+    } catch (err) {
+      setExecutionError(
+        err instanceof Error ? err.message : "Network error — check your connection",
+      );
+      setPhase("error");
+      executeInFlightRef.current = false;
+    }
+  }, [draftChangeset]);
+
   const cancelDraft = useCallback(() => {
     setDraftChangeset(null);
+    setExecutionError(null);
+    executeInFlightRef.current = false;
     setPhase("idle");
   }, []);
 
@@ -411,6 +516,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       products,
       loading,
       fetchError,
+      executionError,
       selectedIds,
       draftChangeset,
       phase,
@@ -419,6 +525,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       multiSelect,
       deselectAll,
       submitIntent,
+      executeChangeset,
       cancelDraft,
       retryFetch,
     }),
@@ -426,6 +533,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       products,
       loading,
       fetchError,
+      executionError,
       selectedIds,
       draftChangeset,
       phase,
@@ -434,6 +542,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       multiSelect,
       deselectAll,
       submitIntent,
+      executeChangeset,
       cancelDraft,
       retryFetch,
     ],

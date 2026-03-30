@@ -1,7 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowRightLeftIcon,
+  ZapIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Product } from "./workspace-provider";
+import { RiskTier } from "@/lib/policy/types";
+import type { Operation, OperationDiff } from "@/lib/changeset/types";
+import type { Product, WorkspacePhase } from "./workspace-provider";
 
 export interface TileClickModifiers {
   metaKey: boolean;
@@ -12,9 +21,97 @@ interface ProductTileProps {
   product: Product;
   selected: boolean;
   onClick: (modifiers: TileClickModifiers) => void;
+  operation?: Operation;
+  phase?: WorkspacePhase;
 }
 
-export function ProductTile({ product, selected, onClick }: ProductTileProps) {
+// ── Diff helpers ────────────────────────────────────────────────────
+
+function findDiffByPattern(
+  diffs: OperationDiff[],
+  pattern: RegExp,
+): OperationDiff | undefined {
+  return diffs.find((d) => pattern.test(d.field));
+}
+
+function parseCurrencyValue(value: string | number | boolean): number {
+  return parseFloat(String(value).replace(/[^0-9.]/g, ""));
+}
+
+function computeChangePct(
+  before: string | number | boolean,
+  after: string | number | boolean,
+): { pct: number; direction: "up" | "down" } | null {
+  const b = parseCurrencyValue(before);
+  const a = parseCurrencyValue(after);
+  if (Number.isNaN(b) || Number.isNaN(a) || b === 0) return null;
+  const pct = ((a - b) / b) * 100;
+  if (pct === 0) return null;
+  return { pct: Math.abs(pct), direction: pct > 0 ? "up" : "down" };
+}
+
+/** Summarize a non-price diff as a human-readable label. */
+function describeDiff(diff: OperationDiff): string {
+  const field = diff.field.toLowerCase();
+  if (field.includes("promo") || field.includes("status")) {
+    const val = String(diff.after).toLowerCase();
+    return val === "active" || val === "true" || val === "yes"
+      ? "Promo ON"
+      : "Promo OFF";
+  }
+  if (field.includes("inventory")) {
+    return `Inv → ${diff.after}`;
+  }
+  return `${diff.field}: ${String(diff.before)} → ${String(diff.after)}`;
+}
+
+// ── Tier indicator colors ───────────────────────────────────────────
+
+const TIER_DOT_STYLE: Record<number, string> = {
+  [RiskTier.READ]: "oklch(0.65 0.2 145)", // green
+  [RiskTier.NOTIFY]: "oklch(0.6 0.18 264)", // blue
+  [RiskTier.WRITE]: "oklch(0.7 0.18 85)", // amber
+  [RiskTier.BULK]: "oklch(0.6 0.22 29)", // red
+};
+
+// ── Component ───────────────────────────────────────────────────────
+
+export function ProductTile({
+  product,
+  selected,
+  onClick,
+  operation,
+  phase,
+}: ProductTileProps) {
+  const showDiff =
+    !!operation &&
+    (phase === "preview" || phase === "executing" || phase === "complete");
+
+  const diffs = useMemo(() => {
+    if (!showDiff || !Array.isArray(operation.diff)) return null;
+    const priceDiff = findDiffByPattern(operation.diff, /price/i);
+    const promoDiff = findDiffByPattern(operation.diff, /promo|status/i);
+    const inventoryDiff = findDiffByPattern(operation.diff, /inventory/i);
+    // Collect non-price diffs for the change summary
+    const otherDiffs = operation.diff.filter((d) => !/price/i.test(d.field));
+    return { priceDiff, promoDiff, inventoryDiff, otherDiffs, all: operation.diff };
+  }, [showDiff, operation]);
+
+  const change = useMemo(
+    () =>
+      diffs?.priceDiff
+        ? computeChangePct(diffs.priceDiff.before, diffs.priceDiff.after)
+        : null,
+    [diffs],
+  );
+
+  const newPrice = diffs?.priceDiff
+    ? parseCurrencyValue(diffs.priceDiff.after)
+    : product.price;
+
+  const hasPriceDiff = !!diffs?.priceDiff;
+  const hasNonPriceDiff = !!diffs && diffs.otherDiffs.length > 0;
+
   return (
     <div
       className={cn(
@@ -24,10 +121,16 @@ export function ProductTile({ product, selected, onClick }: ProductTileProps) {
       role="option"
       tabIndex={0}
       aria-selected={selected}
-      aria-label={`${product.name}, ${product.sku}, $${product.price.toFixed(2)}`}
+      aria-label={
+        showDiff && diffs?.priceDiff
+          ? `${product.name}, ${product.sku}, price $${parseCurrencyValue(diffs.priceDiff.before).toFixed(2)} to $${newPrice.toFixed(2)}, risk tier ${operation?.tier ?? 0}`
+          : `${product.name}, ${product.sku}, $${product.price.toFixed(2)}`
+      }
       data-selected={selected}
       data-promo={product.promoStatus}
       data-category={product.category}
+      data-has-diff={showDiff || undefined}
+      data-recently-changed={phase === "complete" && showDiff ? true : undefined}
       onClick={(e) => onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey })}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -46,22 +149,72 @@ export function ProductTile({ product, selected, onClick }: ProductTileProps) {
         {product.sku}
       </p>
 
-      {/* Price — large, bold */}
-      <p className="mt-2 text-2xl font-bold tracking-tight">
-        ${product.price.toFixed(2)}
-      </p>
+      {/* Price — with optional diff overlay */}
+      {showDiff && hasPriceDiff && diffs?.priceDiff ? (
+        <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+          <span className="tile-price-old text-2xl font-bold tracking-tight">
+            ${parseCurrencyValue(diffs.priceDiff.before).toFixed(2)}
+          </span>
+          <span className="tile-price-new text-2xl font-bold tracking-tight">
+            ${(Number.isNaN(newPrice) ? product.price : newPrice).toFixed(2)}
+          </span>
+          {change && (
+            <span className="tile-change-badge inline-flex items-center gap-0.5">
+              {change.direction === "down" ? (
+                <ArrowDownIcon className="size-3" />
+              ) : (
+                <ArrowUpIcon className="size-3" />
+              )}
+              {change.pct.toFixed(0)}%
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="mt-2 text-2xl font-bold tracking-tight">
+          ${product.price.toFixed(2)}
+        </p>
+      )}
 
-      {/* Inventory + promo row */}
+      {/* Non-price diff badges (promo toggle, inventory, etc.) */}
+      {showDiff && hasNonPriceDiff && diffs && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {diffs.otherDiffs.map((d, i) => (
+            <span
+              key={i}
+              className="tile-change-badge inline-flex items-center gap-0.5"
+            >
+              {/promo|status/i.test(d.field) ? (
+                <ZapIcon className="size-3" />
+              ) : (
+                <ArrowRightLeftIcon className="size-3" />
+              )}
+              {describeDiff(d)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Inventory + promo/risk row */}
       <div className="mt-1.5 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
           {product.inventory.toLocaleString()} units
         </span>
-        {product.promoStatus === "active" && (
+        {showDiff && operation ? (
           <span
             className="inline-block size-2.5 rounded-full"
-            style={{ background: "oklch(0.65 0.2 145)" }}
-            aria-label="Active promotion"
+            style={{
+              background: TIER_DOT_STYLE[operation.tier] ?? "oklch(0.5 0.1 0)",
+            }}
+            aria-label={`Risk tier ${operation.tier}`}
           />
+        ) : (
+          product.promoStatus === "active" && (
+            <span
+              className="inline-block size-2.5 rounded-full"
+              style={{ background: "oklch(0.65 0.2 145)" }}
+              aria-label="Active promotion"
+            />
+          )
         )}
       </div>
     </div>
