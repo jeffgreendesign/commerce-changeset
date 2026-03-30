@@ -1,18 +1,42 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
   ArrowRightIcon,
   LoaderIcon,
-  PlayIcon,
-  XIcon,
   CheckCircleIcon,
+  MicIcon,
+  MicOffIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 
 const SINGLE_CHIPS = ["Change price", "Toggle promo", "View history"];
 const MULTI_CHIPS = ["Bulk price change", "Compare", "Toggle promo"];
+
+// ── Browser Speech Recognition type shim ────────────────────────────
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: Event) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+function getSpeechRecognition():
+  | (new () => SpeechRecognitionLike)
+  | undefined {
+  if (typeof window === "undefined") return undefined;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition ?? w.webkitSpeechRecognition) as
+    | (new () => SpeechRecognitionLike)
+    | undefined;
+}
 
 export function IntentBar() {
   const {
@@ -22,9 +46,20 @@ export function IntentBar() {
     submitIntent,
     cancelDraft,
     draftChangeset,
-    executeChangeset,
   } = useWorkspace();
   const [input, setInput] = useState("");
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  // Clean up speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
 
   const selectedProducts = useMemo(
     () => products.filter((p) => selectedIds.has(p.id)),
@@ -32,9 +67,10 @@ export function IntentBar() {
   );
 
   const placeholder = useMemo(() => {
+    if (listening) return "Listening...";
     if (draftChangeset && (phase === "preview" || phase === "executing")) {
       const count = draftChangeset.operations.length;
-      return `${count} product${count !== 1 ? "s" : ""} affected`;
+      return `${count} product${count !== 1 ? "s" : ""} affected — use panel below`;
     }
     if (phase === "complete") return "Changes applied";
     if (selectedProducts.length === 0)
@@ -42,7 +78,7 @@ export function IntentBar() {
     if (selectedProducts.length === 1)
       return `${selectedProducts[0].name} selected`;
     return `${selectedProducts.length} products selected`;
-  }, [selectedProducts, draftChangeset, phase]);
+  }, [selectedProducts, draftChangeset, phase, listening]);
 
   const chips = useMemo(() => {
     if (selectedProducts.length === 0) return [];
@@ -60,8 +96,47 @@ export function IntentBar() {
     [phase, submitIntent],
   );
 
+  const toggleVoice = useCallback(() => {
+    // Stop listening
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+
+    const SpeechRec = getSpeechRecognition();
+    if (!SpeechRec) return; // Browser doesn't support it
+
+    const recognition = new SpeechRec();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: Event) => {
+      const e = event as Event & { results?: { [index: number]: { [index: number]: { transcript?: string } } } };
+      const transcript: string = e.results?.[0]?.[0]?.transcript ?? "";
+      if (transcript.trim()) {
+        handleSubmit(transcript.trim());
+      }
+      setListening(false);
+    };
+
+    recognition.onerror = () => {
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  }, [listening, handleSubmit]);
+
   const isBusy = phase === "executing" || phase === "preview";
   const hasDraft = !!draftChangeset && phase === "preview";
+  const hasSpeech = typeof window !== "undefined" && !!getSpeechRecognition();
 
   return (
     <div className="intent-bar border-t pb-safe">
@@ -95,28 +170,6 @@ export function IntentBar() {
         </div>
       )}
 
-      {/* Draft changeset actions */}
-      {hasDraft && (
-        <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
-          <button
-            type="button"
-            className="intent-suggestion inline-flex shrink-0 items-center gap-1 min-h-[32px]"
-            onClick={executeChangeset}
-          >
-            <PlayIcon className="size-3" />
-            Execute
-          </button>
-          <button
-            type="button"
-            className="intent-suggestion inline-flex shrink-0 items-center gap-1 min-h-[32px]"
-            onClick={cancelDraft}
-          >
-            <XIcon className="size-3" />
-            Cancel
-          </button>
-        </div>
-      )}
-
       {/* Selection-based suggestion chips (only when no draft) */}
       {!hasDraft && chips.length > 0 && !isBusy && phase !== "complete" && (
         <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
@@ -136,11 +189,29 @@ export function IntentBar() {
 
       {/* Input row */}
       <div className="flex items-center gap-2 px-3 py-2 md:px-4">
+        {/* Mic button */}
+        {hasSpeech && (
+          <Button
+            variant={listening ? "default" : "ghost"}
+            size="icon"
+            className={`min-h-[44px] min-w-[44px] shrink-0 ${listening ? "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white" : ""}`}
+            aria-label={listening ? "Stop listening" : "Voice input"}
+            onClick={toggleVoice}
+            disabled={isBusy || phase === "complete"}
+          >
+            {listening ? (
+              <MicOffIcon className="size-5" />
+            ) : (
+              <MicIcon className="size-5" />
+            )}
+          </Button>
+        )}
+
         {/* Text input */}
         <input
           type="text"
           className="flex-1 bg-transparent text-base placeholder:text-muted-foreground focus:outline-none md:text-sm"
-          placeholder={isBusy || phase === "complete" ? placeholder : placeholder}
+          placeholder={placeholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

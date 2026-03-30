@@ -4,7 +4,6 @@ import { useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
-import { ChangesetSummary } from "./changeset-summary";
 import type { Operation } from "@/lib/changeset/types";
 
 export function LivingSurface() {
@@ -19,8 +18,6 @@ export function LivingSurface() {
     phase,
     retryFetch,
     draftChangeset,
-    executeChangeset,
-    cancelDraft,
   } = useWorkspace();
 
   // Group products by category
@@ -179,15 +176,6 @@ export function LivingSurface() {
         </div>
       )}
 
-      {/* Changeset summary panel — floats above when draft exists */}
-      {draftChangeset && phase !== "idle" && (
-        <ChangesetSummary
-          changeset={draftChangeset}
-          onCancel={cancelDraft}
-          onExecute={executeChangeset}
-          executing={phase === "executing"}
-        />
-      )}
     </div>
   );
 }

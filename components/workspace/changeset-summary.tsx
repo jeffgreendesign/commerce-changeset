@@ -55,7 +55,7 @@ export function ChangesetSummary({
   const requiresCIBA = changeset.riskSummary?.requiresCIBA === true;
 
   return (
-    <div className="changeset-summary w-[calc(100%-2rem)] max-w-md">
+    <div className="changeset-summary w-full max-w-md mx-auto">
       <div className="rounded-xl border bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm">
         {/* Header: ID + prompt */}
         <p className="text-xs text-muted-foreground truncate">

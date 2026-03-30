@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowRightLeftIcon,
+  ZapIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RiskTier } from "@/lib/policy/types";
 import type { Operation, OperationDiff } from "@/lib/changeset/types";
@@ -20,10 +25,13 @@ interface ProductTileProps {
   phase?: WorkspacePhase;
 }
 
-// ── Price diff helpers ──────────────────────────────────────────────
+// ── Diff helpers ────────────────────────────────────────────────────
 
-function findPriceDiff(diffs: OperationDiff[]): OperationDiff | undefined {
-  return diffs.find((d) => /price/i.test(d.field));
+function findDiffByPattern(
+  diffs: OperationDiff[],
+  pattern: RegExp,
+): OperationDiff | undefined {
+  return diffs.find((d) => pattern.test(d.field));
 }
 
 function parseCurrencyValue(value: string | number | boolean): number {
@@ -40,6 +48,21 @@ function computeChangePct(
   const pct = ((a - b) / b) * 100;
   if (pct === 0) return null;
   return { pct: Math.abs(pct), direction: pct > 0 ? "up" : "down" };
+}
+
+/** Summarize a non-price diff as a human-readable label. */
+function describeDiff(diff: OperationDiff): string {
+  const field = diff.field.toLowerCase();
+  if (field.includes("promo") || field.includes("status")) {
+    const val = String(diff.after).toLowerCase();
+    return val === "active" || val === "true" || val === "yes"
+      ? "Promo ON"
+      : "Promo OFF";
+  }
+  if (field.includes("inventory")) {
+    return `Inv → ${diff.after}`;
+  }
+  return `${diff.field}: ${String(diff.before)} → ${String(diff.after)}`;
 }
 
 // ── Tier indicator colors ───────────────────────────────────────────
@@ -64,23 +87,30 @@ export function ProductTile({
     !!operation &&
     (phase === "preview" || phase === "executing" || phase === "complete");
 
-  const priceDiff = useMemo(
-    () =>
-      showDiff && Array.isArray(operation.diff)
-        ? findPriceDiff(operation.diff)
-        : undefined,
-    [showDiff, operation],
-  );
+  const diffs = useMemo(() => {
+    if (!showDiff || !Array.isArray(operation.diff)) return null;
+    const priceDiff = findDiffByPattern(operation.diff, /price/i);
+    const promoDiff = findDiffByPattern(operation.diff, /promo|status/i);
+    const inventoryDiff = findDiffByPattern(operation.diff, /inventory/i);
+    // Collect non-price diffs for the change summary
+    const otherDiffs = operation.diff.filter((d) => !/price/i.test(d.field));
+    return { priceDiff, promoDiff, inventoryDiff, otherDiffs, all: operation.diff };
+  }, [showDiff, operation]);
 
   const change = useMemo(
     () =>
-      priceDiff ? computeChangePct(priceDiff.before, priceDiff.after) : null,
-    [priceDiff],
+      diffs?.priceDiff
+        ? computeChangePct(diffs.priceDiff.before, diffs.priceDiff.after)
+        : null,
+    [diffs],
   );
 
-  const newPrice = priceDiff
-    ? parseCurrencyValue(priceDiff.after)
+  const newPrice = diffs?.priceDiff
+    ? parseCurrencyValue(diffs.priceDiff.after)
     : product.price;
+
+  const hasPriceDiff = !!diffs?.priceDiff;
+  const hasNonPriceDiff = !!diffs && diffs.otherDiffs.length > 0;
 
   return (
     <div
@@ -116,8 +146,8 @@ export function ProductTile({
       </p>
 
       {/* Price — with optional diff overlay */}
-      {showDiff && priceDiff ? (
-        <div className="mt-2 flex items-baseline gap-2">
+      {showDiff && hasPriceDiff ? (
+        <div className="mt-2 flex items-baseline gap-2 flex-wrap">
           <span className="tile-price-old text-2xl font-bold tracking-tight">
             ${product.price.toFixed(2)}
           </span>
@@ -139,6 +169,25 @@ export function ProductTile({
         <p className="mt-2 text-2xl font-bold tracking-tight">
           ${product.price.toFixed(2)}
         </p>
+      )}
+
+      {/* Non-price diff badges (promo toggle, inventory, etc.) */}
+      {showDiff && hasNonPriceDiff && diffs && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {diffs.otherDiffs.map((d, i) => (
+            <span
+              key={i}
+              className="tile-change-badge inline-flex items-center gap-0.5"
+            >
+              {/promo|status/i.test(d.field) ? (
+                <ZapIcon className="size-3" />
+              ) : (
+                <ArrowRightLeftIcon className="size-3" />
+              )}
+              {describeDiff(d)}
+            </span>
+          ))}
+        </div>
       )}
 
       {/* Inventory + promo/risk row */}
