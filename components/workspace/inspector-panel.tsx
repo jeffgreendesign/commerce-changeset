@@ -23,33 +23,9 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { RiskTier } from "@/lib/policy/types";
-import type { Operation, OperationDiff } from "@/lib/changeset/types";
+import { TIER_CONFIG } from "@/lib/risk-tier-config";
+import type { OperationDiff } from "@/lib/changeset/types";
 import { useWorkspace } from "./workspace-provider";
-
-// ── Tier display config ────────────────────────────────────────────
-
-const TIER_CONFIG: Record<number, { label: string; className: string }> = {
-  [RiskTier.READ]: {
-    label: "Read",
-    className:
-      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  },
-  [RiskTier.NOTIFY]: {
-    label: "Notify",
-    className:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  },
-  [RiskTier.WRITE]: {
-    label: "Write",
-    className:
-      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  },
-  [RiskTier.BULK]: {
-    label: "Bulk",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  },
-};
 
 // ── Inspector content ──────────────────────────────────────────────
 
@@ -78,14 +54,32 @@ function InspectorContent({
     return products.find((p) => p.id === firstId) ?? null;
   }, [selectedIds, products]);
 
-  // Find operation targeting this product in draft changeset
-  const productOperation = useMemo<Operation | undefined>(() => {
-    if (!selectedProduct || !draftChangeset) return undefined;
-    return draftChangeset.operations.find(
+  // Find all operations targeting this product in draft changeset
+  const productOperations = useMemo(() => {
+    if (!selectedProduct || !draftChangeset) return [];
+    return draftChangeset.operations.filter(
       (op) =>
-        op.target === selectedProduct.sku || op.target === selectedProduct.id,
+        op.target === selectedProduct.sku ||
+        op.target === selectedProduct.id ||
+        op.target.includes(selectedProduct.sku) ||
+        op.target.includes(selectedProduct.id),
     );
   }, [selectedProduct, draftChangeset]);
+
+  // Highest risk tier across all matching operations
+  const highestTierOp = useMemo(
+    () =>
+      productOperations.length > 0
+        ? productOperations.reduce((a, b) => (b.tier > a.tier ? b : a))
+        : null,
+    [productOperations],
+  );
+
+  // Flattened diffs from all matching operations
+  const allDiffs = useMemo(
+    () => productOperations.flatMap((op) => (Array.isArray(op.diff) ? op.diff : [])),
+    [productOperations],
+  );
 
   // Start editing price
   const startEditingPrice = useCallback(() => {
@@ -268,13 +262,13 @@ function InspectorContent({
                 Risk Analysis
               </p>
             </div>
-            {productOperation ? (
+            {highestTierOp ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs">Tier:</span>
                   {(() => {
-                    const cfg = TIER_CONFIG[productOperation.tier] ?? {
-                      label: `Tier ${productOperation.tier}`,
+                    const cfg = TIER_CONFIG[highestTierOp.tier] ?? {
+                      label: `Tier ${highestTierOp.tier}`,
                       className: "bg-muted text-muted-foreground",
                     };
                     return (
@@ -288,20 +282,25 @@ function InspectorContent({
                       </span>
                     );
                   })()}
+                  {productOperations.length > 1 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      ({productOperations.length} ops)
+                    </span>
+                  )}
                 </div>
-                {productOperation.policyExplanation && (
+                {highestTierOp.policyExplanation && (
                   <div className="rounded-md bg-muted/50 p-2 text-[11px] space-y-0.5">
                     <p>
                       <span className="font-medium">Decision:</span>{" "}
-                      {productOperation.policyExplanation.decision}
+                      {highestTierOp.policyExplanation.decision}
                     </p>
                     <p>
                       <span className="font-medium">Rule:</span>{" "}
-                      {productOperation.policyExplanation.ruleName}
+                      {highestTierOp.policyExplanation.ruleName}
                     </p>
                     <p>
                       <span className="font-medium">Reason:</span>{" "}
-                      {productOperation.policyExplanation.reason}
+                      {highestTierOp.policyExplanation.reason}
                     </p>
                   </div>
                 )}
@@ -313,40 +312,36 @@ function InspectorContent({
             )}
           </div>
 
-          {/* Pending diffs */}
-          {productOperation &&
-            Array.isArray(productOperation.diff) &&
-            productOperation.diff.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    Pending Changes
-                  </p>
-                  <div className="space-y-1.5">
-                    {productOperation.diff.map(
-                      (d: OperationDiff, i: number) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between rounded-md border px-2 py-1.5 text-xs"
-                        >
-                          <span className="font-medium">{d.field}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-red-600 line-through dark:text-red-400">
-                              {String(d.before)}
-                            </span>
-                            <TagIcon className="size-3 text-muted-foreground" />
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              {String(d.after)}
-                            </span>
-                          </div>
-                        </div>
-                      ),
-                    )}
-                  </div>
+          {/* Pending diffs (flattened from all matching operations) */}
+          {allDiffs.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  Pending Changes
+                </p>
+                <div className="space-y-1.5">
+                  {allDiffs.map((d: OperationDiff, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-md border px-2 py-1.5 text-xs"
+                    >
+                      <span className="font-medium">{d.field}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-red-600 line-through dark:text-red-400">
+                          {String(d.before)}
+                        </span>
+                        <TagIcon className="size-3 text-muted-foreground" />
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          {String(d.after)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </>
-            )}
+              </div>
+            </>
+          )}
 
           {/* Multi-selection info */}
           {selectedIds.size > 1 && (

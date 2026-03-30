@@ -444,6 +444,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (text: string) => {
       setPhase("preview");
       setExecutionError(null);
+      setDraftChangeset(null); // clear stale draft immediately
       try {
         const selectedProducts = products.filter((p) =>
           selectedIds.has(p.id),
@@ -460,6 +461,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         });
 
         if (!res.ok) {
+          setDraftChangeset(null);
           setPhase("error");
           return;
         }
@@ -468,6 +470,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const validated = OrchestratorResponseSchema.safeParse(json);
         if (!validated.success) {
           console.error("[workspace] Invalid orchestrator response:", validated.error);
+          setDraftChangeset(null);
           setPhase("error");
           return;
         }
@@ -477,11 +480,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
           console.error("[workspace] Orchestrator returned changeset with 0 operations");
           setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+          setDraftChangeset(null);
           setPhase("error");
           return;
         }
         setDraftChangeset(cs);
       } catch {
+        setDraftChangeset(null);
         setPhase("error");
       }
     },
@@ -492,6 +497,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (text: string, productId: string) => {
       setPhase("preview");
       setExecutionError(null);
+      setDraftChangeset(null); // clear stale draft immediately
       try {
         const targetProduct = products.find((p) => p.id === productId);
         const context = targetProduct
@@ -505,6 +511,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         });
 
         if (!res.ok) {
+          setDraftChangeset(null);
           setPhase("error");
           return;
         }
@@ -513,6 +520,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const validated = OrchestratorResponseSchema.safeParse(json);
         if (!validated.success) {
           console.error("[workspace] Invalid orchestrator response:", validated.error);
+          setDraftChangeset(null);
           setPhase("error");
           return;
         }
@@ -520,11 +528,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
           console.error("[workspace] Orchestrator returned changeset with 0 operations");
           setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+          setDraftChangeset(null);
           setPhase("error");
           return;
         }
         setDraftChangeset(cs);
       } catch {
+        setDraftChangeset(null);
         setPhase("error");
       }
     },
@@ -557,9 +567,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         executeInFlightRef.current = false;
         return;
       }
+      // Parse response to capture execution metadata (receipt, verification)
+      const executeData = (await res.json()) as { changeSet?: unknown };
+      const executedCs = executeData.changeSet as ChangeSet | undefined;
       setProducts((prev) =>
         applyDiffsToProducts(prev, draftChangeset.operations),
       );
+      // Update draft with execution metadata so history captures it
+      if (executedCs) {
+        setDraftChangeset(executedCs);
+      }
       setPhase("complete");
       setTimeout(() => {
         setDraftChangeset(null);

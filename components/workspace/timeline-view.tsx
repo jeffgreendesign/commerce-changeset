@@ -14,32 +14,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { RiskTier } from "@/lib/policy/types";
-import type { OperationDiff } from "@/lib/changeset/types";
+import { TIER_CONFIG } from "@/lib/risk-tier-config";
+import type { ChangeSetStatus, OperationDiff } from "@/lib/changeset/types";
 import { useWorkspace, type TimelineEntry } from "./workspace-provider";
-
-// ── Tier display config ────────────────────────────────────────────
-
-const TIER_CONFIG: Record<number, { label: string; className: string }> = {
-  [RiskTier.READ]: {
-    label: "Read",
-    className:
-      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  },
-  [RiskTier.NOTIFY]: {
-    label: "Notify",
-    className:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  },
-  [RiskTier.WRITE]: {
-    label: "Write",
-    className:
-      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  },
-  [RiskTier.BULK]: {
-    label: "Bulk",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  },
-};
 
 // ── Component ──────────────────────────────────────────────────────
 
@@ -51,8 +28,11 @@ export function TimelineView() {
   const entries = useMemo(() => {
     const all: TimelineEntry[] = [...changesetHistory];
     if (draftChangeset && phase !== "idle" && phase !== "complete") {
+      // Derive changeset status from workspace phase so UI indicators update
+      const derivedStatus: ChangeSetStatus =
+        phase === "executing" ? "executing" : draftChangeset.status;
       all.push({
-        changeset: draftChangeset,
+        changeset: { ...draftChangeset, status: derivedStatus },
         completedAt: "",
       });
     }
