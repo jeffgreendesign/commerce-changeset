@@ -327,8 +327,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             parsed = parseProductsFromMarkdown(validated.data.text);
             console.log("[workspace] Products from markdown fallback:", parsed.length);
           }
+          if (parsed.length === 0) {
+            // Detect auth errors from the LLM's response text
+            const lowerText = validated.data.text.toLowerCase();
+            if (lowerText.includes("authorization") || lowerText.includes("unable to access") || lowerText.includes("authentication")) {
+              setFetchError("Google Sheets authorization failed. Check that your Google account is connected and GOOGLE_SHEET_ID is set.");
+            } else {
+              setFetchError("No products returned. The reader agent may not have been able to access the product catalog.");
+            }
+          } else {
+            setFetchError(null);
+          }
           setProducts(parsed);
-          setFetchError(null);
           setLoading(false);
         }
       } catch (err) {
