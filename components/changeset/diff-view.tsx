@@ -6,7 +6,8 @@ import type { OperationDiff } from "@/lib/changeset/types";
 
 /** Fields whose values should be displayed as currency. */
 function isCurrencyField(field: string): boolean {
-  return /^(Promo|Base)\s*Price/.test(field) || field === "Price";
+  // Match exact "Promo Price", "Base Price", bulk fields like "Promo Price (STR-001)", and plain "Price"
+  return /^(?:Promo|Base)\s*Price(?:\s*\(.*\))?$|^Price$/.test(field);
 }
 
 function isNumericCurrency(value: string | number): boolean {

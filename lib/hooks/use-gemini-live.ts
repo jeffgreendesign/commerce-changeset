@@ -142,6 +142,7 @@ export function useGeminiLive(
   const nextPlaybackTimeRef = useRef(0);
   const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const volumeRef = useRef(1.0);
   const disconnectingRef = useRef(false);
   const primaryReadyRef = useRef(false);
   const sidecarReadyRef = useRef(false);
@@ -166,6 +167,7 @@ export function useGeminiLive(
       nextPlaybackTimeRef.current = playbackContextRef.current.currentTime;
       // Create a persistent GainNode for volume control
       const gain = playbackContextRef.current.createGain();
+      gain.gain.value = volumeRef.current;
       gain.connect(playbackContextRef.current.destination);
       gainNodeRef.current = gain;
     }
@@ -219,6 +221,7 @@ export function useGeminiLive(
 
   const handleSetVolume = useCallback((newVolume: number) => {
     const clamped = Math.max(0, Math.min(1, newVolume));
+    volumeRef.current = clamped;
     setVolumeState(clamped);
     if (gainNodeRef.current) {
       gainNodeRef.current.gain.setValueAtTime(
