@@ -14,8 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { RiskTier } from "@/lib/policy/types";
-import type { ChangeSet, OperationDiff } from "@/lib/changeset/types";
-import { useWorkspace } from "./workspace-provider";
+import type { OperationDiff } from "@/lib/changeset/types";
+import { useWorkspace, type TimelineEntry } from "./workspace-provider";
 
 // ── Tier display config ────────────────────────────────────────────
 
@@ -41,43 +41,15 @@ const TIER_CONFIG: Record<number, { label: string; className: string }> = {
   },
 };
 
-// ── Snapshot type ──────────────────────────────────────────────────
-
-interface TimelineEntry {
-  changeset: ChangeSet;
-  completedAt: string;
-}
-
 // ── Component ──────────────────────────────────────────────────────
 
 export function TimelineView() {
-  const { draftChangeset, phase } = useWorkspace();
-  const [history, setHistory] = useState<TimelineEntry[]>([]);
-  const [selectedEntry, setSelectedEntry] = useState<TimelineEntry | null>(
-    null,
-  );
-  const [prevPhase, setPrevPhase] = useState(phase);
+  const { draftChangeset, phase, changesetHistory } = useWorkspace();
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
-  // Capture completed changesets into history on phase transition.
-  // Uses the "setState during render" pattern (React-endorsed alternative
-  // to effects for derived state) to avoid the lint rules for both
-  // "setState in effect" and "refs during render".
-  if (phase !== prevPhase) {
-    setPrevPhase(phase);
-    if (prevPhase === "executing" && phase === "complete" && draftChangeset) {
-      setHistory((prev) => [
-        ...prev,
-        {
-          changeset: { ...draftChangeset, status: "completed" as const },
-          completedAt: new Date().toISOString(),
-        },
-      ]);
-    }
-  }
-
-  // Build the full list: history + current draft (if any)
+  // Build the full list: provider history + current draft (if any)
   const entries = useMemo(() => {
-    const all: TimelineEntry[] = [...history];
+    const all: TimelineEntry[] = [...changesetHistory];
     if (draftChangeset && phase !== "idle" && phase !== "complete") {
       all.push({
         changeset: draftChangeset,
@@ -85,7 +57,13 @@ export function TimelineView() {
       });
     }
     return all;
-  }, [history, draftChangeset, phase]);
+  }, [changesetHistory, draftChangeset, phase]);
+
+  // Derive the selected entry from the current entries list (always fresh)
+  const selectedEntry = useMemo(
+    () => entries.find((e) => e.changeset.id === selectedEntryId) ?? null,
+    [entries, selectedEntryId],
+  );
 
   const isEmpty = entries.length === 0;
 
@@ -128,7 +106,7 @@ export function TimelineView() {
                   cs.status === "draft" ||
                   cs.status === "pending_approval" ||
                   cs.status === "executing";
-                const isSelected = selectedEntry?.changeset.id === cs.id;
+                const isSelected = selectedEntryId === cs.id;
 
                 const tierConfig = TIER_CONFIG[
                   cs.riskSummary?.maxTier ?? RiskTier.READ
@@ -141,7 +119,7 @@ export function TimelineView() {
                   <button
                     key={`${cs.id}-${i}`}
                     type="button"
-                    onClick={() => setSelectedEntry(entry)}
+                    onClick={() => setSelectedEntryId(cs.id)}
                     className={cn(
                       "flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors min-h-[44px]",
                       isSelected

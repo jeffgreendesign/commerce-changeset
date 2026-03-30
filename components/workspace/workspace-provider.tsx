@@ -11,9 +11,15 @@ import {
   type ReactNode,
 } from "react";
 import { z } from "zod/v4";
-import type { ChangeSet, Operation, OperationDiff } from "@/lib/changeset/types";
+import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
 
 // ── Types ────────────────────────────────────────────────────────────
+
+/** A completed (or in-progress) changeset snapshot for the session timeline. */
+export interface TimelineEntry {
+  changeset: ChangeSet;
+  completedAt: string;
+}
 
 export interface Product {
   id: string;
@@ -45,9 +51,13 @@ interface WorkspaceContextValue {
   multiSelect: (ids: string[]) => void;
   deselectAll: () => void;
   submitIntent: (text: string) => Promise<void>;
+  /** Submit an intent scoped to a single product (used by the inspector). */
+  submitIntentForProduct: (text: string, productId: string) => Promise<void>;
   executeChangeset: () => Promise<void>;
   cancelDraft: () => void;
   retryFetch: () => void;
+  /** Session-level changeset history (survives view switches). */
+  changesetHistory: TimelineEntry[];
 }
 
 // ── Response schemas ─────────────────────────────────────────────────
@@ -301,6 +311,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
 
+  // ── Timeline history (survives view switches) ─────────────────────
+  const [changesetHistory, setChangesetHistory] = useState<TimelineEntry[]>([]);
+  const [prevPhaseForHistory, setPrevPhaseForHistory] = useState<WorkspacePhase>(phase);
+
+  // Capture completed changesets into session history using the
+  // "setState during render" pattern (React-endorsed for derived state).
+  if (phase !== prevPhaseForHistory) {
+    setPrevPhaseForHistory(phase);
+    if (prevPhaseForHistory === "executing" && phase === "complete" && draftChangeset) {
+      setChangesetHistory((prev) => [
+        ...prev,
+        {
+          changeset: { ...draftChangeset, status: "completed" as ChangeSetStatus },
+          completedAt: new Date().toISOString(),
+        },
+      ]);
+    }
+  }
+
   const wsTemperature = temperatureFromPhase(phase);
 
   const retryFetch = useCallback(() => {
@@ -459,6 +488,49 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [products, selectedIds],
   );
 
+  const submitIntentForProduct = useCallback(
+    async (text: string, productId: string) => {
+      setPhase("preview");
+      setExecutionError(null);
+      try {
+        const targetProduct = products.find((p) => p.id === productId);
+        const context = targetProduct
+          ? `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`
+          : "";
+
+        const res = await fetch("/api/orchestrator", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text + context }),
+        });
+
+        if (!res.ok) {
+          setPhase("error");
+          return;
+        }
+
+        const json: unknown = await res.json();
+        const validated = OrchestratorResponseSchema.safeParse(json);
+        if (!validated.success) {
+          console.error("[workspace] Invalid orchestrator response:", validated.error);
+          setPhase("error");
+          return;
+        }
+        const cs = validated.data.changeSet as unknown as ChangeSet;
+        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
+          console.error("[workspace] Orchestrator returned changeset with 0 operations");
+          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+          setPhase("error");
+          return;
+        }
+        setDraftChangeset(cs);
+      } catch {
+        setPhase("error");
+      }
+    },
+    [products],
+  );
+
   const executeChangeset = useCallback(async () => {
     if (!draftChangeset || executeInFlightRef.current) return;
     executeInFlightRef.current = true;
@@ -525,9 +597,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       multiSelect,
       deselectAll,
       submitIntent,
+      submitIntentForProduct,
       executeChangeset,
       cancelDraft,
       retryFetch,
+      changesetHistory,
     }),
     [
       products,
@@ -542,9 +616,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       multiSelect,
       deselectAll,
       submitIntent,
+      submitIntentForProduct,
       executeChangeset,
       cancelDraft,
       retryFetch,
+      changesetHistory,
     ],
   );
 

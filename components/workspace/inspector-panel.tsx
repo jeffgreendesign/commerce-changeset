@@ -21,6 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { RiskTier } from "@/lib/policy/types";
 import type { Operation, OperationDiff } from "@/lib/changeset/types";
@@ -62,7 +63,7 @@ function InspectorContent({
     selectedIds,
     draftChangeset,
     phase,
-    submitIntent,
+    submitIntentForProduct,
     deselectAll,
   } = useWorkspace();
 
@@ -101,7 +102,7 @@ function InspectorContent({
     }
   }, [editingPrice]);
 
-  // Submit price change
+  // Submit price change — scoped to the inspected product only
   const commitPriceChange = useCallback(async () => {
     if (!selectedProduct) return;
     const newPrice = parseFloat(priceInput);
@@ -114,10 +115,11 @@ function InspectorContent({
       return;
     }
     setEditingPrice(false);
-    await submitIntent(
+    await submitIntentForProduct(
       `Change price of ${selectedProduct.sku} to $${newPrice.toFixed(2)}`,
+      selectedProduct.id,
     );
-  }, [selectedProduct, priceInput, submitIntent]);
+  }, [selectedProduct, priceInput, submitIntentForProduct]);
 
   const handlePriceKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -212,21 +214,12 @@ function InspectorContent({
                 ${selectedProduct.price.toFixed(2)}
               </p>
             )}
-            {/* Sparkline placeholder */}
-            <p className="mt-1 text-[10px] text-muted-foreground tracking-wide">
-              90-day price history
-            </p>
-            <div className="mt-0.5 flex items-end gap-px h-6">
-              {Array.from({ length: 20 }, (_, i) => {
-                const h = 30 + Math.sin(i * 0.7) * 25 + Math.cos(i * 1.3) * 15;
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-sm bg-muted-foreground/20"
-                    style={{ height: `${Math.max(10, h)}%` }}
-                  />
-                );
-              })}
+            {/* Price history — placeholder until a real data source is available */}
+            <div className="mt-2 space-y-1">
+              <Skeleton className="h-6 w-full rounded" />
+              <p className="text-[10px] text-muted-foreground/60">
+                Price history unavailable
+              </p>
             </div>
           </div>
 
