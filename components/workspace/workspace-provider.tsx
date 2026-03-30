@@ -55,6 +55,11 @@ const ReaderResponseSchema = z.object({
   toolResults: z.array(z.object({ toolName: z.string(), result: z.unknown() })).optional(),
 });
 
+/** Schema for the get_products tool result from the Reader agent. */
+const ProductToolResultSchema = z.object({
+  products: z.array(z.record(z.string(), z.string())),
+});
+
 const ChangeSetSchema = z.object({
   id: z.string(),
   requestedBy: z.string(),
@@ -78,6 +83,40 @@ export function useWorkspace() {
   if (!ctx)
     throw new Error("useWorkspace must be used inside <WorkspaceProvider>");
   return ctx;
+}
+
+// ── Extract products from tool results ──────────────────────────────
+
+function parseProductsFromToolResults(
+  toolResults: Array<{ toolName: string; result: unknown }>,
+): Product[] {
+  const productResult = toolResults.find((tr) => tr.toolName === "get_products");
+  if (!productResult) return [];
+
+  const parsed = ProductToolResultSchema.safeParse(productResult.result);
+  if (!parsed.success) return [];
+
+  return parsed.data.products
+    .filter((row) => row["Name"] || row["SKU"])
+    .map((row, i) => {
+      const priceStr = row["Base Price"] ?? row["Price"] ?? "0";
+      const inventoryStr = row["Inventory"] ?? row["Stock"] ?? "0";
+      const promoStr = (row["Promo Active"] ?? row["On Sale"] ?? "").toLowerCase();
+      const sku = row["SKU"] ?? row["ID"] ?? "";
+
+      return {
+        id: sku || `product-${i}`,
+        name: row["Name"] ?? row["Product"] ?? row["Product Name"] ?? "",
+        sku,
+        price: parseFloat(priceStr.replace(/[^0-9.]/g, "")) || 0,
+        inventory: parseInt(inventoryStr.replace(/[^0-9]/g, ""), 10) || 0,
+        promoStatus:
+          promoStr === "true" || promoStr === "yes" || promoStr === "active" || promoStr === "on"
+            ? ("active" as const)
+            : ("inactive" as const),
+        category: (row["Category"] ?? row["Type"] ?? "uncategorized").toLowerCase(),
+      };
+    });
 }
 
 // ── Markdown parser ─────────────────────────────────────────────────
@@ -228,7 +267,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message:
-              "Show me all products with their names, SKUs, prices, inventory counts, promo status, and categories in a markdown table",
+              "Show me all products with their names, SKUs, prices, inventory counts, promo status, and categories",
           }),
         });
 
@@ -259,7 +298,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (!cancelled) {
-          const parsed = parseProductsFromMarkdown(validated.data.text);
+          // Try structured tool results first (get_products returns typed objects)
+          let parsed: Product[] = [];
+          if (validated.data.toolResults && validated.data.toolResults.length > 0) {
+            parsed = parseProductsFromToolResults(validated.data.toolResults);
+          }
+          // Fall back to parsing markdown tables from the LLM text response
+          if (parsed.length === 0) {
+            parsed = parseProductsFromMarkdown(validated.data.text);
+          }
           setProducts(parsed);
           setFetchError(null);
           setLoading(false);
