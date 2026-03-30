@@ -90,11 +90,21 @@ export function useWorkspace() {
 function parseProductsFromToolResults(
   toolResults: Array<{ toolName: string; result: unknown }>,
 ): Product[] {
+  console.log("[workspace] Tool result names:", toolResults.map((tr) => tr.toolName));
   const productResult = toolResults.find((tr) => tr.toolName === "get_products");
-  if (!productResult) return [];
+  if (!productResult) {
+    console.log("[workspace] No get_products tool result found");
+    return [];
+  }
+
+  console.log("[workspace] get_products result type:", typeof productResult.result);
+  console.log("[workspace] get_products result preview:", JSON.stringify(productResult.result).slice(0, 300));
 
   const parsed = ProductToolResultSchema.safeParse(productResult.result);
-  if (!parsed.success) return [];
+  if (!parsed.success) {
+    console.error("[workspace] ProductToolResultSchema validation failed:", parsed.error.message);
+    return [];
+  }
 
   return parsed.data.products
     .filter((row) => row["Name"] || row["SKU"])
@@ -298,14 +308,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (!cancelled) {
+          // Debug: log the full response shape to diagnose parsing issues
+          console.log("[workspace] Reader response keys:", Object.keys(validated.data));
+          console.log("[workspace] toolResults count:", validated.data.toolResults?.length ?? 0);
+          if (validated.data.toolResults && validated.data.toolResults.length > 0) {
+            console.log("[workspace] toolResults[0]:", JSON.stringify(validated.data.toolResults[0]).slice(0, 500));
+          }
+          console.log("[workspace] text preview:", validated.data.text.slice(0, 200));
+
           // Try structured tool results first (get_products returns typed objects)
           let parsed: Product[] = [];
           if (validated.data.toolResults && validated.data.toolResults.length > 0) {
             parsed = parseProductsFromToolResults(validated.data.toolResults);
+            console.log("[workspace] Products from toolResults:", parsed.length);
           }
           // Fall back to parsing markdown tables from the LLM text response
           if (parsed.length === 0) {
             parsed = parseProductsFromMarkdown(validated.data.text);
+            console.log("[workspace] Products from markdown fallback:", parsed.length);
           }
           setProducts(parsed);
           setFetchError(null);
