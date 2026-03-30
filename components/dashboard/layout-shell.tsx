@@ -17,7 +17,7 @@ import type { ActionDefinition } from "@/lib/actions";
 
 // ── Context ──────────────────────────────────────────────────────────
 
-type ActiveView = "chat" | "history" | "actions" | "workspace";
+type ActiveView = "chat" | "history" | "actions" | "workspace" | "drafts";
 
 interface LayoutContextValue {
   /** Open the right inspector panel with an item. */

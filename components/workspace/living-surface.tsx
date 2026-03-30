@@ -4,10 +4,24 @@ import { useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
+import { ChangesetSummary } from "./changeset-summary";
+import type { Operation } from "@/lib/changeset/types";
 
 export function LivingSurface() {
-  const { products, loading, fetchError, selectedIds, select, multiSelect, deselectAll, phase, retryFetch } =
-    useWorkspace();
+  const {
+    products,
+    loading,
+    fetchError,
+    selectedIds,
+    select,
+    multiSelect,
+    deselectAll,
+    phase,
+    retryFetch,
+    draftChangeset,
+    executeChangeset,
+    cancelDraft,
+  } = useWorkspace();
 
   // Group products by category
   const grouped = useMemo(() => {
@@ -30,6 +44,18 @@ export function LivingSurface() {
     const active = products.filter((p) => p.promoStatus === "active").length;
     return { total, active, pct: total > 0 ? (active / total) * 100 : 0 };
   }, [products]);
+
+  // Build operation lookup: target (SKU) → Operation
+  const operationsByTarget = useMemo(() => {
+    if (!draftChangeset) return new Map<string, Operation>();
+    const map = new Map<string, Operation>();
+    for (const op of draftChangeset.operations) {
+      if (typeof op.target === "string") {
+        map.set(op.target, op);
+      }
+    }
+    return map;
+  }, [draftChangeset]);
 
   const handleTileClick = useCallback(
     (id: string, modifiers: TileClickModifiers) => {
@@ -124,6 +150,11 @@ export function LivingSurface() {
                 onClick={(modifiers) =>
                   handleTileClick(product.id, modifiers)
                 }
+                operation={
+                  operationsByTarget.get(product.sku) ??
+                  operationsByTarget.get(product.id)
+                }
+                phase={phase}
               />
             ))}
           </div>
@@ -146,6 +177,16 @@ export function LivingSurface() {
             </span>
           </div>
         </div>
+      )}
+
+      {/* Changeset summary panel — floats above when draft exists */}
+      {draftChangeset && phase !== "idle" && (
+        <ChangesetSummary
+          changeset={draftChangeset}
+          onCancel={cancelDraft}
+          onExecute={executeChangeset}
+          executing={phase === "executing"}
+        />
       )}
     </div>
   );

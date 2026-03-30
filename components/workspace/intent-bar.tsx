@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { ArrowRightIcon, LoaderIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  LoaderIcon,
+  PlayIcon,
+  XIcon,
+  CheckCircleIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 
@@ -9,7 +15,15 @@ const SINGLE_CHIPS = ["Change price", "Toggle promo", "View history"];
 const MULTI_CHIPS = ["Bulk price change", "Compare", "Toggle promo"];
 
 export function IntentBar() {
-  const { products, selectedIds, phase, submitIntent, cancelDraft } = useWorkspace();
+  const {
+    products,
+    selectedIds,
+    phase,
+    submitIntent,
+    cancelDraft,
+    draftChangeset,
+    executeChangeset,
+  } = useWorkspace();
   const [input, setInput] = useState("");
 
   const selectedProducts = useMemo(
@@ -18,12 +32,17 @@ export function IntentBar() {
   );
 
   const placeholder = useMemo(() => {
+    if (draftChangeset && (phase === "preview" || phase === "executing")) {
+      const count = draftChangeset.operations.length;
+      return `${count} product${count !== 1 ? "s" : ""} affected`;
+    }
+    if (phase === "complete") return "Changes applied";
     if (selectedProducts.length === 0)
       return "Describe a change, or select products...";
     if (selectedProducts.length === 1)
       return `${selectedProducts[0].name} selected`;
     return `${selectedProducts.length} products selected`;
-  }, [selectedProducts]);
+  }, [selectedProducts, draftChangeset, phase]);
 
   const chips = useMemo(() => {
     if (selectedProducts.length === 0) return [];
@@ -42,14 +61,23 @@ export function IntentBar() {
   );
 
   const isBusy = phase === "executing" || phase === "preview";
+  const hasDraft = !!draftChangeset && phase === "preview";
 
   return (
     <div className="intent-bar border-t pb-safe">
       {/* Busy indicator */}
-      {isBusy && (
+      {phase === "executing" && (
         <div className="flex items-center gap-2 px-4 pt-2 text-xs text-muted-foreground">
           <LoaderIcon className="size-3 animate-spin" />
-          <span>{phase === "preview" ? "Building changeset..." : "Executing..."}</span>
+          <span>Executing...</span>
+        </div>
+      )}
+
+      {/* Completion indicator */}
+      {phase === "complete" && (
+        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-emerald-600 dark:text-emerald-400">
+          <CheckCircleIcon className="size-3" />
+          <span>Changes applied successfully</span>
         </div>
       )}
 
@@ -67,8 +95,30 @@ export function IntentBar() {
         </div>
       )}
 
-      {/* Suggestion chips */}
-      {chips.length > 0 && !isBusy && (
+      {/* Draft changeset actions */}
+      {hasDraft && (
+        <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
+          <button
+            type="button"
+            className="intent-suggestion inline-flex shrink-0 items-center gap-1 min-h-[32px]"
+            onClick={executeChangeset}
+          >
+            <PlayIcon className="size-3" />
+            Execute
+          </button>
+          <button
+            type="button"
+            className="intent-suggestion inline-flex shrink-0 items-center gap-1 min-h-[32px]"
+            onClick={cancelDraft}
+          >
+            <XIcon className="size-3" />
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Selection-based suggestion chips (only when no draft) */}
+      {!hasDraft && chips.length > 0 && !isBusy && phase !== "complete" && (
         <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
           {chips.map((chip) => (
             <button
@@ -90,7 +140,7 @@ export function IntentBar() {
         <input
           type="text"
           className="flex-1 bg-transparent text-base placeholder:text-muted-foreground focus:outline-none md:text-sm"
-          placeholder={isBusy ? "Working..." : placeholder}
+          placeholder={isBusy || phase === "complete" ? placeholder : placeholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -99,7 +149,7 @@ export function IntentBar() {
               handleSubmit(input);
             }
           }}
-          disabled={isBusy}
+          disabled={isBusy || phase === "complete"}
         />
 
         {/* Go button */}
@@ -108,7 +158,7 @@ export function IntentBar() {
           size="icon"
           className="min-h-[44px] min-w-[44px] shrink-0"
           aria-label="Submit"
-          disabled={isBusy || !input.trim()}
+          disabled={isBusy || phase === "complete" || !input.trim()}
           onClick={() => handleSubmit(input)}
         >
           {isBusy ? (

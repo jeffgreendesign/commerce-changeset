@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { z } from "zod/v4";
-import type { ChangeSet } from "@/lib/changeset/types";
+import type { ChangeSet, Operation, OperationDiff } from "@/lib/changeset/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -43,6 +43,7 @@ interface WorkspaceContextValue {
   multiSelect: (ids: string[]) => void;
   deselectAll: () => void;
   submitIntent: (text: string) => Promise<void>;
+  executeChangeset: () => Promise<void>;
   cancelDraft: () => void;
   retryFetch: () => void;
 }
@@ -240,6 +241,50 @@ function temperatureFromPhase(phase: WorkspacePhase): number {
   }
 }
 
+// ── Apply diffs to products after execution ────────────────────────
+
+function applyDiffsToProducts(
+  products: Product[],
+  operations: Operation[],
+): Product[] {
+  const diffsByTarget = new Map<string, OperationDiff[]>();
+  for (const op of operations) {
+    if (typeof op.target === "string" && Array.isArray(op.diff)) {
+      diffsByTarget.set(op.target, op.diff);
+    }
+  }
+  return products.map((p) => {
+    const diffs = diffsByTarget.get(p.sku) ?? diffsByTarget.get(p.id);
+    if (!diffs) return p;
+    const updated = { ...p };
+    for (const d of diffs) {
+      const field = d.field.toLowerCase();
+      if (field.includes("price")) {
+        const val =
+          typeof d.after === "number"
+            ? d.after
+            : parseFloat(String(d.after).replace(/[^0-9.]/g, ""));
+        if (!Number.isNaN(val)) updated.price = val;
+      }
+      if (field.includes("inventory") || field.includes("stock")) {
+        const val =
+          typeof d.after === "number"
+            ? d.after
+            : parseInt(String(d.after).replace(/[^0-9]/g, ""), 10);
+        if (!Number.isNaN(val)) updated.inventory = val;
+      }
+      if (field.includes("promo") || field.includes("status")) {
+        const val = String(d.after).toLowerCase();
+        updated.promoStatus =
+          val === "active" || val === "true" || val === "yes" || val === "on"
+            ? "active"
+            : "inactive";
+      }
+    }
+    return updated;
+  });
+}
+
 // ── Provider ────────────────────────────────────────────────────────
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
@@ -401,6 +446,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [products, selectedIds],
   );
 
+  const executeChangeset = useCallback(async () => {
+    if (!draftChangeset) return;
+    setPhase("executing");
+    try {
+      const res = await fetch("/api/orchestrator/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changeSet: draftChangeset }),
+      });
+      if (!res.ok) {
+        setPhase("error");
+        return;
+      }
+      setProducts((prev) =>
+        applyDiffsToProducts(prev, draftChangeset.operations),
+      );
+      setPhase("complete");
+      setTimeout(() => {
+        setDraftChangeset(null);
+        setPhase("idle");
+      }, 2000);
+    } catch {
+      setPhase("error");
+    }
+  }, [draftChangeset]);
+
   const cancelDraft = useCallback(() => {
     setDraftChangeset(null);
     setPhase("idle");
@@ -419,6 +490,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       multiSelect,
       deselectAll,
       submitIntent,
+      executeChangeset,
       cancelDraft,
       retryFetch,
     }),
@@ -434,6 +506,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       multiSelect,
       deselectAll,
       submitIntent,
+      executeChangeset,
       cancelDraft,
       retryFetch,
     ],

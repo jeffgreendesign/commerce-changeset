@@ -1,7 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Product } from "./workspace-provider";
+import { RiskTier } from "@/lib/policy/types";
+import type { Operation, OperationDiff } from "@/lib/changeset/types";
+import type { Product, WorkspacePhase } from "./workspace-provider";
 
 export interface TileClickModifiers {
   metaKey: boolean;
@@ -12,9 +16,72 @@ interface ProductTileProps {
   product: Product;
   selected: boolean;
   onClick: (modifiers: TileClickModifiers) => void;
+  operation?: Operation;
+  phase?: WorkspacePhase;
 }
 
-export function ProductTile({ product, selected, onClick }: ProductTileProps) {
+// ── Price diff helpers ──────────────────────────────────────────────
+
+function findPriceDiff(diffs: OperationDiff[]): OperationDiff | undefined {
+  return diffs.find((d) => /price/i.test(d.field));
+}
+
+function parseCurrencyValue(value: string | number | boolean): number {
+  return parseFloat(String(value).replace(/[^0-9.]/g, ""));
+}
+
+function computeChangePct(
+  before: string | number | boolean,
+  after: string | number | boolean,
+): { pct: number; direction: "up" | "down" } | null {
+  const b = parseCurrencyValue(before);
+  const a = parseCurrencyValue(after);
+  if (Number.isNaN(b) || Number.isNaN(a) || b === 0) return null;
+  const pct = ((a - b) / b) * 100;
+  if (pct === 0) return null;
+  return { pct: Math.abs(pct), direction: pct > 0 ? "up" : "down" };
+}
+
+// ── Tier indicator colors ───────────────────────────────────────────
+
+const TIER_DOT_STYLE: Record<number, string> = {
+  [RiskTier.READ]: "oklch(0.65 0.2 145)", // green
+  [RiskTier.NOTIFY]: "oklch(0.6 0.18 264)", // blue
+  [RiskTier.WRITE]: "oklch(0.7 0.18 85)", // amber
+  [RiskTier.BULK]: "oklch(0.6 0.22 29)", // red
+};
+
+// ── Component ───────────────────────────────────────────────────────
+
+export function ProductTile({
+  product,
+  selected,
+  onClick,
+  operation,
+  phase,
+}: ProductTileProps) {
+  const showDiff =
+    !!operation &&
+    (phase === "preview" || phase === "executing" || phase === "complete");
+
+  const priceDiff = useMemo(
+    () =>
+      showDiff && Array.isArray(operation.diff)
+        ? findPriceDiff(operation.diff)
+        : undefined,
+    [showDiff, operation],
+  );
+
+  const change = useMemo(
+    () =>
+      priceDiff ? computeChangePct(priceDiff.before, priceDiff.after) : null,
+    [priceDiff],
+  );
+
+  const newPrice = priceDiff
+    ? parseCurrencyValue(priceDiff.after)
+    : product.price;
+
   return (
     <div
       className={cn(
@@ -28,6 +95,8 @@ export function ProductTile({ product, selected, onClick }: ProductTileProps) {
       data-selected={selected}
       data-promo={product.promoStatus}
       data-category={product.category}
+      data-has-diff={showDiff || undefined}
+      data-recently-changed={phase === "complete" && showDiff ? true : undefined}
       onClick={(e) => onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey })}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -46,22 +115,53 @@ export function ProductTile({ product, selected, onClick }: ProductTileProps) {
         {product.sku}
       </p>
 
-      {/* Price — large, bold */}
-      <p className="mt-2 text-2xl font-bold tracking-tight">
-        ${product.price.toFixed(2)}
-      </p>
+      {/* Price — with optional diff overlay */}
+      {showDiff && priceDiff ? (
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="tile-price-old text-2xl font-bold tracking-tight">
+            ${product.price.toFixed(2)}
+          </span>
+          <span className="tile-price-new text-2xl font-bold tracking-tight">
+            ${(Number.isNaN(newPrice) ? product.price : newPrice).toFixed(2)}
+          </span>
+          {change && (
+            <span className="tile-change-badge inline-flex items-center gap-0.5">
+              {change.direction === "down" ? (
+                <ArrowDownIcon className="size-3" />
+              ) : (
+                <ArrowUpIcon className="size-3" />
+              )}
+              {change.pct.toFixed(0)}%
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="mt-2 text-2xl font-bold tracking-tight">
+          ${product.price.toFixed(2)}
+        </p>
+      )}
 
-      {/* Inventory + promo row */}
+      {/* Inventory + promo/risk row */}
       <div className="mt-1.5 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
           {product.inventory.toLocaleString()} units
         </span>
-        {product.promoStatus === "active" && (
+        {showDiff && operation ? (
           <span
             className="inline-block size-2.5 rounded-full"
-            style={{ background: "oklch(0.65 0.2 145)" }}
-            aria-label="Active promotion"
+            style={{
+              background: TIER_DOT_STYLE[operation.tier] ?? "oklch(0.5 0.1 0)",
+            }}
+            aria-label={`Risk tier ${operation.tier}`}
           />
+        ) : (
+          product.promoStatus === "active" && (
+            <span
+              className="inline-block size-2.5 rounded-full"
+              style={{ background: "oklch(0.65 0.2 145)" }}
+              aria-label="Active promotion"
+            />
+          )
         )}
       </div>
     </div>
