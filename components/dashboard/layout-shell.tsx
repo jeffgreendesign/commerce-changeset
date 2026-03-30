@@ -11,7 +11,9 @@ import {
 } from "react";
 import { Rail } from "./rail";
 import { Inspector, type InspectableItem } from "./inspector";
+import { QuickActionConfirmDialog } from "./quick-action-confirm-dialog";
 import { generateChatId } from "@/lib/chat-history";
+import type { ActionDefinition } from "@/lib/actions";
 
 // ── Context ──────────────────────────────────────────────────────────
 
@@ -43,6 +45,12 @@ interface LayoutContextValue {
   setPendingPrompt: (prompt: string) => void;
   /** Consume (read + clear) the pending prompt. Returns prompt or null. */
   consumePendingPrompt: () => string | null;
+  /** Pending action awaiting confirmation in the dialog. */
+  pendingAction: ActionDefinition | null;
+  /** Show the confirmation dialog for an action. */
+  setPendingAction: (action: ActionDefinition) => void;
+  /** Close the confirmation dialog without running. */
+  clearPendingAction: () => void;
 }
 
 const LayoutContext = createContext<LayoutContextValue | null>(null);
@@ -69,6 +77,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   const [activeView, setActiveView] = useState<ActiveView>("chat");
   const [pendingPrompt, setPendingPromptState] = useState<string | null>(null);
   const pendingPromptRef = useRef<string | null>(null);
+  const [pendingAction, setPendingActionState] = useState<ActionDefinition | null>(null);
 
   const inspect = useCallback((item: InspectableItem) => {
     setInspectorItem(item);
@@ -107,6 +116,19 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
     return p;
   }, []);
 
+  const setPendingAction = useCallback((action: ActionDefinition) => {
+    setPendingActionState(action);
+  }, []);
+
+  const clearPendingAction = useCallback(() => {
+    setPendingActionState(null);
+  }, []);
+
+  const confirmPendingAction = useCallback((action: ActionDefinition) => {
+    setPendingActionState(null);
+    setPendingPrompt(action.prompt);
+  }, [setPendingPrompt]);
+
   const ctx = useMemo<LayoutContextValue>(
     () => ({
       inspect,
@@ -122,8 +144,11 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
       pendingPrompt,
       setPendingPrompt,
       consumePendingPrompt,
+      pendingAction,
+      setPendingAction,
+      clearPendingAction,
     }),
-    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, pendingPrompt, setPendingPrompt, consumePendingPrompt],
+    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, pendingPrompt, setPendingPrompt, consumePendingPrompt, pendingAction, setPendingAction, clearPendingAction],
   );
 
   return (
@@ -142,6 +167,13 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
         {/* Right inspector — slides in on demand */}
         <Inspector item={inspectorItem} onClose={closeInspector} />
       </div>
+
+      {/* Quick Action confirmation dialog */}
+      <QuickActionConfirmDialog
+        action={pendingAction}
+        onConfirm={confirmPendingAction}
+        onCancel={clearPendingAction}
+      />
     </LayoutContext.Provider>
   );
 }
