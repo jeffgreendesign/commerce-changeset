@@ -67,7 +67,7 @@ function DashboardContent({ userName }: { userName: string }) {
       </header>
 
       {/* Content area — switches between workspace, chat, actions, and history */}
-      {activeView === "workspace" || activeView === "drafts" ? (
+      {activeView === "workspace" || activeView === "drafts" || activeView === "timeline" || activeView === "activity" ? (
         <Workspace />
       ) : activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />

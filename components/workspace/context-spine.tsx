@@ -7,7 +7,6 @@ import {
   LayersIcon,
   ActivityIcon,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -21,9 +20,9 @@ import { cn } from "@/lib/utils";
 const SPINE_ITEMS = [
   { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
   { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
-  { icon: ClockIcon, label: "Timeline", id: "timeline" as const, enabled: false },
+  { icon: ClockIcon, label: "Timeline", id: "timeline" as const, enabled: true },
   { icon: LayersIcon, label: "Drafts", id: "drafts" as const, enabled: true },
-  { icon: ActivityIcon, label: "Activity", id: "activity" as const, enabled: false },
+  { icon: ActivityIcon, label: "Activity", id: "activity" as const, enabled: true },
 ] as const;
 
 type SpineItemId = (typeof SPINE_ITEMS)[number]["id"];
@@ -32,11 +31,7 @@ export function ContextSpine() {
   const { activeView, setActiveView } = useLayout();
 
   const handleSelect = (id: SpineItemId) => {
-    if (id === "workspace" || id === "chat" || id === "drafts") {
-      setActiveView(id);
-    } else {
-      toast.info(`${SPINE_ITEMS.find((i) => i.id === id)?.label} — coming soon`);
-    }
+    setActiveView(id);
   };
 
   return (

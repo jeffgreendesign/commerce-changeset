@@ -1,0 +1,418 @@
+"use client";
+
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import {
+  XIcon,
+  PackageIcon,
+  TagIcon,
+  BoxIcon,
+  ZapIcon,
+  ShieldIcon,
+  PencilIcon,
+  CheckIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+import { RiskTier } from "@/lib/policy/types";
+import type { Operation, OperationDiff } from "@/lib/changeset/types";
+import { useWorkspace } from "./workspace-provider";
+
+// ── Tier display config ────────────────────────────────────────────
+
+const TIER_CONFIG: Record<number, { label: string; className: string }> = {
+  [RiskTier.READ]: {
+    label: "Read",
+    className:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  },
+  [RiskTier.NOTIFY]: {
+    label: "Notify",
+    className:
+      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  },
+  [RiskTier.WRITE]: {
+    label: "Write",
+    className:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  },
+  [RiskTier.BULK]: {
+    label: "Bulk",
+    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  },
+};
+
+// ── Inspector content ──────────────────────────────────────────────
+
+function InspectorContent({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  const {
+    products,
+    selectedIds,
+    draftChangeset,
+    phase,
+    submitIntent,
+    deselectAll,
+  } = useWorkspace();
+
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceInput, setPriceInput] = useState("");
+  const priceInputRef = useRef<HTMLInputElement>(null);
+
+  // Resolve the selected product
+  const selectedProduct = useMemo(() => {
+    if (selectedIds.size === 0) return null;
+    const firstId = selectedIds.values().next().value;
+    return products.find((p) => p.id === firstId) ?? null;
+  }, [selectedIds, products]);
+
+  // Find operation targeting this product in draft changeset
+  const productOperation = useMemo<Operation | undefined>(() => {
+    if (!selectedProduct || !draftChangeset) return undefined;
+    return draftChangeset.operations.find(
+      (op) =>
+        op.target === selectedProduct.sku || op.target === selectedProduct.id,
+    );
+  }, [selectedProduct, draftChangeset]);
+
+  // Start editing price
+  const startEditingPrice = useCallback(() => {
+    if (!selectedProduct) return;
+    setPriceInput(selectedProduct.price.toFixed(2));
+    setEditingPrice(true);
+  }, [selectedProduct]);
+
+  // Focus input after rendering
+  useEffect(() => {
+    if (editingPrice && priceInputRef.current) {
+      priceInputRef.current.focus();
+      priceInputRef.current.select();
+    }
+  }, [editingPrice]);
+
+  // Submit price change
+  const commitPriceChange = useCallback(async () => {
+    if (!selectedProduct) return;
+    const newPrice = parseFloat(priceInput);
+    if (Number.isNaN(newPrice) || newPrice < 0) {
+      setEditingPrice(false);
+      return;
+    }
+    if (newPrice === selectedProduct.price) {
+      setEditingPrice(false);
+      return;
+    }
+    setEditingPrice(false);
+    await submitIntent(
+      `Change price of ${selectedProduct.sku} to $${newPrice.toFixed(2)}`,
+    );
+  }, [selectedProduct, priceInput, submitIntent]);
+
+  const handlePriceKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitPriceChange();
+      } else if (e.key === "Escape") {
+        setEditingPrice(false);
+      }
+    },
+    [commitPriceChange],
+  );
+
+  const handleClose = useCallback(() => {
+    deselectAll();
+    onClose();
+  }, [deselectAll, onClose]);
+
+  if (!selectedProduct) return null;
+
+  const isBusy = phase === "preview" || phase === "executing";
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-sm font-semibold truncate pr-2">
+          {selectedProduct.name}
+        </h2>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleClose}
+          aria-label="Close inspector"
+        >
+          <XIcon className="size-4" />
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="space-y-4 p-4">
+          {/* SKU + Category */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <PackageIcon className="size-3.5" />
+            <span className="font-mono">{selectedProduct.sku}</span>
+            <span>&middot;</span>
+            <span className="capitalize">{selectedProduct.category}</span>
+          </div>
+
+          <Separator />
+
+          {/* Price section */}
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Price</p>
+              {!editingPrice && !isBusy && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={startEditingPrice}
+                  aria-label="Edit price"
+                >
+                  <PencilIcon className="size-3" />
+                </Button>
+              )}
+            </div>
+            {editingPrice ? (
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-lg font-bold">$</span>
+                <input
+                  ref={priceInputRef}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={priceInput}
+                  onChange={(e) => setPriceInput(e.target.value)}
+                  onKeyDown={handlePriceKeyDown}
+                  onBlur={() => commitPriceChange()}
+                  className="w-full rounded-md border bg-background px-2 py-1 text-base font-bold tabular-nums md:text-sm"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => commitPriceChange()}
+                  aria-label="Confirm price"
+                >
+                  <CheckIcon className="size-4" />
+                </Button>
+              </div>
+            ) : (
+              <p className="text-2xl font-bold tracking-tight">
+                ${selectedProduct.price.toFixed(2)}
+              </p>
+            )}
+            {/* Sparkline placeholder */}
+            <p className="mt-1 text-[10px] text-muted-foreground tracking-wide">
+              90-day price history
+            </p>
+            <div className="mt-0.5 flex items-end gap-px h-6">
+              {Array.from({ length: 20 }, (_, i) => {
+                const h = 30 + Math.sin(i * 0.7) * 25 + Math.cos(i * 1.3) * 15;
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-sm bg-muted-foreground/20"
+                    style={{ height: `${Math.max(10, h)}%` }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Inventory */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BoxIcon className="size-3.5 text-muted-foreground" />
+              <p className="text-xs font-medium text-muted-foreground">
+                Inventory
+              </p>
+            </div>
+            <p className="text-sm font-semibold tabular-nums">
+              {selectedProduct.inventory.toLocaleString()} units
+            </p>
+          </div>
+
+          {/* Promo status */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ZapIcon className="size-3.5 text-muted-foreground" />
+              <p className="text-xs font-medium text-muted-foreground">
+                Promo Status
+              </p>
+            </div>
+            <Badge
+              variant={
+                selectedProduct.promoStatus === "active"
+                  ? "default"
+                  : "secondary"
+              }
+              className="text-[10px]"
+            >
+              {selectedProduct.promoStatus === "active" ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+
+          <Separator />
+
+          {/* Risk Analysis */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldIcon className="size-3.5 text-muted-foreground" />
+              <p className="text-xs font-medium text-muted-foreground">
+                Risk Analysis
+              </p>
+            </div>
+            {productOperation ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">Tier:</span>
+                  {(() => {
+                    const cfg = TIER_CONFIG[productOperation.tier] ?? {
+                      label: `Tier ${productOperation.tier}`,
+                      className: "bg-muted text-muted-foreground",
+                    };
+                    return (
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          cfg.className,
+                        )}
+                      >
+                        {cfg.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+                {productOperation.policyExplanation && (
+                  <div className="rounded-md bg-muted/50 p-2 text-[11px] space-y-0.5">
+                    <p>
+                      <span className="font-medium">Decision:</span>{" "}
+                      {productOperation.policyExplanation.decision}
+                    </p>
+                    <p>
+                      <span className="font-medium">Rule:</span>{" "}
+                      {productOperation.policyExplanation.ruleName}
+                    </p>
+                    <p>
+                      <span className="font-medium">Reason:</span>{" "}
+                      {productOperation.policyExplanation.reason}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No pending changes
+              </p>
+            )}
+          </div>
+
+          {/* Pending diffs */}
+          {productOperation &&
+            Array.isArray(productOperation.diff) &&
+            productOperation.diff.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Pending Changes
+                  </p>
+                  <div className="space-y-1.5">
+                    {productOperation.diff.map(
+                      (d: OperationDiff, i: number) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between rounded-md border px-2 py-1.5 text-xs"
+                        >
+                          <span className="font-medium">{d.field}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-red-600 line-through dark:text-red-400">
+                              {String(d.before)}
+                            </span>
+                            <TagIcon className="size-3 text-muted-foreground" />
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              {String(d.after)}
+                            </span>
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+          {/* Multi-selection info */}
+          {selectedIds.size > 1 && (
+            <>
+              <Separator />
+              <p className="text-xs text-muted-foreground">
+                {selectedIds.size} products selected. Showing first product.
+              </p>
+            </>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────
+
+export function InspectorPanel() {
+  const { selectedIds, deselectAll } = useWorkspace();
+  const isOpen = selectedIds.size > 0;
+
+  const handleClose = useCallback(() => {
+    deselectAll();
+  }, [deselectAll]);
+
+  return (
+    <>
+      {/* Desktop panel — hidden below lg */}
+      <aside
+        className={cn(
+          "inspector-panel hidden overflow-hidden border-l bg-card transition-[width] duration-200 ease-in-out lg:block",
+          isOpen ? "w-[320px]" : "w-0",
+        )}
+      >
+        {isOpen && <InspectorContent onClose={handleClose} />}
+      </aside>
+
+      {/* Mobile — bottom sheet */}
+      <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[80vh] lg:hidden"
+          showCloseButton={false}
+        >
+          <SheetHeader className="flex flex-row items-center justify-between">
+            <SheetTitle>Product Inspector</SheetTitle>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleClose}
+              aria-label="Close inspector"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          </SheetHeader>
+          {isOpen && <InspectorContent onClose={handleClose} />}
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}
