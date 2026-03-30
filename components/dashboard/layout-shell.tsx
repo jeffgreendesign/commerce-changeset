@@ -17,7 +17,7 @@ import type { ActionDefinition } from "@/lib/actions";
 
 // ── Context ──────────────────────────────────────────────────────────
 
-type ActiveView = "chat" | "history" | "actions";
+type ActiveView = "chat" | "history" | "actions" | "workspace";
 
 interface LayoutContextValue {
   /** Open the right inspector panel with an item. */
@@ -74,7 +74,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
     null,
   );
   const [activeChatId, setActiveChatId] = useState(() => generateChatId());
-  const [activeView, setActiveView] = useState<ActiveView>("chat");
+  const [activeView, setActiveView] = useState<ActiveView>("workspace");
   const [pendingPrompt, setPendingPromptState] = useState<string | null>(null);
   const pendingPromptRef = useRef<string | null>(null);
   const [pendingAction, setPendingActionState] = useState<ActionDefinition | null>(null);
@@ -154,12 +154,14 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   return (
     <LayoutContext.Provider value={ctx}>
       <div className="flex h-full min-h-0 flex-1">
-        {/* Left rail — hidden on mobile, icon-only by default on md+ */}
-        <Rail
-          expanded={railExpanded}
-          onToggle={toggleRail}
-          userName={userName}
-        />
+        {/* Left rail — hidden on mobile, icon-only by default on md+, replaced by Context Spine in workspace view */}
+        {activeView !== "workspace" && (
+          <Rail
+            expanded={railExpanded}
+            onToggle={toggleRail}
+            userName={userName}
+          />
+        )}
 
         {/* Center stage */}
         <main className="flex min-w-0 flex-1 flex-col @container/main">{children}</main>

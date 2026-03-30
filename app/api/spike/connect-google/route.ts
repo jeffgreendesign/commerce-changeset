@@ -11,7 +11,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { auth0 } from "@/lib/auth0";
+import { auth0, resolveAppBaseUrl } from "@/lib/auth0";
 
 export async function GET(request: Request) {
   if (
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const session = await auth0.getSession();
   const domain = process.env.AUTH0_DOMAIN;
   const issuer = `https://${domain}`;
-  const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const appBaseUrl = resolveAppBaseUrl() ?? new URL(request.url).origin;
 
   // Check if already connected
   if (session && !step) {

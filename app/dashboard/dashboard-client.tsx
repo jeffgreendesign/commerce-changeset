@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chat } from "./chat";
+import { Workspace } from "./workspace";
 import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
 import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/status-bar";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
@@ -64,8 +65,10 @@ function DashboardContent({ userName }: { userName: string }) {
         </div>
       </header>
 
-      {/* Content area — switches between chat, actions, and history */}
-      {activeView === "chat" ? (
+      {/* Content area — switches between workspace, chat, actions, and history */}
+      {activeView === "workspace" ? (
+        <Workspace />
+      ) : activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />
       ) : activeView === "actions" ? (
         <QuickActionsPanel />
