@@ -1,6 +1,12 @@
 "use client";
 
-import { LoaderIcon, XIcon, PlayIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  LoaderIcon,
+  XIcon,
+  PlayIcon,
+  ShieldCheckIcon,
+  SmartphoneIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RiskTier } from "@/lib/policy/types";
 import type { ChangeSet } from "@/lib/changeset/types";
@@ -90,6 +96,14 @@ export function ChangesetSummary({
           )}
         </div>
 
+        {/* CIBA approval hint — visible during execution when approval needed */}
+        {executing && requiresCIBA && (
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+            <SmartphoneIcon className="size-4 shrink-0 animate-pulse" />
+            <span>Approve on your Auth0 Guardian app to continue</span>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="mt-3 flex items-center justify-end gap-2">
           <Button
@@ -109,10 +123,15 @@ export function ChangesetSummary({
             onClick={onExecute}
             disabled={executing}
           >
-            {executing ? (
+            {executing && requiresCIBA ? (
               <>
                 <LoaderIcon className="size-3.5 animate-spin" />
-                Executing...
+                Awaiting approval...
+              </>
+            ) : executing ? (
+              <>
+                <LoaderIcon className="size-3.5 animate-spin" />
+                Writing changes...
               </>
             ) : (
               <>

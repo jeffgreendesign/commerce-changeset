@@ -35,6 +35,7 @@ interface WorkspaceContextValue {
   products: Product[];
   loading: boolean;
   fetchError: string | null;
+  executionError: string | null;
   selectedIds: Set<string>;
   draftChangeset: ChangeSet | null;
   phase: WorkspacePhase;
@@ -294,6 +295,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [draftChangeset, setDraftChangeset] = useState<ChangeSet | null>(null);
   const [phase, setPhase] = useState<WorkspacePhase>("idle");
+  const [executionError, setExecutionError] = useState<string | null>(null);
   const [fetchAttempt, setFetchAttempt] = useState(0);
 
   const wsTemperature = temperatureFromPhase(phase);
@@ -449,6 +451,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const executeChangeset = useCallback(async () => {
     if (!draftChangeset) return;
     setPhase("executing");
+    setExecutionError(null);
     try {
       const res = await fetch("/api/orchestrator/execute", {
         method: "POST",
@@ -456,6 +459,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ changeSet: draftChangeset }),
       });
       if (!res.ok) {
+        let msg = "Execution failed";
+        try {
+          const errBody = (await res.json()) as Record<string, unknown>;
+          if (typeof errBody.message === "string") msg = errBody.message;
+          else if (typeof errBody.error === "string") msg = errBody.error;
+        } catch {
+          // body wasn't JSON, use status text
+          msg = `Execution failed (${res.status})`;
+        }
+        setExecutionError(msg);
         setPhase("error");
         return;
       }
@@ -466,8 +479,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setTimeout(() => {
         setDraftChangeset(null);
         setPhase("idle");
+        setExecutionError(null);
       }, 2000);
-    } catch {
+    } catch (err) {
+      setExecutionError(
+        err instanceof Error ? err.message : "Network error — check your connection",
+      );
       setPhase("error");
     }
   }, [draftChangeset]);
@@ -482,6 +499,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       products,
       loading,
       fetchError,
+      executionError,
       selectedIds,
       draftChangeset,
       phase,
@@ -498,6 +516,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       products,
       loading,
       fetchError,
+      executionError,
       selectedIds,
       draftChangeset,
       phase,

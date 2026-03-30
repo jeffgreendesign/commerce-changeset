@@ -35,13 +35,6 @@ export function LivingSurface() {
     return map;
   }, [products]);
 
-  // Count promo-active products for timeline
-  const promoStats = useMemo(() => {
-    const total = products.length;
-    const active = products.filter((p) => p.promoStatus === "active").length;
-    return { total, active, pct: total > 0 ? (active / total) * 100 : 0 };
-  }, [products]);
-
   // Build operation lookup: target (SKU) → Operation
   const operationsByTarget = useMemo(() => {
     if (!draftChangeset) return new Map<string, Operation>();
@@ -157,24 +150,6 @@ export function LivingSurface() {
           </div>
         </section>
       ))}
-
-      {/* Promo timeline bar */}
-      {promoStats.active > 0 && (
-        <div className="mt-auto pt-4">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <span className="shrink-0">Active Promotions</span>
-            <div className="promo-timeline flex-1">
-              <div
-                className="promo-timeline-fill"
-                style={{ width: `${promoStats.pct}%` }}
-              />
-            </div>
-            <span className="shrink-0">
-              {promoStats.active} of {promoStats.total}
-            </span>
-          </div>
-        </div>
-      )}
 
     </div>
   );

@@ -1,42 +1,18 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   ArrowRightIcon,
   LoaderIcon,
   CheckCircleIcon,
   MicIcon,
-  MicOffIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
+import { useLayout } from "@/components/dashboard/layout-shell";
 
 const SINGLE_CHIPS = ["Change price", "Toggle promo", "View history"];
 const MULTI_CHIPS = ["Bulk price change", "Compare", "Toggle promo"];
-
-// ── Browser Speech Recognition type shim ────────────────────────────
-
-interface SpeechRecognitionLike {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: Event) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-}
-
-function getSpeechRecognition():
-  | (new () => SpeechRecognitionLike)
-  | undefined {
-  if (typeof window === "undefined") return undefined;
-  const w = window as unknown as Record<string, unknown>;
-  return (w.SpeechRecognition ?? w.webkitSpeechRecognition) as
-    | (new () => SpeechRecognitionLike)
-    | undefined;
-}
 
 export function IntentBar() {
   const {
@@ -46,20 +22,10 @@ export function IntentBar() {
     submitIntent,
     cancelDraft,
     draftChangeset,
+    executionError,
   } = useWorkspace();
+  const { setActiveView } = useLayout();
   const [input, setInput] = useState("");
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-
-  // Clean up speech recognition on unmount
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-        recognitionRef.current = null;
-      }
-    };
-  }, []);
 
   const selectedProducts = useMemo(
     () => products.filter((p) => selectedIds.has(p.id)),
@@ -67,18 +33,16 @@ export function IntentBar() {
   );
 
   const placeholder = useMemo(() => {
-    if (listening) return "Listening...";
     if (draftChangeset && (phase === "preview" || phase === "executing")) {
-      const count = draftChangeset.operations.length;
-      return `${count} product${count !== 1 ? "s" : ""} affected — use panel below`;
+      return "Review changeset above";
     }
     if (phase === "complete") return "Changes applied";
     if (selectedProducts.length === 0)
-      return "Describe a change, or select products...";
+      return "What would you like to change?";
     if (selectedProducts.length === 1)
-      return `${selectedProducts[0].name} selected`;
-    return `${selectedProducts.length} products selected`;
-  }, [selectedProducts, draftChangeset, phase, listening]);
+      return `${selectedProducts[0].name} — what to change?`;
+    return `${selectedProducts.length} products — what to change?`;
+  }, [selectedProducts, draftChangeset, phase]);
 
   const chips = useMemo(() => {
     if (selectedProducts.length === 0) return [];
@@ -96,73 +60,16 @@ export function IntentBar() {
     [phase, submitIntent],
   );
 
-  const toggleVoice = useCallback(() => {
-    // Stop listening
-    if (listening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setListening(false);
-      return;
-    }
-
-    const SpeechRec = getSpeechRecognition();
-    if (!SpeechRec) return; // Browser doesn't support it
-
-    const recognition = new SpeechRec();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    let gotResult = false;
-
-    recognition.onresult = (event: Event) => {
-      gotResult = true;
-      const e = event as Event & {
-        results?: {
-          [index: number]: { [index: number]: { transcript?: string } };
-        };
-      };
-      const transcript: string = e.results?.[0]?.[0]?.transcript ?? "";
-      if (transcript.trim()) {
-        handleSubmit(transcript.trim());
-      }
-      setListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognition.onerror = () => {
-      setListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognition.onend = () => {
-      // Only reset if we didn't already handle a result
-      if (!gotResult) {
-        setListening(false);
-      }
-      recognitionRef.current = null;
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-      setListening(true);
-    } catch {
-      // start() can throw if already started or not allowed
-      setListening(false);
-      recognitionRef.current = null;
-    }
-  }, [listening, handleSubmit]);
-
   const isBusy = phase === "executing" || phase === "preview";
   const hasDraft = !!draftChangeset && phase === "preview";
+
   return (
     <div className="intent-bar border-t pb-safe">
       {/* Busy indicator */}
       {phase === "executing" && (
         <div className="flex items-center gap-2 px-4 pt-2 text-xs text-muted-foreground">
           <LoaderIcon className="size-3 animate-spin" />
-          <span>Executing...</span>
+          <span>Executing changes...</span>
         </div>
       )}
 
@@ -177,7 +84,7 @@ export function IntentBar() {
       {/* Error indicator */}
       {phase === "error" && (
         <div className="flex items-center gap-2 px-4 pt-2 text-xs text-destructive">
-          <span>Something went wrong.</span>
+          <span>{executionError ?? "Something went wrong."}</span>
           <button
             type="button"
             className="underline hover:no-underline"
@@ -207,20 +114,16 @@ export function IntentBar() {
 
       {/* Input row */}
       <div className="flex items-center gap-2 px-3 py-2 md:px-4">
-        {/* Mic button — always rendered; toggleVoice gracefully no-ops if unsupported */}
+        {/* Voice button — switches to chat view where Gemini Live voice works */}
         <Button
-          variant={listening ? "default" : "ghost"}
+          variant="ghost"
           size="icon"
-          className={`min-h-[44px] min-w-[44px] shrink-0 ${listening ? "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white" : ""}`}
-          aria-label={listening ? "Stop listening" : "Voice input"}
-          onClick={toggleVoice}
+          className="min-h-[44px] min-w-[44px] shrink-0 text-muted-foreground"
+          aria-label="Switch to voice mode"
+          onClick={() => setActiveView("chat")}
           disabled={isBusy || phase === "complete"}
         >
-          {listening ? (
-            <MicOffIcon className="size-5" />
-          ) : (
-            <MicIcon className="size-5" />
-          )}
+          <MicIcon className="size-5" />
         </Button>
 
         {/* Text input */}
