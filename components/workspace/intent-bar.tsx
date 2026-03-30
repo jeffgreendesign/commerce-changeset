@@ -112,32 +112,50 @@ export function IntentBar() {
     recognition.interimResults = false;
     recognition.lang = "en-US";
 
+    let gotResult = false;
+
     recognition.onresult = (event: Event) => {
-      const e = event as Event & { results?: { [index: number]: { [index: number]: { transcript?: string } } } };
+      gotResult = true;
+      const e = event as Event & {
+        results?: {
+          [index: number]: { [index: number]: { transcript?: string } };
+        };
+      };
       const transcript: string = e.results?.[0]?.[0]?.transcript ?? "";
       if (transcript.trim()) {
         handleSubmit(transcript.trim());
       }
       setListening(false);
+      recognitionRef.current = null;
     };
 
     recognition.onerror = () => {
       setListening(false);
+      recognitionRef.current = null;
     };
 
     recognition.onend = () => {
-      setListening(false);
+      // Only reset if we didn't already handle a result
+      if (!gotResult) {
+        setListening(false);
+      }
+      recognitionRef.current = null;
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
+
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      // start() can throw if already started or not allowed
+      setListening(false);
+      recognitionRef.current = null;
+    }
   }, [listening, handleSubmit]);
 
   const isBusy = phase === "executing" || phase === "preview";
   const hasDraft = !!draftChangeset && phase === "preview";
-  const hasSpeech = typeof window !== "undefined" && !!getSpeechRecognition();
-
   return (
     <div className="intent-bar border-t pb-safe">
       {/* Busy indicator */}
@@ -189,23 +207,21 @@ export function IntentBar() {
 
       {/* Input row */}
       <div className="flex items-center gap-2 px-3 py-2 md:px-4">
-        {/* Mic button */}
-        {hasSpeech && (
-          <Button
-            variant={listening ? "default" : "ghost"}
-            size="icon"
-            className={`min-h-[44px] min-w-[44px] shrink-0 ${listening ? "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white" : ""}`}
-            aria-label={listening ? "Stop listening" : "Voice input"}
-            onClick={toggleVoice}
-            disabled={isBusy || phase === "complete"}
-          >
-            {listening ? (
-              <MicOffIcon className="size-5" />
-            ) : (
-              <MicIcon className="size-5" />
-            )}
-          </Button>
-        )}
+        {/* Mic button — always rendered; toggleVoice gracefully no-ops if unsupported */}
+        <Button
+          variant={listening ? "default" : "ghost"}
+          size="icon"
+          className={`min-h-[44px] min-w-[44px] shrink-0 ${listening ? "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white" : ""}`}
+          aria-label={listening ? "Stop listening" : "Voice input"}
+          onClick={toggleVoice}
+          disabled={isBusy || phase === "complete"}
+        >
+          {listening ? (
+            <MicOffIcon className="size-5" />
+          ) : (
+            <MicIcon className="size-5" />
+          )}
+        </Button>
 
         {/* Text input */}
         <input
