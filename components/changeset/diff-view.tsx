@@ -4,7 +4,12 @@ import type { OperationDiff } from "@/lib/changeset/types";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function isCurrency(value: string | number): boolean {
+/** Fields whose values should be displayed as currency. */
+function isCurrencyField(field: string): boolean {
+  return /^(Promo|Base)\s*Price/.test(field) || field === "Price";
+}
+
+function isNumericCurrency(value: string | number): boolean {
   const s = String(value).trim();
   return /^\$?\d+(\.\d{1,2})?$/.test(s);
 }
@@ -13,20 +18,23 @@ function parseCurrency(value: string | number): number {
   return parseFloat(String(value).replace(/^\$/, ""));
 }
 
-function formatValue(value: string | number | boolean): string {
+function formatValue(value: string | number | boolean, field?: string): string {
   const s = String(value);
   if (s === "" || s === "undefined" || s === "null") return "\u2014";
-  if (isCurrency(s)) return `$${parseCurrency(s).toFixed(2)}`;
+  if (field && isCurrencyField(field) && isNumericCurrency(s))
+    return `$${parseCurrency(s).toFixed(2)}`;
   return s;
 }
 
 function computeChange(
   before: string | number | boolean,
   after: string | number | boolean,
+  field?: string,
 ): { percent: number; direction: "up" | "down" | "none" } | null {
+  if (field && !isCurrencyField(field)) return null;
   const bStr = String(before).trim();
   const aStr = String(after).trim();
-  if (!isCurrency(bStr) || !isCurrency(aStr)) return null;
+  if (!isNumericCurrency(bStr) || !isNumericCurrency(aStr)) return null;
   const b = parseCurrency(bStr);
   const a = parseCurrency(aStr);
   if (b === 0) return null;
@@ -45,7 +53,7 @@ export function DiffView({ diffs }: { diffs: OperationDiff[] }) {
   return (
     <div className="space-y-2">
       {diffs.map((d, i) => {
-        const change = computeChange(d.before, d.after);
+        const change = computeChange(d.before, d.after, d.field);
         return (
           <div
             key={i}
@@ -62,13 +70,13 @@ export function DiffView({ diffs }: { diffs: OperationDiff[] }) {
                   ["", "undefined", "null"].includes(String(d.before).trim()) && "text-muted-foreground no-underline",
                 )}
               >
-                {formatValue(d.before)}
+                {formatValue(d.before, d.field)}
               </span>
 
               <span className="text-muted-foreground">&rarr;</span>
 
               <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                {formatValue(d.after)}
+                {formatValue(d.after, d.field)}
               </span>
             </div>
 
