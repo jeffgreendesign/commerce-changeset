@@ -216,7 +216,7 @@ export function QuickActionsPanel() {
             placeholder="Filter actions..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="h-8 pl-8 text-xs"
+            className="h-8 pl-8 md:text-xs"
           />
         </div>
       </div>
