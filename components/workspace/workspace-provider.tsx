@@ -34,6 +34,7 @@ export type WorkspacePhase =
 interface WorkspaceContextValue {
   products: Product[];
   loading: boolean;
+  fetchError: string | null;
   selectedIds: Set<string>;
   draftChangeset: ChangeSet | null;
   phase: WorkspacePhase;
@@ -43,6 +44,7 @@ interface WorkspaceContextValue {
   deselectAll: () => void;
   submitIntent: (text: string) => Promise<void>;
   cancelDraft: () => void;
+  retryFetch: () => void;
 }
 
 // ── Response schemas ─────────────────────────────────────────────────
@@ -201,13 +203,21 @@ function temperatureFromPhase(phase: WorkspacePhase): number {
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [draftChangeset, setDraftChangeset] = useState<ChangeSet | null>(null);
   const [phase, setPhase] = useState<WorkspacePhase>("idle");
+  const [fetchAttempt, setFetchAttempt] = useState(0);
 
   const wsTemperature = temperatureFromPhase(phase);
 
-  // Fetch products on mount
+  const retryFetch = useCallback(() => {
+    setFetchError(null);
+    setLoading(true);
+    setFetchAttempt((n) => n + 1);
+  }, []);
+
+  // Fetch products on mount and on retry
   useEffect(() => {
     let cancelled = false;
 
@@ -223,8 +233,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         });
 
         if (!res.ok) {
-          console.error("[workspace] Reader API error:", res.status);
-          setLoading(false);
+          const errorBody = await res.text().catch(() => "");
+          console.error("[workspace] Reader API error:", res.status, errorBody);
+          if (!cancelled) {
+            if (res.status === 403 && errorBody.includes("google_connection_required")) {
+              setFetchError("Google account not connected. Visit the Chat view and connect your Google account to load product data.");
+            } else if (res.status === 403 && errorBody.includes("missing_refresh_token")) {
+              setFetchError("Session expired. Please log out and log back in.");
+            } else {
+              setFetchError(`Failed to load products (${res.status}). Try again or use Chat view.`);
+            }
+            setLoading(false);
+          }
           return;
         }
 
@@ -232,17 +252,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const validated = ReaderResponseSchema.safeParse(json);
         if (!validated.success) {
           console.error("[workspace] Invalid reader response:", validated.error);
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+            setFetchError("Unexpected response from the reader. Try again.");
+            setLoading(false);
+          }
           return;
         }
         if (!cancelled) {
           const parsed = parseProductsFromMarkdown(validated.data.text);
           setProducts(parsed);
+          setFetchError(null);
           setLoading(false);
         }
       } catch (err) {
         console.error("[workspace] Failed to fetch products:", err);
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setFetchError("Network error. Check your connection and try again.");
+          setLoading(false);
+        }
       }
     }
 
@@ -250,7 +277,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchAttempt]);
 
   const select = useCallback((id: string) => {
     setSelectedIds(new Set([id]));
@@ -323,6 +350,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => ({
       products,
       loading,
+      fetchError,
       selectedIds,
       draftChangeset,
       phase,
@@ -332,10 +360,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       deselectAll,
       submitIntent,
       cancelDraft,
+      retryFetch,
     }),
     [
       products,
       loading,
+      fetchError,
       selectedIds,
       draftChangeset,
       phase,
@@ -345,6 +375,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       deselectAll,
       submitIntent,
       cancelDraft,
+      retryFetch,
     ],
   );
 

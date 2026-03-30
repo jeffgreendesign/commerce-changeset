@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   LayoutDashboardIcon,
+  LayoutGridIcon,
   MessageSquareIcon,
   HistoryIcon,
   ZapIcon,
@@ -33,6 +34,7 @@ import { toast } from "sonner";
 // ── Nav items ────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
+  { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
   { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
   { icon: HistoryIcon, label: "History", id: "history" as const, enabled: true },
   { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: true },
@@ -118,14 +120,18 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const activeItem =
-    activeView === "history"
-      ? "history"
-      : activeView === "actions"
-        ? "actions"
-        : "chat";
+    activeView === "workspace"
+      ? "workspace"
+      : activeView === "history"
+        ? "history"
+        : activeView === "actions"
+          ? "actions"
+          : "chat";
 
   const handleSelect = (id: string) => {
-    if (id === "chat") {
+    if (id === "workspace") {
+      setActiveView("workspace");
+    } else if (id === "chat") {
       setActiveView("chat");
     } else if (id === "history") {
       setActiveView("history");

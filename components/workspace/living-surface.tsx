@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
 
 export function LivingSurface() {
-  const { products, loading, selectedIds, select, multiSelect, deselectAll, phase } =
+  const { products, loading, fetchError, selectedIds, select, multiSelect, deselectAll, phase, retryFetch } =
     useWorkspace();
 
   // Group products by category
@@ -64,12 +65,40 @@ export function LivingSurface() {
     );
   }
 
+  if (fetchError) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-center max-w-sm">
+          <p className="text-sm text-muted-foreground">{fetchError}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 min-h-[44px]"
+            onClick={retryFetch}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (products.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted-foreground">
-          No products found. Connect your data source to get started.
-        </p>
+        <div className="text-center max-w-sm">
+          <p className="text-sm text-muted-foreground">
+            No products found. The reader returned data but no product table was detected.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 min-h-[44px]"
+            onClick={retryFetch}
+          >
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
