@@ -80,6 +80,7 @@ public/               — Static assets (SVGs)
 - **Styling:** Use Tailwind utility classes with theme tokens (e.g., `bg-primary`, `text-muted-foreground`). Avoid arbitrary values when a token exists.
 - **Components:** shadcn components live in `components/ui/`. They wrap Base UI primitives and use CVA for variant definitions. Use `cn()` from `@/lib/utils` for conditional class merging.
 - **Adding components:** Run `npx shadcn@latest add <component>` to scaffold new UI components into `components/ui/`.
+- **Mobile input font size:** All `<input>`, `<textarea>`, and `<select>` elements must use `text-base` (16px) on mobile to prevent iOS Safari auto-zoom on focus. Use the `text-base md:text-sm` pattern to step down on desktop. A CSS guardrail in `globals.css` enforces `font-size: 1rem` on mobile as a safety net, but component-level classes should still follow this convention.
 
 ## Agent Behavior
 

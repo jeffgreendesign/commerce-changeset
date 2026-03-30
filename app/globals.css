@@ -140,6 +140,19 @@
   [tabindex] {
     touch-action: manipulation;
   }
+  /* Prevent iOS auto-zoom on focus — inputs must be ≥ 16px on mobile */
+  input,
+  textarea,
+  select {
+    font-size: 1rem;
+  }
+  @media (min-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: inherit;
+    }
+  }
 }
 
 /* ── Phase A animations ────────────────────────────────────────────── */
