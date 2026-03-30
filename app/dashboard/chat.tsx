@@ -755,15 +755,20 @@ export function Chat({ chatId }: ChatProps) {
     [submitMessage, isBusy]
   );
 
-  // Consume pending prompt from Quick Actions panel
+  // Consume pending prompt from Quick Actions panel.
+  // Use a ref for submitMessage so the effect doesn't re-run when its identity
+  // changes (geminiLive returns a new object each render, making submitMessage
+  // unstable). Without this, the cleanup would cancel the timer before it fires.
+  const submitMessageRef = useRef(submitMessage);
+  submitMessageRef.current = submitMessage;
   const { consumePendingPrompt } = useLayout();
   useEffect(() => {
     const prompt = consumePendingPrompt();
     if (prompt) {
-      const timer = setTimeout(() => submitMessage(prompt), 50);
+      const timer = setTimeout(() => submitMessageRef.current(prompt), 50);
       return () => clearTimeout(timer);
     }
-  }, [consumePendingPrompt, submitMessage]);
+  }, [consumePendingPrompt]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({

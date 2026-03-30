@@ -187,7 +187,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
             activeItem={activeItem}
             onSelect={(id) => {
               handleSelect(id);
-              if (id === "chat") setMobileOpen(false);
+              setMobileOpen(false);
             }}
           />
 
