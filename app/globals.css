@@ -384,6 +384,13 @@
     opacity: 1;
     transform: none;
   }
+  .workspace {
+    animation: none;
+    transition: none;
+  }
+  .product-tile[data-recently-changed="true"] {
+    animation: none;
+  }
 }
 
 /* ── Safe area insets for iOS (all sides) ──────────────────────────── */
@@ -479,4 +486,159 @@
 }
 .animate-slide-down-fade {
   animation: slide-down-fade 0.3s ease-out forwards;
+}
+
+/* ── Workspace ambient tokens ─────────────────────────────────────── */
+
+@property --ws-temperature {
+  syntax: "<number>";
+  initial-value: 0;
+  inherits: true;
+}
+@property --ws-pulse-speed {
+  syntax: "<time>";
+  initial-value: 4s;
+  inherits: true;
+}
+@property --ws-energy {
+  syntax: "<number>";
+  initial-value: 0;
+  inherits: true;
+}
+
+.workspace {
+  --ws-bg: color-mix(
+    in oklch,
+    var(--background) calc(100% - var(--ws-temperature) * 8%),
+    oklch(0.92 0.04 85) calc(var(--ws-temperature) * 8%)
+  );
+  background: var(--ws-bg);
+  transition: --ws-temperature 1.2s ease-in-out;
+}
+.workspace[data-phase="executing"] {
+  --ws-bg: color-mix(
+    in oklch,
+    var(--background) 94%,
+    oklch(0.9 0.06 145) 6%
+  );
+}
+
+:is(.dark) .workspace {
+  --ws-bg: color-mix(
+    in oklch,
+    var(--background) calc(100% - var(--ws-temperature) * 5%),
+    oklch(0.25 0.03 85) calc(var(--ws-temperature) * 5%)
+  );
+}
+
+/* Workspace pulse (heartbeat) */
+@keyframes ws-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.97; }
+}
+.workspace {
+  animation: ws-pulse var(--ws-pulse-speed) ease-in-out infinite;
+}
+.workspace[data-phase="executing"] {
+  --ws-pulse-speed: 1.5s;
+}
+.workspace[data-phase="error"] {
+  --ws-pulse-speed: 0.8s;
+}
+
+/* ── Product tile states ──────────────────────────────────────────── */
+
+.product-tile {
+  background: color-mix(in oklch, var(--card) 100%, transparent 0%);
+  border-radius: var(--radius-xl);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.product-tile:hover {
+  background: color-mix(in oklch, var(--card) 100%, oklch(1 0 0) 4%);
+}
+:is(.dark) .product-tile:hover {
+  background: color-mix(in oklch, var(--card) 100%, oklch(1 0 0) 6%);
+}
+
+.product-tile[data-selected="true"] {
+  outline: 2px solid oklch(0.7 0.15 264);
+  outline-offset: 2px;
+}
+
+.product-tile[data-promo="active"]::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at center,
+    oklch(0.85 0.12 145 / 15%) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes tile-settle {
+  0% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+.product-tile[data-recently-changed="true"] {
+  animation: tile-settle 0.6s ease-out;
+}
+
+/* Category hue top-edge gradient */
+.product-tile[data-category="footwear"] { --tile-hue: 264; }
+.product-tile[data-category="accessories"] { --tile-hue: 45; }
+.product-tile[data-category="apparel"] { --tile-hue: 330; }
+.product-tile[data-category="equipment"] { --tile-hue: 145; }
+
+.product-tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  border-radius: 1px;
+  background: oklch(0.7 0.1 var(--tile-hue, 264) / 40%);
+}
+
+/* ── Intent Bar ───────────────────────────────────────────────────── */
+
+.intent-bar {
+  --intent-bg: color-mix(in oklch, var(--background) 85%, transparent 15%);
+  -webkit-backdrop-filter: blur(24px) saturate(2);
+  backdrop-filter: blur(24px) saturate(2);
+  background: var(--intent-bg);
+}
+
+.intent-suggestion {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.intent-suggestion:hover {
+  background: var(--accent);
+}
+
+/* ── Promo timeline bar ───────────────────────────────────────────── */
+
+.promo-timeline {
+  height: 3px;
+  border-radius: 1.5px;
+  background: var(--muted);
+  position: relative;
+}
+.promo-timeline-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: oklch(0.65 0.15 145);
+  transition: width 0.5s ease;
 }
