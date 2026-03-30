@@ -611,9 +611,9 @@
   top: 0;
   left: 10%;
   right: 10%;
-  height: 2px;
-  border-radius: 1px;
-  background: oklch(0.7 0.1 var(--tile-hue, 264) / 40%);
+  height: 1px;
+  border-radius: 0.5px;
+  background: oklch(0.7 0.1 var(--tile-hue, 264) / 20%);
 }
 
 /* ── Diff overlay on tiles (Phase 2: Changeset Materialization) ───── */

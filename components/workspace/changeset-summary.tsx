@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RiskTier } from "@/lib/policy/types";
-import type { ChangeSet } from "@/lib/changeset/types";
+import type { ChangeSet, Operation, OperationDiff } from "@/lib/changeset/types";
 import { cn } from "@/lib/utils";
 
 // ── Tier display config ─────────────────────────────────────────────
@@ -60,6 +60,11 @@ export function ChangesetSummary({
   };
   const requiresCIBA = changeset.riskSummary?.requiresCIBA === true;
 
+  // Build compact diff summary — show up to 3 operations
+  const MAX_OPS_SHOWN = 3;
+  const visibleOps = changeset.operations.slice(0, MAX_OPS_SHOWN);
+  const hiddenCount = opCount - visibleOps.length;
+
   return (
     <div className="changeset-summary w-full max-w-md mx-auto">
       <div className="rounded-xl border bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm">
@@ -95,6 +100,36 @@ export function ChangesetSummary({
             </>
           )}
         </div>
+
+        {/* Field-level diff details */}
+        {visibleOps.length > 0 && (
+          <ul className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+            {visibleOps.map((op: Operation) => (
+              <li key={op.id} className="leading-snug">
+                <span className="font-mono">{op.target}</span>
+                {Array.isArray(op.diff) && op.diff.length > 0 && (
+                  <>
+                    {": "}
+                    {op.diff.map((d: OperationDiff, i: number) => (
+                      <span key={i}>
+                        {i > 0 && ", "}
+                        <span className="font-medium text-foreground">
+                          {d.field}
+                        </span>{" "}
+                        {String(d.before)} → {String(d.after)}
+                      </span>
+                    ))}
+                  </>
+                )}
+              </li>
+            ))}
+            {hiddenCount > 0 && (
+              <li className="text-muted-foreground/60">
+                +{hiddenCount} more operation{hiddenCount !== 1 ? "s" : ""}
+              </li>
+            )}
+          </ul>
+        )}
 
         {/* CIBA approval hint — visible during execution when approval needed */}
         {executing && requiresCIBA && (

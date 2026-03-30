@@ -131,7 +131,7 @@ export function LivingSurface() {
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             {category}
           </h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
             {categoryProducts.map((product) => (
               <ProductTile
                 key={product.id}
