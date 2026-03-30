@@ -9,6 +9,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import { z } from "zod/v4";
 import type { ChangeSet } from "@/lib/changeset/types";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -44,6 +45,30 @@ interface WorkspaceContextValue {
   cancelDraft: () => void;
 }
 
+// ── Response schemas ─────────────────────────────────────────────────
+
+const ReaderResponseSchema = z.object({
+  text: z.string(),
+  toolCalls: z.array(z.object({ toolName: z.string(), args: z.unknown() })).optional(),
+  toolResults: z.array(z.object({ toolName: z.string(), result: z.unknown() })).optional(),
+});
+
+const ChangeSetSchema = z.object({
+  id: z.string(),
+  requestedBy: z.string(),
+  originalPrompt: z.string(),
+  createdAt: z.string(),
+  status: z.string(),
+  operations: z.array(z.record(z.string(), z.unknown())),
+  riskSummary: z.record(z.string(), z.unknown()),
+}).passthrough();
+
+const OrchestratorResponseSchema = z.object({
+  changeSet: ChangeSetSchema,
+  reasoning: z.string(),
+  readerText: z.string().optional(),
+});
+
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function useWorkspace() {
@@ -55,11 +80,13 @@ export function useWorkspace() {
 
 // ── Markdown parser ─────────────────────────────────────────────────
 
+/** Default column order when header heuristics fail to match. */
+const FALLBACK_COLUMN_ORDER = ["name", "sku", "price", "inventory", "promo", "category"];
+
 function parseProductsFromMarkdown(text: string): Product[] {
   const products: Product[] = [];
   const lines = text.split("\n");
 
-  // Find markdown table rows (skip header + separator)
   let inTable = false;
   let headerParsed = false;
   let columnMap: Record<string, number> = {};
@@ -79,7 +106,6 @@ function parseProductsFromMarkdown(text: string): Product[] {
       .map((c) => c.trim());
 
     if (!inTable) {
-      // First row with | is the header
       inTable = true;
       cells.forEach((cell, i) => {
         const lower = cell.toLowerCase();
@@ -95,6 +121,14 @@ function parseProductsFromMarkdown(text: string): Product[] {
         if (lower.includes("category") || lower.includes("type"))
           columnMap["category"] = i;
       });
+
+      // Positional fallback when header heuristics matched fewer than 2 columns
+      if (Object.keys(columnMap).length < 2 && cells.length >= 2) {
+        columnMap = {};
+        FALLBACK_COLUMN_ORDER.forEach((key, i) => {
+          if (i < cells.length) columnMap[key] = i;
+        });
+      }
       continue;
     }
 
@@ -106,13 +140,18 @@ function parseProductsFromMarkdown(text: string): Product[] {
 
     if (!headerParsed) continue;
 
-    // Data row
-    const name = cells[columnMap["name"]] ?? "";
-    const sku = cells[columnMap["sku"]] ?? "";
-    const priceStr = cells[columnMap["price"]] ?? "0";
-    const inventoryStr = cells[columnMap["inventory"]] ?? "0";
-    const promoStr = (cells[columnMap["promo"]] ?? "").toLowerCase();
-    const category = (cells[columnMap["category"]] ?? "uncategorized").toLowerCase();
+    // Data row — safe indexing with bounds check
+    const safeCell = (key: string): string => {
+      const idx = columnMap[key];
+      return idx !== undefined && idx < cells.length ? cells[idx] : "";
+    };
+
+    const name = safeCell("name");
+    const sku = safeCell("sku");
+    const priceStr = safeCell("price") || "0";
+    const inventoryStr = safeCell("inventory") || "0";
+    const promoStr = safeCell("promo").toLowerCase();
+    const category = (safeCell("category") || "uncategorized").toLowerCase();
 
     if (!name && !sku) continue;
 
@@ -132,6 +171,10 @@ function parseProductsFromMarkdown(text: string): Product[] {
       promoStatus,
       category,
     });
+  }
+
+  if (products.length === 0 && text.trim().length > 0) {
+    console.warn("[workspace] parseProductsFromMarkdown: non-empty text but 0 products parsed");
   }
 
   return products;
@@ -185,9 +228,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const data: { text: string } = await res.json();
+        const json: unknown = await res.json();
+        const validated = ReaderResponseSchema.safeParse(json);
+        if (!validated.success) {
+          console.error("[workspace] Invalid reader response:", validated.error);
+          if (!cancelled) setLoading(false);
+          return;
+        }
         if (!cancelled) {
-          const parsed = parseProductsFromMarkdown(data.text);
+          const parsed = parseProductsFromMarkdown(validated.data.text);
           setProducts(parsed);
           setLoading(false);
         }
@@ -248,8 +297,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const data: { changeSet: ChangeSet } = await res.json();
-        setDraftChangeset(data.changeSet);
+        const json: unknown = await res.json();
+        const validated = OrchestratorResponseSchema.safeParse(json);
+        if (!validated.success) {
+          console.error("[workspace] Invalid orchestrator response:", validated.error);
+          setPhase("error");
+          return;
+        }
+        // Schema validates structural shape; cast through unknown since Zod passthrough
+        // infers a wider type than the full ChangeSet with its deep nested types
+        setDraftChangeset(validated.data.changeSet as unknown as ChangeSet);
       } catch {
         setPhase("error");
       }

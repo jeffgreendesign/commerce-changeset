@@ -3,10 +3,15 @@
 import { cn } from "@/lib/utils";
 import type { Product } from "./workspace-provider";
 
+export interface TileClickModifiers {
+  metaKey: boolean;
+  ctrlKey: boolean;
+}
+
 interface ProductTileProps {
   product: Product;
   selected: boolean;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: (modifiers: TileClickModifiers) => void;
 }
 
 export function ProductTile({ product, selected, onClick }: ProductTileProps) {
@@ -23,17 +28,11 @@ export function ProductTile({ product, selected, onClick }: ProductTileProps) {
       data-selected={selected}
       data-promo={product.promoStatus}
       data-category={product.category}
-      data-recently-changed="false"
-      onClick={onClick}
+      onClick={(e) => onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey })}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          // Synthesize a MouseEvent-like object for modifier key detection
-          const syntheticEvent = {
-            metaKey: e.metaKey,
-            ctrlKey: e.ctrlKey,
-          } as React.MouseEvent;
-          onClick(syntheticEvent);
+          onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey });
         }
       }}
     >

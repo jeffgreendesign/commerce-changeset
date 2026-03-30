@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback } from "react";
 import { useWorkspace } from "./workspace-provider";
-import { ProductTile } from "./product-tile";
+import { ProductTile, type TileClickModifiers } from "./product-tile";
 
 export function LivingSurface() {
   const { products, loading, selectedIds, select, multiSelect, deselectAll, phase } =
@@ -31,8 +31,8 @@ export function LivingSurface() {
   }, [products]);
 
   const handleTileClick = useCallback(
-    (id: string, e: React.MouseEvent) => {
-      if (e.metaKey || e.ctrlKey) {
+    (id: string, modifiers: TileClickModifiers) => {
+      if (modifiers.metaKey || modifiers.ctrlKey) {
         multiSelect([id]);
       } else {
         select(id);
@@ -92,8 +92,8 @@ export function LivingSurface() {
                 key={product.id}
                 product={product}
                 selected={selectedIds.has(product.id)}
-                onClick={(e: React.MouseEvent) =>
-                  handleTileClick(product.id, e)
+                onClick={(modifiers) =>
+                  handleTileClick(product.id, modifiers)
                 }
               />
             ))}

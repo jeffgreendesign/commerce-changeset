@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { MicIcon, ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 
@@ -64,17 +64,6 @@ export function IntentBar() {
 
       {/* Input row */}
       <div className="flex items-center gap-2 px-3 py-2 md:px-4">
-        {/* Mic button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="min-h-[44px] min-w-[44px] shrink-0"
-          aria-label="Voice input"
-          disabled={isDisabled}
-        >
-          <MicIcon className="size-5" />
-        </Button>
-
         {/* Text input */}
         <input
           type="text"
