@@ -6,10 +6,10 @@ import { Auth0Client } from "@auth0/nextjs-auth0/server";
  * - If APP_BASE_URL is set (e.g. in production), use it directly.
  * - On Vercel preview deployments, VERCEL_URL is the per-deployment hostname.
  *   Pass it so the SDK uses the correct domain for cookies and callbacks.
- * - In development, fall back to localhost.
- * - When no static value is set, the SDK infers from the request Host header.
+ * - When neither is set (local dev), returns undefined so the SDK infers
+ *   the origin from the incoming request's Host header.
  */
-function resolveAppBaseUrl(): string | undefined {
+export function resolveAppBaseUrl(): string | undefined {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return undefined;
