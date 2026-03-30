@@ -23,9 +23,10 @@ function DashboardContent({ userName }: { userName: string }) {
         <div className="flex items-center justify-between px-4 py-2.5 md:px-6 lg:px-8">
           {/* Spacer on mobile for hamburger offset */}
           <div className="w-12 md:hidden" />
-          <h1 className="min-w-0 truncate text-sm font-semibold tracking-tight sm:text-lg">
-            <span className="md:hidden">Changeset</span>
-            <span className="hidden md:inline">Commerce Changeset</span>
+          <h1 className="text-xs font-semibold tracking-tighter whitespace-nowrap sm:text-lg sm:tracking-tight">
+            <Link href="/" className="hover:text-foreground">
+              Commerce Changeset
+            </Link>
           </h1>
           <div className="flex items-center gap-1 text-sm sm:gap-2">
             {/* New Chat button — mobile accessible */}

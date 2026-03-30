@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   LayoutDashboardIcon,
   MessageSquareIcon,
@@ -164,7 +165,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle className="flex items-center gap-2 text-sm">
               <LayoutDashboardIcon className="size-4" />
-              Commerce Changeset
+              <Link href="/" className="hover:text-foreground">Commerce Changeset</Link>
             </SheetTitle>
           </SheetHeader>
 
