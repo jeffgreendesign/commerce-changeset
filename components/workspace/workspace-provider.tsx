@@ -62,6 +62,8 @@ interface WorkspaceContextValue {
   executeChangeset: () => Promise<void>;
   cancelDraft: () => void;
   retryFetch: () => void;
+  /** Apply diffs from an externally-executed changeset (e.g. from the chat view). */
+  applyExecutedChangeset: (cs: ChangeSet) => void;
   /** Session-level changeset history (survives view switches). */
   changesetHistory: TimelineEntry[];
 }
@@ -307,18 +309,32 @@ function applyDiffsToProducts(
   products: Product[],
   operations: Operation[],
 ): Product[] {
-  const diffsByTarget = new Map<string, OperationDiff[]>();
-  for (const op of operations) {
-    if (typeof op.target === "string" && Array.isArray(op.diff)) {
-      const existing = diffsByTarget.get(op.target) ?? [];
-      diffsByTarget.set(op.target, [...existing, ...op.diff]);
-    }
-  }
+  // Match operations to products by SKU. The orchestrator produces targets
+  // like "STR-001 Classic Runner" (SKU + name) while product.sku is just
+  // "STR-001", so we check startsWith rather than exact equality.
+  // Bulk operations embed SKUs in diff field names (e.g. "Promo Price (STR-001)").
   return products.map((p) => {
-    const diffs = diffsByTarget.get(p.sku) ?? diffsByTarget.get(p.id);
-    if (!diffs) return p;
+    const matchingDiffs: OperationDiff[] = [];
+    for (const op of operations) {
+      if (typeof op.target !== "string" || !Array.isArray(op.diff)) continue;
+      const target = op.target;
+      if (
+        target === p.sku ||
+        target === p.id ||
+        (p.sku && target.startsWith(p.sku))
+      ) {
+        matchingDiffs.push(...op.diff);
+        continue;
+      }
+      // Bulk operations: SKU embedded in diff field (e.g. "Promo Price (STR-001)")
+      if (op.action === "bulk_price_change" && p.sku) {
+        const skuDiffs = op.diff.filter((d) => d.field.includes(p.sku));
+        matchingDiffs.push(...skuDiffs);
+      }
+    }
+    if (matchingDiffs.length === 0) return p;
     const updated = { ...p };
-    for (const d of diffs) {
+    for (const d of matchingDiffs) {
       const field = d.field.toLowerCase();
       if (field.includes("price")) {
         const val =
@@ -714,6 +730,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPhase("idle");
   }, []);
 
+  const applyExecutedChangeset = useCallback((cs: ChangeSet) => {
+    const successfulOpIds = new Set(
+      cs.execution?.results
+        ?.filter((r: { status: string }) => r.status === "success")
+        .map((r: { operationId: string }) => r.operationId) ?? [],
+    );
+    const opsToApply =
+      successfulOpIds.size > 0
+        ? cs.operations.filter((op) => successfulOpIds.has(op.id))
+        : cs.operations;
+    setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
+  }, []);
+
   const ctx = useMemo<WorkspaceContextValue>(
     () => ({
       products,
@@ -735,6 +764,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       executeChangeset,
       cancelDraft,
       retryFetch,
+      applyExecutedChangeset,
       changesetHistory,
     }),
     [
@@ -757,6 +787,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       executeChangeset,
       cancelDraft,
       retryFetch,
+      applyExecutedChangeset,
       changesetHistory,
     ],
   );

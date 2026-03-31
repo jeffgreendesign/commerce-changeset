@@ -29,6 +29,7 @@ import { VoiceControls } from "@/components/dashboard/voice-controls";
 import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card";
 import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
 import { useLayout } from "@/components/dashboard/layout-shell";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
@@ -146,6 +147,7 @@ interface ChatProps {
 }
 
 export function Chat({ chatId }: ChatProps) {
+  const { applyExecutedChangeset } = useWorkspace();
   // Load persisted session once so all initializers can use it
   const [restoredSession] = useState(() => loadSession(chatId));
 
@@ -295,6 +297,7 @@ export function Chat({ chatId }: ChatProps) {
           });
           if (!res.ok) throw new Error("Execution failed");
           const data: ExecuteChangeSetResult = await res.json();
+          applyExecutedChangeset(data.changeSet);
           setMessages((prev) => [
             ...prev,
             {
@@ -332,6 +335,7 @@ export function Chat({ chatId }: ChatProps) {
           });
           if (!res.ok) throw new Error("Approval/execution failed");
           const data: ExecuteChangeSetResult = await res.json();
+          applyExecutedChangeset(data.changeSet);
           setDraftChangeSet(null);
           setPhase("complete");
           return { approved: true, status: data.changeSet.status };
@@ -340,7 +344,7 @@ export function Chat({ chatId }: ChatProps) {
           return { error: `Unknown tool: ${name}` };
       }
     },
-    [draftChangeSet]
+    [draftChangeSet, applyExecutedChangeset]
   );
 
   const handleUserTranscript = useCallback(
@@ -416,6 +420,7 @@ export function Chat({ chatId }: ChatProps) {
         throw new Error(data.error.message);
       }
 
+      applyExecutedChangeset(data.changeSet);
       setMessages((prev) => [
         ...prev,
         {
@@ -515,6 +520,8 @@ export function Chat({ chatId }: ChatProps) {
       if (execData.error) {
         throw new Error(execData.error.message);
       }
+
+      applyExecutedChangeset(execData.changeSet);
 
       // Step 4: Update messages — conditionally mark original, replace draft
       setMessages((prev) => {
