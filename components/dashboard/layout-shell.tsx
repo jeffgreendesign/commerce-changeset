@@ -19,6 +19,12 @@ import type { ActionDefinition } from "@/lib/actions";
 
 type ActiveView = "chat" | "history" | "actions" | "workspace" | "drafts" | "timeline" | "activity";
 
+const WORKSPACE_VIEWS: ReadonlySet<ActiveView> = new Set(["workspace", "drafts", "timeline", "activity"]);
+
+export function isWorkspaceView(view: ActiveView): boolean {
+  return WORKSPACE_VIEWS.has(view);
+}
+
 interface LayoutContextValue {
   /** Open the right inspector panel with an item. */
   inspect: (item: InspectableItem) => void;
@@ -159,7 +165,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
           expanded={railExpanded}
           onToggle={toggleRail}
           userName={userName}
-          hideDesktopSidebar={activeView === "workspace" || activeView === "drafts" || activeView === "timeline" || activeView === "activity"}
+          hideDesktopSidebar={isWorkspaceView(activeView)}
         />
 
         {/* Center stage */}

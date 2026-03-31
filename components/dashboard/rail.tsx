@@ -26,7 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ChatHistoryPanel } from "./chat-history-panel";
-import { useLayout } from "./layout-shell";
+import { useLayout, isWorkspaceView } from "./layout-shell";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -121,7 +121,7 @@ export function Rail({ expanded, onToggle, userName, hideDesktopSidebar }: RailP
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const activeItem =
-    activeView === "workspace"
+    isWorkspaceView(activeView)
       ? "workspace"
       : activeView === "history"
         ? "history"

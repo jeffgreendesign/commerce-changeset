@@ -5,7 +5,7 @@ import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chat } from "./chat";
 import { Workspace } from "./workspace";
-import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
+import { LayoutShell, useLayout, isWorkspaceView } from "@/components/dashboard/layout-shell";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/status-bar";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
@@ -70,7 +70,7 @@ function DashboardContent({ userName }: { userName: string }) {
       </header>
 
       {/* Content area — switches between workspace, chat, actions, and history */}
-      {activeView === "workspace" || activeView === "drafts" || activeView === "timeline" || activeView === "activity" ? (
+      {isWorkspaceView(activeView) ? (
         <Workspace />
       ) : activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />
