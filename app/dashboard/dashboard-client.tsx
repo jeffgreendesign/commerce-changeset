@@ -63,7 +63,8 @@ function DashboardContent({ userName }: { userName: string }) {
           </div>
         </div>
         {/* Row 2: Status bar (integrated) */}
-        <div className="flex items-center gap-2 border-t border-foreground/5 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] py-1.5 text-[11px] text-muted-foreground md:pl-6 md:pr-6 lg:pl-8 lg:pr-8">
+        <div className="flex items-center gap-2 border-t border-foreground/5 px-4 py-1.5 text-[11px] text-muted-foreground md:px-6 lg:px-8">
+          <div className="w-12 md:hidden" />
           <StatusBarContent />
         </div>
       </header>
