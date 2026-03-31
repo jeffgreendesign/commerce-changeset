@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { RiskTier } from "@/lib/policy/types";
 import type { Operation, OperationDiff } from "@/lib/changeset/types";
+import type { ProactiveIssue } from "@/lib/voice/types";
 import type { Product, WorkspacePhase } from "./workspace-provider";
 
 export interface TileClickModifiers {
@@ -23,6 +24,7 @@ interface ProductTileProps {
   onClick: (modifiers: TileClickModifiers) => void;
   operation?: Operation;
   phase?: WorkspacePhase;
+  proactiveIssues?: ProactiveIssue[];
 }
 
 // ── Diff helpers ────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ export function ProductTile({
   onClick,
   operation,
   phase,
+  proactiveIssues,
 }: ProductTileProps) {
   const showDiff =
     !!operation &&
@@ -112,6 +115,19 @@ export function ProductTile({
   const hasPriceDiff = !!diffs?.priceDiff;
   const hasNonPriceDiff = !!diffs && diffs.otherDiffs.length > 0;
 
+  // Highest-severity proactive issue for this tile
+  const maxIssueSeverity = useMemo(() => {
+    if (!proactiveIssues || proactiveIssues.length === 0) return null;
+    if (proactiveIssues.some((i) => i.severity === "error")) return "error";
+    if (proactiveIssues.some((i) => i.severity === "warning")) return "warning";
+    return "info";
+  }, [proactiveIssues]);
+
+  const issueLabel = useMemo(() => {
+    if (!proactiveIssues || proactiveIssues.length === 0) return undefined;
+    return proactiveIssues.map((i) => i.description).join("; ");
+  }, [proactiveIssues]);
+
   return (
     <div
       className={cn(
@@ -131,6 +147,7 @@ export function ProductTile({
       data-category={product.category}
       data-has-diff={showDiff || undefined}
       data-recently-changed={phase === "complete" && showDiff ? true : undefined}
+      data-has-issue={maxIssueSeverity ?? undefined}
       onClick={(e) => onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey })}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -194,28 +211,44 @@ export function ProductTile({
         </div>
       )}
 
-      {/* Inventory + promo/risk row */}
+      {/* Inventory + promo/risk/issue row */}
       <div className="mt-1.5 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
           {product.inventory.toLocaleString()} units
         </span>
-        {showDiff && operation ? (
-          <span
-            className="inline-block size-2.5 rounded-full"
-            style={{
-              background: TIER_DOT_STYLE[operation.tier] ?? "oklch(0.5 0.1 0)",
-            }}
-            aria-label={`Risk tier ${operation.tier}`}
-          />
-        ) : (
-          product.promoStatus === "active" && (
+        <span className="inline-flex items-center gap-1">
+          {maxIssueSeverity && (
             <span
               className="inline-block size-2.5 rounded-full"
-              style={{ background: "oklch(0.65 0.2 145)" }}
-              aria-label="Active promotion"
+              style={{
+                background:
+                  maxIssueSeverity === "error"
+                    ? "oklch(0.6 0.22 29)"
+                    : maxIssueSeverity === "warning"
+                      ? "oklch(0.7 0.18 85)"
+                      : "oklch(0.6 0.18 264)",
+              }}
+              aria-label={issueLabel}
             />
-          )
-        )}
+          )}
+          {showDiff && operation ? (
+            <span
+              className="inline-block size-2.5 rounded-full"
+              style={{
+                background: TIER_DOT_STYLE[operation.tier] ?? "oklch(0.5 0.1 0)",
+              }}
+              aria-label={`Risk tier ${operation.tier}`}
+            />
+          ) : (
+            product.promoStatus === "active" && (
+              <span
+                className="inline-block size-2.5 rounded-full"
+                style={{ background: "oklch(0.65 0.2 145)" }}
+                aria-label="Active promotion"
+              />
+            )
+          )}
+        </span>
       </div>
     </div>
   );

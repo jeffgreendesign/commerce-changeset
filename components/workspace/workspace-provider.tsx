@@ -12,6 +12,9 @@ import {
 } from "react";
 import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
+import type { ParsedOperation } from "@/lib/changeset/builder";
+import type { ProactiveIssue } from "@/lib/voice/types";
+import { runProactiveChecks } from "@/lib/voice/proactive-insights";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -47,6 +50,9 @@ interface WorkspaceContextValue {
   draftChangeset: ChangeSet | null;
   phase: WorkspacePhase;
   wsTemperature: number;
+  wsEnergy: number;
+  proactiveIssues: ProactiveIssue[];
+  proactiveIssuesByTarget: Map<string, ProactiveIssue[]>;
   select: (id: string) => void;
   multiSelect: (ids: string[]) => void;
   deselectAll: () => void;
@@ -253,6 +259,32 @@ function temperatureFromPhase(phase: WorkspacePhase): number {
   }
 }
 
+// ── Energy derivation ──────────────────────────────────────────────
+
+function energyFromPhase(phase: WorkspacePhase, operationCount: number): number {
+  switch (phase) {
+    case "idle":
+    case "complete":
+      return 0;
+    case "preview":
+      return Math.min(operationCount / 10, 1);
+    case "executing":
+      return 1;
+    case "error":
+      return 0;
+  }
+}
+
+// ── Product → Record conversion for proactive checks ──────────────
+
+function productsToRecords(products: Product[]): Record<string, string>[] {
+  return products.map((p) => ({
+    SKU: p.sku,
+    "Base Price": String(p.price),
+    "Promo Active": p.promoStatus === "active" ? "TRUE" : "FALSE",
+  }));
+}
+
 // ── Apply diffs to products after execution ────────────────────────
 
 function applyDiffsToProducts(
@@ -345,6 +377,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   const wsTemperature = temperatureFromPhase(phase);
+
+  const opCount = draftChangeset?.operations.length ?? 0;
+  const wsEnergy = energyFromPhase(phase, opCount);
+
+  // ── Proactive issue detection ──────────────────────────────────────
+
+  const proactiveIssues = useMemo<ProactiveIssue[]>(() => {
+    if (!draftChangeset || !Array.isArray(draftChangeset.operations) || draftChangeset.operations.length === 0) {
+      return [];
+    }
+    const ops = draftChangeset.operations as unknown as ParsedOperation[];
+    const productRecords = productsToRecords(products);
+    return runProactiveChecks(ops, productRecords);
+  }, [draftChangeset, products]);
+
+  const proactiveIssuesByTarget = useMemo(() => {
+    const map = new Map<string, ProactiveIssue[]>();
+    for (const issue of proactiveIssues) {
+      const existing = map.get(issue.operationId);
+      if (existing) {
+        existing.push(issue);
+      } else {
+        map.set(issue.operationId, [issue]);
+      }
+    }
+    return map;
+  }, [proactiveIssues]);
 
   const retryFetch = useCallback(() => {
     setFetchError(null);
@@ -637,6 +696,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       draftChangeset,
       phase,
       wsTemperature,
+      wsEnergy,
+      proactiveIssues,
+      proactiveIssuesByTarget,
       select,
       multiSelect,
       deselectAll,
@@ -656,6 +718,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       draftChangeset,
       phase,
       wsTemperature,
+      wsEnergy,
+      proactiveIssues,
+      proactiveIssuesByTarget,
       select,
       multiSelect,
       deselectAll,
