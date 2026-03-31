@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { ContextSpine } from "@/components/workspace/context-spine";
@@ -20,29 +20,44 @@ export function Workspace() {
     useWorkspace();
 
   const voiceStartTimeRef = useRef(0);
+  const submittingRef = useRef(false);
 
   // ── Voice integration ──────────────────────────────────────────────
 
-  const handleVoiceToolCall = useCallback(
-    async (name: string, args: Record<string, unknown>) => {
-      if (name === "submit_commerce_change" && typeof args.request === "string") {
-        if (phase === "executing" || phase === "preview") {
-          return { error: "A changeset is already in progress" };
-        }
-        submitIntent(args.request);
-        return { success: true, source: "workspace_voice" };
+  const submitGuarded = useCallback(
+    async (text: string): Promise<{ blocked: boolean }> => {
+      if (submittingRef.current) return { blocked: true };
+      if (phase === "executing" || phase === "preview") return { blocked: true };
+      submittingRef.current = true;
+      try {
+        await submitIntent(text);
+      } finally {
+        submittingRef.current = false;
       }
-      return { error: `Unknown tool: ${name}` };
+      return { blocked: false };
     },
     [phase, submitIntent],
   );
 
+  const handleVoiceToolCall = useCallback(
+    async (name: string, args: Record<string, unknown>) => {
+      if (name === "submit_commerce_change" && typeof args.request === "string") {
+        const result = await submitGuarded(args.request);
+        if (result.blocked) {
+          return { error: "A changeset is already in progress" };
+        }
+        return { success: true, source: "workspace_voice" };
+      }
+      return { error: `Unknown tool: ${name}` };
+    },
+    [submitGuarded],
+  );
+
   const handleUserTranscript = useCallback(
     (text: string) => {
-      if (phase === "executing" || phase === "preview") return;
-      submitIntent(text);
+      void submitGuarded(text);
     },
-    [phase, submitIntent],
+    [submitGuarded],
   );
 
   const geminiLive = useGeminiLive({
@@ -58,6 +73,15 @@ export function Workspace() {
     geminiLive.connectionState === "connected" ||
     geminiLive.connectionState === "reconnecting";
   const voiceConnecting = geminiLive.connectionState === "connecting";
+
+  // Auto-disconnect voice when navigating to a non-default workspace sub-view
+  // (drafts, timeline, activity) where IntentBar controls aren't rendered
+  const geminiDisconnect = geminiLive.disconnect;
+  useEffect(() => {
+    if (activeView !== "workspace" && voiceActive) {
+      geminiDisconnect();
+    }
+  }, [activeView, voiceActive, geminiDisconnect]);
 
   const handleVoiceActivate = useCallback(async () => {
     voiceStartTimeRef.current = Date.now();
