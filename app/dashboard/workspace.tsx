@@ -21,6 +21,7 @@ export function Workspace() {
 
   const voiceStartTimeRef = useRef(0);
   const submittingRef = useRef(false);
+  const teardownRef = useRef<() => Promise<void>>(async () => { /* placeholder until handleVoiceDeactivate is assigned */ });
 
   // ── Voice integration ──────────────────────────────────────────────
 
@@ -74,26 +75,15 @@ export function Workspace() {
     geminiLive.connectionState === "reconnecting";
   const voiceConnecting = geminiLive.connectionState === "connecting";
 
-  // Auto-disconnect voice when navigating to a non-default workspace sub-view
-  // (drafts, timeline, activity) where IntentBar controls aren't rendered
-  const geminiDisconnect = geminiLive.disconnect;
-  useEffect(() => {
-    if (activeView !== "workspace" && voiceActive) {
-      geminiDisconnect();
-    }
-  }, [activeView, voiceActive, geminiDisconnect]);
-
   const handleVoiceActivate = useCallback(async () => {
     voiceStartTimeRef.current = Date.now();
-    try {
-      await fetch("/api/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "init" }),
-      });
-    } catch {
+    fetch("/api/voice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "init" }),
+    }).catch(() => {
       // Non-critical — pattern detection failure shouldn't block voice
-    }
+    });
     await geminiLive.connect();
   }, [geminiLive]);
 
@@ -126,6 +116,15 @@ export function Workspace() {
       // Non-critical
     }
   }, [geminiLive, draftChangeset]);
+
+  // Auto-disconnect voice (with full teardown) when navigating to a
+  // workspace sub-view where IntentBar controls aren't rendered
+  teardownRef.current = handleVoiceDeactivate;
+  useEffect(() => {
+    if (activeView !== "workspace" && voiceActive) {
+      void teardownRef.current();
+    }
+  }, [activeView, voiceActive]);
 
   return (
     <div className="flex h-full min-h-0 flex-1">
