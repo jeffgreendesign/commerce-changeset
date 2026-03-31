@@ -324,12 +324,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       phase === "complete" &&
       draftChangeset &&
       draftChangeset.execution?.receipt &&
-      (draftChangeset.status === "completed" || draftChangeset.status === "executing")
+      (draftChangeset.status === "completed" ||
+        draftChangeset.status === "partial_failure" ||
+        draftChangeset.status === "executing")
     ) {
+      // Preserve the real terminal status from the executor; only coerce
+      // "executing" (the transient provider status) to "completed".
+      const terminalStatus: ChangeSetStatus =
+        draftChangeset.status === "executing"
+          ? "completed"
+          : draftChangeset.status;
       setChangesetHistory((prev) => [
         ...prev,
         {
-          changeset: { ...draftChangeset, status: "completed" as ChangeSetStatus },
+          changeset: { ...draftChangeset, status: terminalStatus },
           completedAt: new Date().toISOString(),
         },
       ]);
@@ -506,9 +514,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setDraftChangeset(null); // clear stale draft immediately
       try {
         const targetProduct = products.find((p) => p.id === productId);
-        const context = targetProduct
-          ? `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`
-          : "";
+        if (!targetProduct) {
+          setExecutionError("Product not found — it may have been removed. Please try again.");
+          setDraftChangeset(null);
+          setPhase("error");
+          return;
+        }
+        const context = `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`;
 
         const res = await fetch("/api/orchestrator", {
           method: "POST",
@@ -576,9 +588,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // Parse response to capture execution metadata (receipt, verification)
       const executeData = (await res.json()) as { changeSet?: unknown };
       const executedCs = executeData.changeSet as ChangeSet | undefined;
-      setProducts((prev) =>
-        applyDiffsToProducts(prev, draftChangeset.operations),
+      // Only apply diffs for operations that actually succeeded; fall back
+      // to all operations when the response lacks per-operation results.
+      const successfulOpIds = new Set(
+        executedCs?.execution?.results
+          ?.filter((r: { status: string }) => r.status === "success")
+          .map((r: { operationId: string }) => r.operationId) ?? [],
       );
+      const opsToApply =
+        successfulOpIds.size > 0
+          ? draftChangeset.operations.filter((op) => successfulOpIds.has(op.id))
+          : draftChangeset.operations;
+      setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
       // Update draft with execution metadata so history captures it
       if (executedCs) {
         setDraftChangeset(executedCs);
