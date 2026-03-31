@@ -22,6 +22,8 @@ export function Workspace() {
   const voiceStartTimeRef = useRef(0);
   const submittingRef = useRef(false);
   const teardownRef = useRef<() => Promise<void>>(async () => { /* placeholder until handleVoiceDeactivate is assigned */ });
+  const modelTranscriptRef = useRef("");
+  const userTranscriptRef = useRef("");
 
   // ── Voice integration ──────────────────────────────────────────────
 
@@ -55,8 +57,15 @@ export function Workspace() {
   );
 
   const handleUserTranscript = useCallback(
-    (text: string) => {
-      void submitGuarded(text);
+    (text: string, finished: boolean) => {
+      userTranscriptRef.current += text;
+      if (finished) {
+        const fullText = userTranscriptRef.current.trim();
+        userTranscriptRef.current = "";
+        if (fullText) {
+          void submitGuarded(fullText);
+        }
+      }
     },
     [submitGuarded],
   );
@@ -64,8 +73,12 @@ export function Workspace() {
   const geminiLive = useGeminiLive({
     onToolCall: handleVoiceToolCall,
     onUserTranscript: handleUserTranscript,
-    onModelTranscript: (text: string) => {
-      toast.info(text, { duration: 5000 });
+    onModelTranscript: (text: string, finished: boolean) => {
+      modelTranscriptRef.current += text;
+      toast.info(modelTranscriptRef.current, { id: "ws-model-voice", duration: 5000 });
+      if (finished) {
+        modelTranscriptRef.current = "";
+      }
     },
     onError: (msg: string) => toast.error(`Voice error: ${msg}`),
   });

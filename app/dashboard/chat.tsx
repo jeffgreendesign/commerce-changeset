@@ -344,7 +344,7 @@ export function Chat({ chatId }: ChatProps) {
   );
 
   const handleUserTranscript = useCallback(
-    (text: string) => {
+    (text: string, _finished: boolean) => {
       console.log("[chat] Adding user transcript to messages:", text);
       setMessages((prev) => {
         const next = [...prev, { role: "user" as const, content: text }];
@@ -357,7 +357,7 @@ export function Chat({ chatId }: ChatProps) {
   );
 
   const handleModelTranscript = useCallback(
-    (text: string) => {
+    (text: string, _finished: boolean) => {
       console.log("[chat] Adding model transcript to messages:", text);
       setMessages((prev) => {
         const last = prev[prev.length - 1];
