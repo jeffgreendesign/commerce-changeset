@@ -22,7 +22,6 @@ export function Workspace() {
   const voiceStartTimeRef = useRef(0);
   const submittingRef = useRef(false);
   const teardownRef = useRef<() => Promise<void>>(async () => { /* placeholder until handleVoiceDeactivate is assigned */ });
-  const modelTranscriptRef = useRef("");
   const userTranscriptRef = useRef("");
 
   // ── Voice integration ──────────────────────────────────────────────
@@ -73,13 +72,7 @@ export function Workspace() {
   const geminiLive = useGeminiLive({
     onToolCall: handleVoiceToolCall,
     onUserTranscript: handleUserTranscript,
-    onModelTranscript: (text: string, finished: boolean) => {
-      modelTranscriptRef.current += text;
-      toast.info(modelTranscriptRef.current, { id: "ws-model-voice", duration: 5000 });
-      if (finished) {
-        modelTranscriptRef.current = "";
-      }
-    },
+    // Model transcript is heard via audio — no visual display needed
     onError: (msg: string) => toast.error(`Voice error: ${msg}`),
   });
 
