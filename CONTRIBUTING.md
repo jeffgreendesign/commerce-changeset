@@ -40,6 +40,20 @@
 - Keep the first line under 72 characters
 - No co-author trailers
 
+## Changelog
+
+Every PR that modifies code, content, or configuration must include a corresponding entry in `CHANGELOG.md` under the `[Unreleased]` section. Use the appropriate category and imperative-verb phrasing with PR attribution:
+
+**Categories:** Features, Fixes, Content, Refactoring, Style, Chores, Docs, Security
+
+```markdown
+### Features
+- Add three-panel layout with workflow pipeline stepper (PR `#6`)
+
+### Fixes
+- Fix card overflow and Quick Actions scrolling (PR `#13`)
+```
+
 ## Review Checklist
 
 - [ ] TypeScript compiles without errors (`npm run build`)
@@ -48,6 +62,7 @@
 - [ ] New components follow the shadcn/Base UI + CVA pattern
 - [ ] Tailwind classes use theme tokens, not arbitrary values
 - [ ] Server components are the default; `"use client"` is justified
+- [ ] `CHANGELOG.md` updated with entry under `[Unreleased]`
 
 ## CI Requirements
 
