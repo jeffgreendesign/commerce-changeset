@@ -326,7 +326,9 @@ function applyDiffsToProducts(
         matchingDiffs.push(...op.diff);
         continue;
       }
-      // Bulk operations: SKU embedded in diff field (e.g. "Promo Price (STR-001)")
+      // Bulk diff fields encode the SKU in parentheses, e.g. "Promo Price (STR-001)".
+      // This uses includes() rather than the executor's /(STR-\d{3})/ regex since
+      // we're matching against a known product SKU, not extracting one.
       if (op.action === "bulk_price_change" && p.sku) {
         const skuDiffs = op.diff.filter((d) => d.field.includes(p.sku));
         matchingDiffs.push(...skuDiffs);
@@ -341,16 +343,22 @@ function applyDiffsToProducts(
           typeof d.after === "number"
             ? d.after
             : parseFloat(String(d.after).replace(/[^0-9.]/g, ""));
-        if (!Number.isNaN(val)) updated.price = val;
-      }
-      if (field.includes("inventory") || field.includes("stock")) {
+        if (!Number.isNaN(val)) {
+          // "Promo Price" → promoPrice; "Base Price" or plain "Price" → price.
+          // Always update price (the displayed value) so the tile reflects the change.
+          if (field.includes("promo")) {
+            updated.promoPrice = val;
+          }
+          updated.price = val;
+        }
+      } else if (field.includes("inventory") || field.includes("stock")) {
         const val =
           typeof d.after === "number"
             ? d.after
             : parseInt(String(d.after).replace(/[^0-9]/g, ""), 10);
         if (!Number.isNaN(val)) updated.inventory = val;
-      }
-      if (field.includes("promo") || field.includes("status")) {
+      } else if (field.includes("promo") || field.includes("status")) {
+        // "Promo Active" / "Promo Status" — NOT "Promo Price" (handled above via else-if)
         const val = String(d.after).toLowerCase();
         updated.promoStatus =
           val === "active" || val === "true" || val === "yes" || val === "on"
