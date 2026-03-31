@@ -2,6 +2,8 @@
 
 Extracted from [`docs/living-workspace-design-spec.md`](docs/living-workspace-design-spec.md).
 
+> **Note:** Checked items reflect files that existed at time of extraction (2026-03-31). They have not been individually validated for correctness or completeness.
+
 ## Living Surface Foundation
 
 - [x] Create `app/dashboard/workspace.tsx` — workspace component as default view alongside chat
@@ -39,6 +41,8 @@ Extracted from [`docs/living-workspace-design-spec.md`](docs/living-workspace-de
 - [x] Chat serves as "transcript" mode for complex reasoning
 
 ## Verification
+
+Owner: _unassigned_ | Last verified: _never_
 
 - [ ] `npm run gates` passes with workspace components (lint + typecheck + build)
 - [ ] Desktop: Product tiles render in workspace view, are selectable, Inspector opens on click
