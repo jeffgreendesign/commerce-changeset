@@ -616,6 +616,72 @@
   background: oklch(0.7 0.1 var(--tile-hue, 264) / 20%);
 }
 
+/* ── Proactive issue indicators (Phase 4: Ambient Intelligence) ───── */
+
+/* Dedicated element for issue aura — avoids ::after conflict with promo glow */
+.tile-issue-aura {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+.tile-issue-aura[data-severity="warning"] {
+  background: radial-gradient(
+    ellipse at center,
+    oklch(0.85 0.12 85 / 12%) 0%,
+    transparent 70%
+  );
+}
+.tile-issue-aura[data-severity="error"] {
+  background: radial-gradient(
+    ellipse at center,
+    oklch(0.85 0.12 29 / 15%) 0%,
+    transparent 70%
+  );
+}
+.tile-issue-aura[data-severity="info"] {
+  background: radial-gradient(
+    ellipse at center,
+    oklch(0.85 0.12 264 / 10%) 0%,
+    transparent 70%
+  );
+}
+
+/* Tile breathing — subtle scale pulse when issue detected */
+@keyframes tile-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.003); }
+}
+.product-tile[data-has-issue] {
+  animation: tile-breathe 3s ease-in-out infinite;
+}
+
+/* ── Ambient gradient overlay (Phase 4) ─────────────────────────────── */
+
+.ambient-gradient {
+  background: radial-gradient(
+    ellipse at 50% 80%,
+    oklch(0.9 0.03 85 / 20%) 0%,
+    transparent 60%
+  );
+}
+:is(.dark) .ambient-gradient {
+  background: radial-gradient(
+    ellipse at 50% 80%,
+    oklch(0.3 0.03 85 / 15%) 0%,
+    transparent 60%
+  );
+}
+
+/* ── Reduced motion: Phase 4 additions ──────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .product-tile[data-has-issue] {
+    animation: none;
+  }
+}
+
 /* ── Diff overlay on tiles (Phase 2: Changeset Materialization) ───── */
 
 .tile-diff-overlay {

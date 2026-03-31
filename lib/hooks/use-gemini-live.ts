@@ -31,8 +31,8 @@ import type {
 
 export interface UseGeminiLiveOptions {
   onToolCall: ToolCallHandler;
-  onUserTranscript?: (text: string) => void;
-  onModelTranscript?: (text: string) => void;
+  onUserTranscript?: (text: string, finished: boolean) => void;
+  onModelTranscript?: (text: string, finished: boolean) => void;
   onError?: (error: string) => void;
 }
 
@@ -262,14 +262,14 @@ export function useGeminiLive(
       // User speech transcript (best-effort from Gemini 3.1)
       const inputTx = message.serverContent?.inputTranscription;
       if (inputTx?.text) {
-        onUserTranscriptRef.current?.(inputTx.text);
+        onUserTranscriptRef.current?.(inputTx.text, inputTx.finished ?? false);
       }
 
       // Model speech transcript
       const outputTx = message.serverContent?.outputTranscription;
       if (outputTx?.text) {
         console.log("[gemini-live] Model transcript:", JSON.stringify({ text: outputTx.text, finished: outputTx.finished }));
-        onModelTranscriptRef.current?.(outputTx.text);
+        onModelTranscriptRef.current?.(outputTx.text, outputTx.finished ?? false);
       }
 
       // Interruption — user started speaking while model was playing

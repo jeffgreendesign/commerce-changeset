@@ -8,8 +8,15 @@
  * - "This launch window conflicts with an existing promotion."
  */
 
-import type { ParsedOperation } from "@/lib/changeset/builder";
+import type { OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "./types";
+
+/** Minimal operation shape needed by proactive checks (action + target + diff). */
+export interface ProactiveCheckOperation {
+  action: string;
+  target: string;
+  diff: OperationDiff[];
+}
 
 /** Default minimum margin percentage — prices below this floor trigger a warning. */
 const DEFAULT_MIN_MARGIN_PERCENT = 15;
@@ -28,7 +35,7 @@ const DEFAULT_MIN_MARGIN_PERCENT = 15;
  * @returns Array of proactive issues found (may be empty)
  */
 export function runProactiveChecks(
-  operations: ParsedOperation[],
+  operations: ProactiveCheckOperation[],
   productData: Record<string, string>[],
   minMarginPercent: number = DEFAULT_MIN_MARGIN_PERCENT
 ): ProactiveIssue[] {
@@ -47,7 +54,7 @@ export function runProactiveChecks(
 // ── Margin floor checks ─────────────────────────────────────────────
 
 function checkMarginFloors(
-  operations: ParsedOperation[],
+  operations: ProactiveCheckOperation[],
   productData: Record<string, string>[],
   minMarginPercent: number
 ): ProactiveIssue[] {
@@ -113,7 +120,7 @@ function checkMarginFloors(
 // ── Inconsistency checks ─────────────────────────────────────────────
 
 function checkInconsistencies(
-  operations: ParsedOperation[],
+  operations: ProactiveCheckOperation[],
   productData: Record<string, string>[]
 ): ProactiveIssue[] {
   const issues: ProactiveIssue[] = [];
@@ -178,7 +185,7 @@ function checkInconsistencies(
 // ── Duplicate target checks ──────────────────────────────────────────
 
 function checkDuplicateTargets(
-  operations: ParsedOperation[]
+  operations: ProactiveCheckOperation[]
 ): ProactiveIssue[] {
   const issues: ProactiveIssue[] = [];
 

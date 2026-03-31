@@ -10,6 +10,8 @@ import {
   ShieldIcon,
   PencilIcon,
   CheckIcon,
+  AlertTriangleIcon,
+  InfoIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +23,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { TIER_CONFIG } from "@/lib/risk-tier-config";
 import type { OperationDiff } from "@/lib/changeset/types";
+import type { ProactiveIssue } from "@/lib/voice/types";
 import { useWorkspace } from "./workspace-provider";
 
 // ── Inspector content ──────────────────────────────────────────────
@@ -41,6 +43,7 @@ function InspectorContent({
     phase,
     submitIntentForProduct,
     deselectAll,
+    proactiveIssuesByTarget,
   } = useWorkspace();
 
   const [editingPrice, setEditingPrice] = useState(false);
@@ -68,6 +71,17 @@ function InspectorContent({
         (id !== "" && id !== sku && op.target.includes(id)),
     );
   }, [selectedProduct, draftChangeset]);
+
+  // Proactive issues for the selected product
+  const productIssues = useMemo<ProactiveIssue[]>(() => {
+    if (!selectedProduct) return [];
+    return [
+      ...(proactiveIssuesByTarget.get(selectedProduct.sku) ?? []),
+      ...(selectedProduct.id !== selectedProduct.sku
+        ? (proactiveIssuesByTarget.get(selectedProduct.id) ?? [])
+        : []),
+    ];
+  }, [selectedProduct, proactiveIssuesByTarget]);
 
   // Highest risk tier across all matching operations
   const highestTierOp = useMemo(
@@ -218,13 +232,6 @@ function InspectorContent({
                 ${selectedProduct.price.toFixed(2)}
               </p>
             )}
-            {/* Price history — placeholder until a real data source is available */}
-            <div className="mt-2 space-y-1">
-              <Skeleton className="h-6 w-full rounded" />
-              <p className="text-[10px] text-muted-foreground/60">
-                Price history unavailable
-              </p>
-            </div>
           </div>
 
           <Separator />
@@ -321,6 +328,43 @@ function InspectorContent({
               </p>
             )}
           </div>
+
+          {/* Proactive alerts for this product */}
+          {productIssues.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangleIcon className="size-3.5 text-amber-500" />
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Proactive Alerts
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  {productIssues.map((issue, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "flex items-start gap-2 rounded-md p-2 text-[11px] leading-snug",
+                        issue.severity === "error"
+                          ? "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300"
+                          : issue.severity === "warning"
+                            ? "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                            : "bg-blue-50 text-blue-800 dark:bg-blue-950/30 dark:text-blue-300",
+                      )}
+                    >
+                      {issue.severity === "info" ? (
+                        <InfoIcon className="mt-0.5 size-3 shrink-0" />
+                      ) : (
+                        <AlertTriangleIcon className="mt-0.5 size-3 shrink-0" />
+                      )}
+                      <span>{issue.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Pending diffs (flattened from all matching operations) */}
           {allDiffs.length > 0 && (

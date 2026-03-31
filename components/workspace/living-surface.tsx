@@ -4,6 +4,7 @@ import { useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
+import { AmbientLayer } from "./ambient-layer";
 import type { Operation } from "@/lib/changeset/types";
 
 export function LivingSurface() {
@@ -16,6 +17,9 @@ export function LivingSurface() {
     multiSelect,
     deselectAll,
     phase,
+    wsTemperature,
+    wsEnergy,
+    proactiveIssuesByTarget,
     retryFetch,
     draftChangeset,
   } = useWorkspace();
@@ -121,10 +125,13 @@ export function LivingSurface() {
 
   return (
     <div
-      className="workspace flex flex-1 flex-col overflow-auto p-4 md:p-6"
+      className="workspace relative flex flex-1 flex-col overflow-auto p-4 md:p-6"
       data-phase={phase}
+      style={{ "--ws-temperature": wsTemperature } as React.CSSProperties}
       onClick={handleSurfaceClick}
     >
+      <AmbientLayer temperature={wsTemperature} phase={phase} energy={wsEnergy} />
+
       {/* Category clusters */}
       {Array.from(grouped.entries()).map(([category, categoryProducts]) => (
         <section key={category} className="mb-6">
@@ -145,6 +152,10 @@ export function LivingSurface() {
                   operationsByTarget.get(product.id)
                 }
                 phase={phase}
+                proactiveIssues={
+                  proactiveIssuesByTarget.get(product.sku) ??
+                  proactiveIssuesByTarget.get(product.id)
+                }
               />
             ))}
           </div>
