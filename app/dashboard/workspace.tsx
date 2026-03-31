@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { ContextSpine } from "@/components/workspace/context-spine";
 import { LivingSurface } from "@/components/workspace/living-surface";
@@ -10,11 +12,90 @@ import { InspectorPanel } from "@/components/workspace/inspector-panel";
 import { TimelineView } from "@/components/workspace/timeline-view";
 import { AgentActivity } from "@/components/dashboard/agent-activity";
 import { useLayout } from "@/components/dashboard/layout-shell";
+import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 
 export function Workspace() {
   const { activeView } = useLayout();
-  const { draftChangeset, phase, cancelDraft, executeChangeset } =
+  const { draftChangeset, phase, cancelDraft, executeChangeset, submitIntent } =
     useWorkspace();
+
+  const voiceStartTimeRef = useRef(0);
+
+  // ── Voice integration ──────────────────────────────────────────────
+
+  const handleVoiceToolCall = useCallback(
+    async (name: string, args: Record<string, unknown>) => {
+      if (name === "submit_commerce_change" && typeof args.request === "string") {
+        submitIntent(args.request);
+        return { success: true, source: "workspace_voice" };
+      }
+      return { error: `Unknown tool: ${name}` };
+    },
+    [submitIntent],
+  );
+
+  const handleUserTranscript = useCallback(
+    (text: string) => {
+      submitIntent(text);
+    },
+    [submitIntent],
+  );
+
+  const geminiLive = useGeminiLive({
+    onToolCall: handleVoiceToolCall,
+    onUserTranscript: handleUserTranscript,
+    onModelTranscript: (text: string) => {
+      toast.info(text, { duration: 5000 });
+    },
+    onError: (msg: string) => toast.error(`Voice error: ${msg}`),
+  });
+
+  const voiceActive = geminiLive.connectionState === "connected";
+  const voiceConnecting = geminiLive.connectionState === "connecting";
+
+  const handleVoiceActivate = useCallback(async () => {
+    voiceStartTimeRef.current = Date.now();
+    try {
+      await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "init" }),
+      });
+    } catch {
+      // Non-critical — pattern detection failure shouldn't block voice
+    }
+    await geminiLive.connect();
+  }, [geminiLive]);
+
+  const handleVoiceDeactivate = useCallback(async () => {
+    geminiLive.disconnect();
+    const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
+    try {
+      await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "end_session",
+          sessionId: crypto.randomUUID(),
+          sessionDurationMinutes: durationMinutes,
+          operationCount: draftChangeset?.operations.length ?? 0,
+          operationTypes:
+            draftChangeset?.operations.map((o) => o.action) ?? [],
+          errorCount: 0,
+          avgStressLevel: geminiLive.stressLevel,
+          avgSpeechPace: geminiLive.voiceMetrics.pace,
+          peakStressLevel: geminiLive.peakStressLevel,
+          emotionalStateTransitions: geminiLive.emotionalStateTransitions,
+          toolCallSummary: geminiLive.toolCallOutcomes,
+          model: geminiLive.sidecarStatus.connected
+            ? "3.1-primary+2.5-sidecar"
+            : "3.1-primary-only",
+        }),
+      });
+    } catch {
+      // Non-critical
+    }
+  }, [geminiLive, draftChangeset]);
 
   return (
     <div className="flex h-full min-h-0 flex-1">
@@ -75,7 +156,20 @@ export function Workspace() {
               executing={phase === "executing"}
             />
           )}
-          <IntentBar />
+          <IntentBar
+            voiceActive={voiceActive}
+            voiceConnecting={voiceConnecting}
+            onVoiceActivate={handleVoiceActivate}
+            onVoiceDeactivate={handleVoiceDeactivate}
+            emotionalState={geminiLive.emotionalState}
+            stressLevel={geminiLive.stressLevel}
+            inputLevel={geminiLive.inputLevel}
+            connectionState={geminiLive.connectionState}
+            isSpeaking={geminiLive.isSpeaking}
+            sidecarStatus={geminiLive.sidecarStatus}
+            volume={geminiLive.volume}
+            onVolumeChange={geminiLive.setVolume}
+          />
         </div>
       )}
 
