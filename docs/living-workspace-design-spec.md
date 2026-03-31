@@ -1,5 +1,7 @@
 # Innovative AI Interface Design — "The Living Workspace"
 
+> **Archived.** Actionable items have been extracted to [`TODO.md`](../TODO.md). This document is retained as a historical design reference.
+
 ## Context
 
 The Commerce Changeset app currently uses a chat-first paradigm (text input at bottom, messages scroll up, inline cards) that is structurally identical to every AI chat app since 2022. Despite having good visual polish (glassmorphism, voice, workflow pipelines, risk badges), the *interaction skeleton* feels dated because the metaphor is borrowed, not native to the commerce domain.
@@ -753,65 +755,6 @@ WorkspaceProvider (context)
       ├── executeChangeset()        ← execute API
       └── cancelDraft()
 ```
-
----
-
-## Implementation Plan (Build Phases)
-
-This is a design spec deliverable. The build phases below are for future reference when implementation begins.
-
-### Phase 1: Living Surface Foundation (estimated ~15 files)
-**New files:**
-- `app/dashboard/workspace.tsx` — New workspace component (default view, alongside chat)
-- `components/workspace/living-surface.tsx` — Product tile grid with selection model
-- `components/workspace/product-tile.tsx` — Individual tile with ambient indicators
-- `components/workspace/intent-bar.tsx` — Voice-first command surface
-- `components/workspace/context-spine.tsx` — Thin icon navigation (replaces rail)
-- `components/workspace/workspace-provider.tsx` — React context for workspace state
-
-**Modify:**
-- `app/globals.css` — Add all ambient CSS from prototype above
-- `app/dashboard/dashboard-client.tsx` — Add workspace as a view option alongside chat
-- `components/dashboard/layout-shell.tsx` — Add `"workspace"` to `ActiveView` union
-
-**Reuse unchanged:**
-- `lib/actions.ts` — Action definitions for intent inference
-- `lib/policy/engine.ts` — Risk evaluation (real-time preview)
-- `lib/changeset/builder.ts`, `lib/changeset/types.ts` — Core data model
-- `lib/auth0.ts` — Auth unchanged
-- `app/api/orchestrator/route.ts`, `app/api/reader/route.ts` — Backend unchanged
-
-### Phase 2: Changeset Materialization (~5 files)
-- `components/workspace/changeset-overlay.tsx` — In-place diff on tiles
-- `components/workspace/changeset-summary.tsx` — Floating summary panel
-- Adapt `components/changeset/diff-view.tsx` for tile overlays
-- Adapt `components/changeset/risk-badge.tsx` for tile-level indicators
-
-### Phase 3: Inspector & Timeline (~4 files)
-- `components/workspace/inspector-panel.tsx` — Right panel with inline editing
-- `components/workspace/timeline-view.tsx` — Horizontal changeset timeline
-- Adapt `components/dashboard/agent-activity.tsx` for Context Spine
-
-### Phase 4: Ambient Intelligence (~3 files)
-- `components/workspace/ambient-layer.tsx` — CSS background layer
-- Proactive notifications on tiles (reuse `lib/voice/proactive-insights.ts`)
-- Workspace breathing animations
-
-### Phase 5: Chat as Secondary View
-- Keep `app/dashboard/chat.tsx` accessible via Context Spine icon
-- Chat becomes "transcript" mode for complex reasoning
-
----
-
-## Verification (When Built)
-
-1. `npm run gates` passes (lint + typecheck + build)
-2. Desktop: Product tiles render, are selectable, Inspector opens on click
-3. Mobile: Tiles display as scrollable grid, tap/swipe interactions work
-4. Voice: Mic triggers existing flow, surface responds with preview
-5. Changeset: In-place diff overlays appear on affected tiles
-6. Theme: Ambient color system works in light and dark mode
-7. A11y: Keyboard-navigable, reduced-motion respected, ARIA labels present
 
 ---
 
