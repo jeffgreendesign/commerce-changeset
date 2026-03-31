@@ -56,10 +56,10 @@ interface WorkspaceContextValue {
   select: (id: string) => void;
   multiSelect: (ids: string[]) => void;
   deselectAll: () => void;
-  submitIntent: (text: string) => Promise<void>;
+  submitIntent: (text: string) => Promise<ChangeSet | null>;
   /** Submit an intent scoped to a single product (used by the inspector). */
-  submitIntentForProduct: (text: string, productId: string) => Promise<void>;
-  executeChangeset: () => Promise<void>;
+  submitIntentForProduct: (text: string, productId: string) => Promise<ChangeSet | null>;
+  executeChangeset: (overrideCs?: ChangeSet) => Promise<void>;
   cancelDraft: () => void;
   retryFetch: () => void;
   /** Apply diffs from an externally-executed changeset (e.g. from the chat view). */
@@ -566,7 +566,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const submitIntent = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
       setDraftChangeset(null); // clear stale draft immediately
@@ -588,7 +588,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
 
         const json: unknown = await res.json();
@@ -597,7 +597,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           console.error("[workspace] Invalid orchestrator response:", validated.error);
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         // Schema validates structural shape; cast through unknown since Zod passthrough
         // infers a wider type than the full ChangeSet with its deep nested types
@@ -607,19 +607,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         setDraftChangeset(cs);
+        return cs;
       } catch {
         setDraftChangeset(null);
         setPhase("error");
+        return null;
       }
     },
     [products, selectedIds],
   );
 
   const submitIntentForProduct = useCallback(
-    async (text: string, productId: string) => {
+    async (text: string, productId: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
       setDraftChangeset(null); // clear stale draft immediately
@@ -629,7 +631,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setExecutionError("Product not found — it may have been removed. Please try again.");
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         const context = `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`;
 
@@ -642,7 +644,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
 
         const json: unknown = await res.json();
@@ -651,7 +653,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           console.error("[workspace] Invalid orchestrator response:", validated.error);
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         const cs = validated.data.changeSet as unknown as ChangeSet;
         if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
@@ -659,19 +661,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         setDraftChangeset(cs);
+        return cs;
       } catch {
         setDraftChangeset(null);
         setPhase("error");
+        return null;
       }
     },
     [products],
   );
 
-  const executeChangeset = useCallback(async () => {
-    if (!draftChangeset || executeInFlightRef.current) return;
+  const executeChangeset = useCallback(async (overrideCs?: ChangeSet) => {
+    // Allow callers (e.g. voice tool handlers) to pass the changeset directly,
+    // bypassing stale React state from closure capture.
+    const cs = overrideCs ?? draftChangeset;
+    if (!cs || executeInFlightRef.current) return;
     executeInFlightRef.current = true;
     setPhase("executing");
     setExecutionError(null);
@@ -679,7 +686,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/orchestrator/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ changeSet: draftChangeset }),
+        body: JSON.stringify({ changeSet: cs }),
       });
       if (!res.ok) {
         let msg = "Execution failed";
@@ -708,8 +715,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       );
       const opsToApply =
         successfulOpIds.size > 0
-          ? draftChangeset.operations.filter((op) => successfulOpIds.has(op.id))
-          : draftChangeset.operations;
+          ? cs.operations.filter((op) => successfulOpIds.has(op.id))
+          : cs.operations;
       setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
       // Update draft with execution metadata so history captures it
       if (executedCs) {

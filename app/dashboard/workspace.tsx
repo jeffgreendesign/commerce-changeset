@@ -54,18 +54,19 @@ export function Workspace() {
             selectedProds.length > 0
               ? `\n\nSelected products: ${selectedProds.map((p) => `${p.name} (${p.sku})`).join(", ")}`
               : "";
-          await submitIntent(args.request + context);
-          // submitIntent sets draftChangeset via React state — the UI will
-          // render ChangesetSummary automatically. We return a simple success
-          // so the model knows the request was processed.
+          const cs = await submitIntent(args.request + context);
+          // Store synchronously so execute_changeset can read it immediately
+          // even before React state commits.
+          if (cs) draftChangesetRef.current = cs;
           return {
             success: true,
             message: "Changeset created and displayed for review. The user can see the operations on screen. Ask the user if they want to execute or modify.",
           };
         }
         case "execute_changeset": {
-          if (!draftChangesetRef.current) return { error: "No draft changeset to execute" };
-          await executeChangeset();
+          const cs = draftChangesetRef.current;
+          if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
+          await executeChangeset(cs);
           return { success: true, status: "executed" };
         }
         case "query_product_data": {
@@ -84,8 +85,9 @@ export function Workspace() {
           }
         }
         case "voice_approve": {
-          if (!draftChangesetRef.current) return { error: "No changeset to approve" };
-          await executeChangeset();
+          const cs = draftChangesetRef.current;
+          if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
+          await executeChangeset(cs);
           return { success: true, status: "approved_and_executed" };
         }
         default:

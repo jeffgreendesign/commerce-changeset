@@ -178,6 +178,11 @@ export function Chat({ chatId }: ChatProps) {
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(
     () => restoredSession?.draftChangeSet ?? null,
   );
+  // Ref mirrors draftChangeSet for synchronous access in voice tool handlers,
+  // bypassing stale closures when Gemini batches submit + execute calls.
+  const draftChangeSetRef = useRef<ChangeSet | null>(
+    restoredSession?.draftChangeSet ?? null,
+  );
   const [draftReasoning, setDraftReasoning] = useState(
     () => restoredSession?.draftReasoning ?? "",
   );
@@ -258,6 +263,7 @@ export function Chat({ chatId }: ChatProps) {
           const data: OrchestratorResponse = await res.json();
           if (data.changeSet.operations.length > 0) {
             setDraftChangeSet(data.changeSet);
+            draftChangeSetRef.current = data.changeSet;
             setDraftReasoning(data.reasoning);
             setMessages((prev) => [
               ...prev,
@@ -288,12 +294,13 @@ export function Chat({ chatId }: ChatProps) {
           };
         }
         case "execute_changeset": {
-          if (!draftChangeSet) return { error: "No draft changeset to execute" };
+          const cs = draftChangeSetRef.current;
+          if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ changeSet: draftChangeSet }),
+            body: JSON.stringify({ changeSet: cs }),
           });
           if (!res.ok) throw new Error("Execution failed");
           const data: ExecuteChangeSetResult = await res.json();
@@ -306,7 +313,8 @@ export function Chat({ chatId }: ChatProps) {
               changeSet: data.changeSet,
             },
           ]);
-          setDraftChangeSet(null);
+          setDraftChangeSet(null); draftChangeSetRef.current = null;
+          draftChangeSetRef.current = null;
           setPhase("complete");
           return { success: true, status: data.changeSet.status };
         }
@@ -326,17 +334,19 @@ export function Chat({ chatId }: ChatProps) {
         }
         case "voice_approve": {
           // Voice approval — trigger execution with CIBA
-          if (!draftChangeSet) return { error: "No changeset to approve" };
+          const cs = draftChangeSetRef.current;
+          if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ changeSet: draftChangeSet }),
+            body: JSON.stringify({ changeSet: cs }),
           });
           if (!res.ok) throw new Error("Approval/execution failed");
           const data: ExecuteChangeSetResult = await res.json();
           applyExecutedChangeset(data.changeSet);
-          setDraftChangeSet(null);
+          setDraftChangeSet(null); draftChangeSetRef.current = null;
+          draftChangeSetRef.current = null;
           setPhase("complete");
           return { approved: true, status: data.changeSet.status };
         }
@@ -344,7 +354,7 @@ export function Chat({ chatId }: ChatProps) {
           return { error: `Unknown tool: ${name}` };
       }
     },
-    [draftChangeSet, applyExecutedChangeset]
+    [applyExecutedChangeset]
   );
 
   const handleUserTranscript = useCallback(
@@ -429,7 +439,7 @@ export function Chat({ chatId }: ChatProps) {
           changeSet: data.changeSet,
         },
       ]);
-      setDraftChangeSet(null);
+      setDraftChangeSet(null); draftChangeSetRef.current = null;
       setPhase("complete");
 
       if (data.changeSet.status === "completed") {
@@ -465,7 +475,7 @@ export function Chat({ chatId }: ChatProps) {
     setPhase("rolling_back");
     setActiveRollbackId(sourceId);
     setError("");
-    setDraftChangeSet(null);
+    setDraftChangeSet(null); draftChangeSetRef.current = null;
     scrollToBottom();
 
     try {
@@ -585,7 +595,7 @@ export function Chat({ chatId }: ChatProps) {
   const handleReset = () => {
     setPhase("idle");
     setError("");
-    setDraftChangeSet(null);
+    setDraftChangeSet(null); draftChangeSetRef.current = null;
     setDraftReasoning("");
   };
 
@@ -667,7 +677,7 @@ export function Chat({ chatId }: ChatProps) {
 
       setInput("");
       setError("");
-      setDraftChangeSet(null);
+      setDraftChangeSet(null); draftChangeSetRef.current = null;
       setPhase("loading");
 
       const userMessage: Message = { role: "user", content: prompt };
@@ -712,6 +722,7 @@ export function Chat({ chatId }: ChatProps) {
           scrollToBottom();
         } else {
           setDraftChangeSet(data.changeSet);
+          draftChangeSetRef.current = data.changeSet;
           setDraftReasoning(data.reasoning);
           setMessages((prev) => [
             ...prev,
