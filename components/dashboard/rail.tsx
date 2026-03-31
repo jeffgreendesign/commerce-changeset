@@ -46,6 +46,7 @@ interface RailProps {
   expanded: boolean;
   onToggle: () => void;
   userName: string;
+  hideDesktopSidebar?: boolean;
 }
 
 // ── Rail Content (shared between desktop sidebar and mobile sheet) ───
@@ -115,7 +116,7 @@ function RailNav({
 
 // ── Main export ──────────────────────────────────────────────────────
 
-export function Rail({ expanded, onToggle, userName }: RailProps) {
+export function Rail({ expanded, onToggle, userName, hideDesktopSidebar }: RailProps) {
   const { activeChatId, startNewChat, loadChat, activeView, setActiveView } = useLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -214,8 +215,8 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Desktop rail — hidden below md */}
-      <aside
+      {/* Desktop rail — hidden below md, hidden in workspace views */}
+      {!hideDesktopSidebar && <aside
         className={cn(
           "hidden flex-col border-r bg-sidebar transition-[width] duration-200 ease-in-out md:flex",
           expanded ? "w-60" : "w-16",
@@ -302,7 +303,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
             <p className="truncate text-xs text-muted-foreground">{userName}</p>
           </div>
         )}
-      </aside>
+      </aside>}
     </>
   );
 }

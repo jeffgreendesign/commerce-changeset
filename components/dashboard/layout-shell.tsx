@@ -154,14 +154,13 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   return (
     <LayoutContext.Provider value={ctx}>
       <div className="flex h-full min-h-0 flex-1">
-        {/* Left rail — hidden on mobile, icon-only by default on md+, replaced by Context Spine in workspace view */}
-        {activeView !== "workspace" && activeView !== "drafts" && activeView !== "timeline" && activeView !== "activity" && (
-          <Rail
-            expanded={railExpanded}
-            onToggle={toggleRail}
-            userName={userName}
-          />
-        )}
+        {/* Left rail — mobile hamburger always visible; desktop sidebar hidden in workspace views */}
+        <Rail
+          expanded={railExpanded}
+          onToggle={toggleRail}
+          userName={userName}
+          hideDesktopSidebar={activeView === "workspace" || activeView === "drafts" || activeView === "timeline" || activeView === "activity"}
+        />
 
         {/* Center stage */}
         <main className="flex min-w-0 flex-1 flex-col @container/main">{children}</main>

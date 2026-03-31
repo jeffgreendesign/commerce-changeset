@@ -23,13 +23,15 @@ function DashboardContent({ userName }: { userName: string }) {
       <header className="glass-elevated sticky top-0 z-30 flex flex-col border-b pt-safe">
         {/* Row 1: Nav */}
         <div className="flex items-center justify-between px-4 py-2.5 md:px-6 lg:px-8">
-          {/* Spacer on mobile for hamburger offset */}
-          <div className="w-12 md:hidden" />
-          <h1 className="text-xs font-semibold tracking-tighter whitespace-nowrap sm:text-lg sm:tracking-tight">
-            <Link href="/" className="hover:text-foreground">
-              Commerce Changeset
-            </Link>
-          </h1>
+          <div className="flex items-center gap-2">
+            {/* Spacer on mobile for hamburger offset */}
+            <div className="w-12 md:hidden" />
+            <h1 className="text-xs font-semibold tracking-tighter whitespace-nowrap sm:text-lg sm:tracking-tight">
+              <Link href="/" className="hover:text-foreground">
+                Commerce Changeset
+              </Link>
+            </h1>
+          </div>
           <div className="flex items-center gap-1 text-sm sm:gap-2">
             {/* New Chat button — mobile accessible */}
             <Button
