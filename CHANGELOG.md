@@ -6,6 +6,92 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-03-31
+
+### Added
+
+#### Dashboard Modernization (PR #6)
+
+- Three-panel layout with workflow pipeline stepper and skeleton loading
+- Dark mode support with system preference detection
+- Toast notifications (Sonner) and persistent status bar
+- CIBA approval gate in workflow pipeline
+- Agent theater view with intent cards and delegation graph
+
+#### Gemini Real-time Voice (PRs #7–8)
+
+- Gemini Live API integration for voice input
+- Contextual intelligence with proactive insight generation
+- Dual-model voice types with `@google/genai` SDK and audio worklet
+- `useGeminiLive` React hook for voice session management
+- Sheets-backed voice session persistence
+- iOS Safari and Liquid Glass UI optimization
+
+#### Quick Actions (PRs #11, #15)
+
+- Quick Actions sidebar with agent workflow panel
+- Filterable action cards with risk-tier indicators
+- Confirmation dialog before execution
+- Extracted `RISK_META` to shared module (`lib/risk-tier-config.ts`)
+
+#### Product Creation (PR #12)
+
+- `create_product` Writer Agent action with execution-level guardrails
+
+#### Content Pages (PR #14)
+
+- About page, Terms of Service, Privacy Policy
+- Blog post: "Building Trust Surfaces for AI Agents"
+- Site-wide footer component
+
+#### Living Workspace Design Spec (PR #20)
+
+- `docs/living-workspace-design-spec.md` — five-phase design spec for post-chat UI paradigm
+
+#### Living Workspace — Phase 1: Living Surface Foundation (PR #21)
+
+- Living Surface with product tile grid and selection model
+- Product tiles with ambient status indicators
+- Intent bar: voice-first command surface with text fallback
+- Context Spine icon navigation rail
+- `WorkspaceProvider` React context for workspace state
+- Vercel preview deployment configuration
+
+#### Living Workspace — Phase 2: Changeset Materialization (PR #22)
+
+- In-place diff overlays on product tiles
+- Changeset summary floating panel with operation count and risk assessment
+- Drafts view accessible from Context Spine
+- Contextual chips that prefill intent bar
+- Field-level diffs in changeset summary
+
+#### Living Workspace — Phase 3: Inspector & Timeline (PR #23)
+
+- Inspector panel with inline field editing
+- Timeline view showing chronological activity history
+- Activity view with agent trace cards
+- Shared `TIER_CONFIG` module, draft cleanup logic, execution metadata enrichment
+
+### Changed
+
+- Dashboard migrated from single chat panel to three-panel layout (PR #6)
+
+### Fixed
+
+- Mobile & desktop UI polish: product data views, chat history, content containment, premium surfaces (PRs #9–10)
+- Card overflow and Quick Actions scrolling (PR #13)
+- Mobile navigation: full title display and homepage link (PR #16)
+- iOS zoom prevention: 16px minimum font-size on mobile inputs (PR #17)
+- Inventory display, operation card overflow, voice delay and volume (PR #18)
+- Quick Actions "Run Action" not submitting prompt on mobile (PR #19)
+
+### Security
+
+- Execution-level guardrails on all Writer Agent write operations (PR #12)
+- Formula injection sanitization for Google Sheets cell values (PR #12)
+
+## [0.1.0] — 2026-03-24
+
 ### Added
 
 - Next.js 16 App Router project with TypeScript strict mode
