@@ -5,7 +5,7 @@ import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chat } from "./chat";
 import { Workspace } from "./workspace";
-import { LayoutShell, useLayout } from "@/components/dashboard/layout-shell";
+import { LayoutShell, useLayout, isWorkspaceView } from "@/components/dashboard/layout-shell";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/status-bar";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
@@ -23,13 +23,15 @@ function DashboardContent({ userName }: { userName: string }) {
       <header className="glass-elevated sticky top-0 z-30 flex flex-col border-b pt-safe">
         {/* Row 1: Nav */}
         <div className="flex items-center justify-between px-4 py-2.5 md:px-6 lg:px-8">
-          {/* Spacer on mobile for hamburger offset */}
-          <div className="w-12 md:hidden" />
-          <h1 className="text-xs font-semibold tracking-tighter whitespace-nowrap sm:text-lg sm:tracking-tight">
-            <Link href="/" className="hover:text-foreground">
-              Commerce Changeset
-            </Link>
-          </h1>
+          <div className="flex items-center gap-2">
+            {/* Spacer on mobile for hamburger offset */}
+            <div className="w-12 md:hidden" />
+            <h1 className="text-xs font-semibold tracking-tighter whitespace-nowrap sm:text-lg sm:tracking-tight">
+              <Link href="/" className="hover:text-foreground">
+                Commerce Changeset
+              </Link>
+            </h1>
+          </div>
           <div className="flex items-center gap-1 text-sm sm:gap-2">
             {/* New Chat button — mobile accessible */}
             <Button
@@ -61,13 +63,13 @@ function DashboardContent({ userName }: { userName: string }) {
           </div>
         </div>
         {/* Row 2: Status bar (integrated) */}
-        <div className="flex items-center gap-2 border-t border-foreground/5 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] py-1.5 text-[11px] text-muted-foreground md:pl-6 md:pr-6 lg:pl-8 lg:pr-8">
+        <div className="flex items-center gap-2 border-t border-foreground/5 pl-[max(1rem,env(safe-area-inset-left,1rem))] pr-[max(1rem,env(safe-area-inset-right,1rem))] py-1.5 text-[11px] text-muted-foreground md:pl-6 md:pr-6 lg:pl-8 lg:pr-8">
           <StatusBarContent />
         </div>
       </header>
 
       {/* Content area — switches between workspace, chat, actions, and history */}
-      {activeView === "workspace" || activeView === "drafts" || activeView === "timeline" || activeView === "activity" ? (
+      {isWorkspaceView(activeView) ? (
         <Workspace />
       ) : activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />
