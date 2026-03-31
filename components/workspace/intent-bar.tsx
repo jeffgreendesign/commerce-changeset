@@ -76,7 +76,7 @@ export function IntentBar({
   );
 
   const placeholder = useMemo(() => {
-    if (voiceActive) return "Listening...";
+    if (voiceActive || voiceConnecting) return "Listening...";
     if (draftChangeset && (phase === "preview" || phase === "executing")) {
       return "Review changeset above";
     }
@@ -86,7 +86,7 @@ export function IntentBar({
     if (selectedProducts.length === 1)
       return `${selectedProducts[0].name} — what to change?`;
     return `${selectedProducts.length} products — what to change?`;
-  }, [selectedProducts, draftChangeset, phase, voiceActive]);
+  }, [selectedProducts, draftChangeset, phase, voiceActive, voiceConnecting]);
 
   const chips = useMemo(() => {
     if (selectedProducts.length === 0) return [];
@@ -160,7 +160,7 @@ export function IntentBar({
       )}
 
       {/* Selection-based suggestion chips — prefill input, don't auto-submit */}
-      {!hasDraft && chips.length > 0 && !isBusy && phase !== "complete" && !voiceActive && (
+      {!hasDraft && chips.length > 0 && !isBusy && phase !== "complete" && !voiceActive && !voiceConnecting && (
         <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
           {chips.map((chip) => (
             <button
@@ -193,7 +193,7 @@ export function IntentBar({
           {voiceConnecting ? (
             <LoaderIcon className="size-5 animate-spin" />
           ) : voiceActive ? (
-            <MicOffIcon className="size-5 text-red-500" />
+            <MicOffIcon className="size-5 text-destructive" />
           ) : (
             <MicIcon className="size-5" />
           )}
@@ -213,7 +213,7 @@ export function IntentBar({
               handleSubmit(input);
             }
           }}
-          disabled={isBusy || phase === "complete" || voiceActive}
+          disabled={isBusy || phase === "complete" || voiceActive || voiceConnecting}
         />
 
         {/* Go button */}
@@ -222,7 +222,7 @@ export function IntentBar({
           size="icon"
           className="min-h-[44px] min-w-[44px] shrink-0"
           aria-label="Submit"
-          disabled={isBusy || phase === "complete" || !input.trim() || voiceActive}
+          disabled={isBusy || phase === "complete" || !input.trim() || voiceActive || voiceConnecting}
           onClick={() => handleSubmit(input)}
         >
           {isBusy ? (

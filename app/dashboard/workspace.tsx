@@ -26,19 +26,23 @@ export function Workspace() {
   const handleVoiceToolCall = useCallback(
     async (name: string, args: Record<string, unknown>) => {
       if (name === "submit_commerce_change" && typeof args.request === "string") {
+        if (phase === "executing" || phase === "preview") {
+          return { error: "A changeset is already in progress" };
+        }
         submitIntent(args.request);
         return { success: true, source: "workspace_voice" };
       }
       return { error: `Unknown tool: ${name}` };
     },
-    [submitIntent],
+    [phase, submitIntent],
   );
 
   const handleUserTranscript = useCallback(
     (text: string) => {
+      if (phase === "executing" || phase === "preview") return;
       submitIntent(text);
     },
-    [submitIntent],
+    [phase, submitIntent],
   );
 
   const geminiLive = useGeminiLive({
@@ -50,7 +54,9 @@ export function Workspace() {
     onError: (msg: string) => toast.error(`Voice error: ${msg}`),
   });
 
-  const voiceActive = geminiLive.connectionState === "connected";
+  const voiceActive =
+    geminiLive.connectionState === "connected" ||
+    geminiLive.connectionState === "reconnecting";
   const voiceConnecting = geminiLive.connectionState === "connecting";
 
   const handleVoiceActivate = useCallback(async () => {
