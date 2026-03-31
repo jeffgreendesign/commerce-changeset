@@ -12,7 +12,6 @@ import {
 } from "react";
 import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
-import type { ParsedOperation } from "@/lib/changeset/builder";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { runProactiveChecks } from "@/lib/voice/proactive-insights";
 
@@ -29,6 +28,7 @@ export interface Product {
   name: string;
   sku: string;
   price: number;
+  promoPrice: number | null;
   inventory: number;
   promoStatus: "active" | "inactive";
   category: string;
@@ -122,15 +122,18 @@ function parseProductsFromToolResults(
     .filter((row) => row["Name"] || row["SKU"])
     .map((row, i) => {
       const priceStr = row["Base Price"] ?? row["Price"] ?? "0";
+      const promoPriceStr = row["Promo Price"] ?? "";
       const inventoryStr = row["Inventory"] ?? row["Stock"] ?? "0";
       const promoStr = (row["Promo Active"] ?? row["On Sale"] ?? "").toLowerCase();
       const sku = row["SKU"] ?? row["ID"] ?? "";
+      const parsedPromoPrice = parseFloat(promoPriceStr.replace(/[^0-9.]/g, ""));
 
       return {
         id: sku || `product-${i}`,
         name: row["Name"] ?? row["Product"] ?? row["Product Name"] ?? "",
         sku,
         price: parseFloat(priceStr.replace(/[^0-9.]/g, "")) || 0,
+        promoPrice: Number.isNaN(parsedPromoPrice) ? null : parsedPromoPrice,
         inventory: parseInt(inventoryStr.replace(/[^0-9]/g, ""), 10) || 0,
         promoStatus:
           promoStr === "true" || promoStr === "yes" || promoStr === "active" || promoStr === "on"
@@ -176,10 +179,19 @@ function parseProductsFromMarkdown(text: string): Product[] {
           columnMap["name"] = i;
         if (lower.includes("sku") || lower.includes("id"))
           columnMap["sku"] = i;
-        if (lower.includes("price")) columnMap["price"] = i;
+        // Distinguish "Promo Price" from "Base Price" / "Price"
+        if (lower.includes("promo") && lower.includes("price")) {
+          columnMap["promoPrice"] = i;
+        } else if (lower.includes("price")) {
+          columnMap["price"] = i;
+        }
         if (lower.includes("inventory") || lower.includes("stock") || lower.includes("quantity"))
           columnMap["inventory"] = i;
-        if (lower.includes("promo") || lower.includes("status"))
+        if (lower.includes("promo") && !lower.includes("price")) {
+          // "Promo Active", "Promo Status", etc. — but NOT "Promo Price"
+          columnMap["promo"] = i;
+        }
+        if (lower.includes("status") && !lower.includes("promo"))
           columnMap["promo"] = i;
         if (lower.includes("category") || lower.includes("type"))
           columnMap["category"] = i;
@@ -212,6 +224,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
     const name = safeCell("name");
     const sku = safeCell("sku");
     const priceStr = safeCell("price") || "0";
+    const promoPriceStr = safeCell("promoPrice");
     const inventoryStr = safeCell("inventory") || "0";
     const promoStr = safeCell("promo").toLowerCase();
     const category = (safeCell("category") || "uncategorized").toLowerCase();
@@ -219,6 +232,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
     if (!name && !sku) continue;
 
     const price = parseFloat(priceStr.replace(/[^0-9.]/g, "")) || 0;
+    const parsedPromoPrice = parseFloat(promoPriceStr.replace(/[^0-9.]/g, ""));
     const inventory = parseInt(inventoryStr.replace(/[^0-9]/g, ""), 10) || 0;
     const promoStatus: "active" | "inactive" =
       promoStr.includes("active") || promoStr.includes("yes") || promoStr.includes("on")
@@ -230,6 +244,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
       name,
       sku,
       price,
+      promoPrice: Number.isNaN(parsedPromoPrice) ? null : parsedPromoPrice,
       inventory,
       promoStatus,
       category,
@@ -281,6 +296,7 @@ function productsToRecords(products: Product[]): Record<string, string>[] {
   return products.map((p) => ({
     SKU: p.sku,
     "Base Price": String(p.price),
+    "Promo Price": p.promoPrice != null ? String(p.promoPrice) : "",
     "Promo Active": p.promoStatus === "active" ? "TRUE" : "FALSE",
   }));
 }
@@ -387,19 +403,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!draftChangeset || !Array.isArray(draftChangeset.operations) || draftChangeset.operations.length === 0) {
       return [];
     }
-    const ops = draftChangeset.operations as unknown as ParsedOperation[];
     const productRecords = productsToRecords(products);
-    return runProactiveChecks(ops, productRecords);
+    return runProactiveChecks(draftChangeset.operations, productRecords);
   }, [draftChangeset, products]);
 
   const proactiveIssuesByTarget = useMemo(() => {
     const map = new Map<string, ProactiveIssue[]>();
-    for (const issue of proactiveIssues) {
-      const existing = map.get(issue.operationId);
+
+    const addToMap = (key: string, issue: ProactiveIssue) => {
+      const existing = map.get(key);
       if (existing) {
         existing.push(issue);
       } else {
-        map.set(issue.operationId, [issue]);
+        map.set(key, [issue]);
+      }
+    };
+
+    for (const issue of proactiveIssues) {
+      // Index by the raw operationId (may be full target like "STR-001 Classic Runner")
+      addToMap(issue.operationId, issue);
+
+      // Also index by extracted SKU so lookups by product.sku always match.
+      // Matches the extractSku pattern used in proactive-insights.ts.
+      const skuMatch = issue.operationId.match(/([A-Z]{2,}-\d{3,})/);
+      if (skuMatch && skuMatch[1] !== issue.operationId) {
+        addToMap(skuMatch[1], issue);
       }
     }
     return map;

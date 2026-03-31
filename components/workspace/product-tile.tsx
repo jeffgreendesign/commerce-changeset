@@ -156,6 +156,15 @@ export function ProductTile({
         }
       }}
     >
+      {/* Issue aura — dedicated element to avoid ::after conflict with promo glow */}
+      {maxIssueSeverity && (
+        <span
+          className="tile-issue-aura"
+          data-severity={maxIssueSeverity}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Product name */}
       <p className="text-sm font-medium leading-tight truncate">
         {product.name}

@@ -618,31 +618,34 @@
 
 /* ── Proactive issue indicators (Phase 4: Ambient Intelligence) ───── */
 
-.product-tile[data-has-issue="warning"]::after {
-  content: "";
+/* Dedicated element for issue aura — avoids ::after conflict with promo glow */
+.tile-issue-aura {
   position: absolute;
   inset: -2px;
   border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+.tile-issue-aura[data-severity="warning"] {
   background: radial-gradient(
     ellipse at center,
     oklch(0.85 0.12 85 / 12%) 0%,
     transparent 70%
   );
-  pointer-events: none;
-  z-index: -1;
 }
-.product-tile[data-has-issue="error"]::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
+.tile-issue-aura[data-severity="error"] {
   background: radial-gradient(
     ellipse at center,
     oklch(0.85 0.12 29 / 15%) 0%,
     transparent 70%
   );
-  pointer-events: none;
-  z-index: -1;
+}
+.tile-issue-aura[data-severity="info"] {
+  background: radial-gradient(
+    ellipse at center,
+    oklch(0.85 0.12 264 / 10%) 0%,
+    transparent 70%
+  );
 }
 
 /* Tile breathing — subtle scale pulse when issue detected */
