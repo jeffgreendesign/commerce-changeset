@@ -46,6 +46,7 @@ function InspectorContent({
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
   const priceInputRef = useRef<HTMLInputElement>(null);
+  const isCommittingRef = useRef(false);
 
   // Resolve the selected product
   const selectedProduct = useMemo(() => {
@@ -57,12 +58,14 @@ function InspectorContent({
   // Find all operations targeting this product in draft changeset
   const productOperations = useMemo(() => {
     if (!selectedProduct || !draftChangeset) return [];
+    const sku = selectedProduct.sku;
+    const id = selectedProduct.id;
     return draftChangeset.operations.filter(
       (op) =>
-        op.target === selectedProduct.sku ||
-        op.target === selectedProduct.id ||
-        op.target.includes(selectedProduct.sku) ||
-        op.target.includes(selectedProduct.id),
+        op.target === sku ||
+        op.target === id ||
+        (sku !== "" && op.target.includes(sku)) ||
+        (id !== "" && id !== sku && op.target.includes(id)),
     );
   }, [selectedProduct, draftChangeset]);
 
@@ -96,9 +99,11 @@ function InspectorContent({
     }
   }, [editingPrice]);
 
-  // Submit price change — scoped to the inspected product only
+  // Submit price change — scoped to the inspected product only.
+  // Guarded by isCommittingRef to prevent duplicate calls when blur and
+  // confirm-click fire in sequence.
   const commitPriceChange = useCallback(async () => {
-    if (!selectedProduct) return;
+    if (!selectedProduct || isCommittingRef.current) return;
     const newPrice = parseFloat(priceInput);
     if (Number.isNaN(newPrice) || newPrice < 0) {
       setEditingPrice(false);
@@ -108,11 +113,16 @@ function InspectorContent({
       setEditingPrice(false);
       return;
     }
+    isCommittingRef.current = true;
     setEditingPrice(false);
-    await submitIntentForProduct(
-      `Change price of ${selectedProduct.sku} to $${newPrice.toFixed(2)}`,
-      selectedProduct.id,
-    );
+    try {
+      await submitIntentForProduct(
+        `Change price of ${selectedProduct.sku} to $${newPrice.toFixed(2)}`,
+        selectedProduct.id,
+      );
+    } finally {
+      isCommittingRef.current = false;
+    }
   }, [selectedProduct, priceInput, submitIntentForProduct]);
 
   const handlePriceKeyDown = useCallback(

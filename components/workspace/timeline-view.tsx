@@ -30,7 +30,11 @@ export function TimelineView() {
     if (draftChangeset && phase !== "idle" && phase !== "complete") {
       // Derive changeset status from workspace phase so UI indicators update
       const derivedStatus: ChangeSetStatus =
-        phase === "executing" ? "executing" : draftChangeset.status;
+        phase === "executing"
+          ? "executing"
+          : phase === "error"
+            ? "partial_failure"
+            : draftChangeset.status;
       all.push({
         changeset: { ...draftChangeset, status: derivedStatus },
         completedAt: "",

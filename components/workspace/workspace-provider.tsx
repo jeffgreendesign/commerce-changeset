@@ -319,7 +319,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // "setState during render" pattern (React-endorsed for derived state).
   if (phase !== prevPhaseForHistory) {
     setPrevPhaseForHistory(phase);
-    if (prevPhaseForHistory === "executing" && phase === "complete" && draftChangeset) {
+    if (
+      prevPhaseForHistory === "executing" &&
+      phase === "complete" &&
+      draftChangeset &&
+      draftChangeset.execution?.receipt &&
+      (draftChangeset.status === "completed" || draftChangeset.status === "executing")
+    ) {
       setChangesetHistory((prev) => [
         ...prev,
         {
