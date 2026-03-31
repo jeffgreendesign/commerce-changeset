@@ -16,63 +16,89 @@ import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 
 export function Workspace() {
   const { activeView } = useLayout();
-  const { draftChangeset, phase, cancelDraft, executeChangeset, submitIntent } =
-    useWorkspace();
+  const {
+    products,
+    selectedIds,
+    draftChangeset,
+    phase,
+    cancelDraft,
+    executeChangeset,
+    submitIntent,
+  } = useWorkspace();
 
   const voiceStartTimeRef = useRef(0);
-  const submittingRef = useRef(false);
   const teardownRef = useRef<() => Promise<void>>(async () => { /* placeholder until handleVoiceDeactivate is assigned */ });
-  const userTranscriptRef = useRef("");
 
-  // ── Voice integration ──────────────────────────────────────────────
+  // Ref for draftChangeset so tool handlers can read fresh state.
+  // Updated via effect (React 19 forbids ref writes during render).
+  const draftChangesetRef = useRef(draftChangeset);
+  useEffect(() => {
+    draftChangesetRef.current = draftChangeset;
+  }, [draftChangeset]);
 
-  const submitGuarded = useCallback(
-    async (text: string): Promise<{ blocked: boolean }> => {
-      if (submittingRef.current) return { blocked: true };
-      if (phase === "executing" || phase === "preview") return { blocked: true };
-      submittingRef.current = true;
-      try {
-        await submitIntent(text);
-      } finally {
-        submittingRef.current = false;
-      }
-      return { blocked: false };
-    },
-    [phase, submitIntent],
-  );
+  // ── Voice tool handling ────────────────────────────────────────────
+  // Mirrors chat.tsx's handleGeminiToolCall but uses workspace state.
+  // Each tool calls the relevant API directly — no intermediate guards
+  // that would block cross-phase tool chains (submit → execute).
 
   const handleVoiceToolCall = useCallback(
     async (name: string, args: Record<string, unknown>) => {
-      if (name === "submit_commerce_change" && typeof args.request === "string") {
-        const result = await submitGuarded(args.request);
-        if (result.blocked) {
-          return { error: "A changeset is already in progress" };
+      switch (name) {
+        case "submit_commerce_change": {
+          if (typeof args.request !== "string") return { error: "Missing request" };
+          if (phase === "executing" || phase === "preview") {
+            return { error: "A changeset is already in progress" };
+          }
+          const selectedProds = products.filter((p) => selectedIds.has(p.id));
+          const context =
+            selectedProds.length > 0
+              ? `\n\nSelected products: ${selectedProds.map((p) => `${p.name} (${p.sku})`).join(", ")}`
+              : "";
+          await submitIntent(args.request + context);
+          // submitIntent sets draftChangeset via React state — the UI will
+          // render ChangesetSummary automatically. We return a simple success
+          // so the model knows the request was processed.
+          return {
+            success: true,
+            message: "Changeset created and displayed for review. The user can see the operations on screen. Ask the user if they want to execute or modify.",
+          };
         }
-        return { success: true, source: "workspace_voice" };
+        case "execute_changeset": {
+          if (!draftChangesetRef.current) return { error: "No draft changeset to execute" };
+          await executeChangeset();
+          return { success: true, status: "executed" };
+        }
+        case "query_product_data": {
+          if (typeof args.query !== "string") return { error: "Missing query" };
+          try {
+            const res = await fetch("/api/reader", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: args.query }),
+            });
+            if (!res.ok) return { error: "Reader query failed" };
+            const data = (await res.json()) as { text?: string };
+            return { success: true, data: data.text ?? data };
+          } catch {
+            return { error: "Reader query failed" };
+          }
+        }
+        case "voice_approve": {
+          if (!draftChangesetRef.current) return { error: "No changeset to approve" };
+          await executeChangeset();
+          return { success: true, status: "approved_and_executed" };
+        }
+        default:
+          return { error: `Unknown tool: ${name}` };
       }
-      return { error: `Unknown tool: ${name}` };
     },
-    [submitGuarded],
+    [phase, products, selectedIds, submitIntent, executeChangeset],
   );
 
-  const handleUserTranscript = useCallback(
-    (text: string, finished: boolean) => {
-      userTranscriptRef.current += text;
-      if (finished) {
-        const fullText = userTranscriptRef.current.trim();
-        userTranscriptRef.current = "";
-        if (fullText) {
-          void submitGuarded(fullText);
-        }
-      }
-    },
-    [submitGuarded],
-  );
-
+  // User speech is processed by the Gemini model which invokes tools.
+  // No direct transcript → submission path (that conflicts with tool calls).
   const geminiLive = useGeminiLive({
     onToolCall: handleVoiceToolCall,
-    onUserTranscript: handleUserTranscript,
-    // Model transcript is heard via audio — no visual display needed
     onError: (msg: string) => toast.error(`Voice error: ${msg}`),
   });
 
@@ -125,7 +151,9 @@ export function Workspace() {
 
   // Auto-disconnect voice (with full teardown) when navigating to a
   // workspace sub-view where IntentBar controls aren't rendered
-  teardownRef.current = handleVoiceDeactivate;
+  useEffect(() => {
+    teardownRef.current = handleVoiceDeactivate;
+  }, [handleVoiceDeactivate]);
   useEffect(() => {
     if (activeView !== "workspace" && voiceActive) {
       void teardownRef.current();
