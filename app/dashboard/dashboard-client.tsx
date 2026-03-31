@@ -64,7 +64,6 @@ function DashboardContent({ userName }: { userName: string }) {
         </div>
         {/* Row 2: Status bar (integrated) */}
         <div className="flex items-center gap-2 border-t border-foreground/5 px-4 py-1.5 text-[11px] text-muted-foreground md:px-6 lg:px-8">
-          <div className="w-12 md:hidden" />
           <StatusBarContent />
         </div>
       </header>
