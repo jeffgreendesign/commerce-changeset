@@ -307,6 +307,23 @@ function productsToRecords(products: Product[]): Record<string, string>[] {
   }));
 }
 
+/**
+ * Return operations that succeeded according to execution results.
+ * When results aren't provided (undefined/null), returns all operations
+ * as a best-effort fallback. When results exist but none succeeded,
+ * returns an empty array.
+ */
+function filterSuccessfulOps(
+  operations: Operation[],
+  results: Array<{ status: string; operationId: string }> | undefined | null,
+): Operation[] {
+  if (!Array.isArray(results)) return operations;
+  const successIds = new Set(
+    results.filter((r) => r.status === "success").map((r) => r.operationId),
+  );
+  return operations.filter((op) => successIds.has(op.id));
+}
+
 // ── Apply diffs to products after execution ────────────────────────
 
 function applyDiffsToProducts(
@@ -321,6 +338,14 @@ function applyDiffsToProducts(
     const matchingDiffs: OperationDiff[] = [];
     for (const op of operations) {
       if (typeof op.target !== "string" || !Array.isArray(op.diff)) continue;
+      // Bulk operations embed per-SKU fields (e.g. "Promo Price (STR-001)"),
+      // so always filter by SKU — even if the target happens to match via
+      // startsWith. Check bulk FIRST to avoid pushing unfiltered diffs.
+      if (op.action === "bulk_price_change" && p.sku) {
+        const skuDiffs = op.diff.filter((d) => d.field.includes(p.sku));
+        matchingDiffs.push(...skuDiffs);
+        continue;
+      }
       const target = op.target;
       if (
         target === p.sku ||
@@ -328,14 +353,6 @@ function applyDiffsToProducts(
         (p.sku && target.startsWith(p.sku))
       ) {
         matchingDiffs.push(...op.diff);
-        continue;
-      }
-      // Bulk diff fields encode the SKU in parentheses, e.g. "Promo Price (STR-001)".
-      // This uses includes() rather than the executor's /(STR-\d{3})/ regex since
-      // we're matching against a known product SKU, not extracting one.
-      if (op.action === "bulk_price_change" && p.sku) {
-        const skuDiffs = op.diff.filter((d) => d.field.includes(p.sku));
-        matchingDiffs.push(...skuDiffs);
       }
     }
     if (matchingDiffs.length === 0) return p;
@@ -721,18 +738,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         console.error("[workspace] Invalid executor response:", validated.error);
         // Fall back to applying all ops from the original changeset
       }
-      // Only apply diffs for operations that actually succeeded; fall back
-      // to all operations when the response lacks per-operation results.
-      const results = executedCs?.execution?.results;
-      const hasResults = Array.isArray(results);
-      const successfulOpIds = new Set(
-        results
-          ?.filter((r: { status: string }) => r.status === "success")
-          .map((r: { operationId: string }) => r.operationId) ?? [],
+      const opsToApply = filterSuccessfulOps(
+        cs.operations,
+        executedCs?.execution?.results,
       );
-      const opsToApply = hasResults
-        ? cs.operations.filter((op) => successfulOpIds.has(op.id))
-        : cs.operations;
       setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
       // Update draft with execution metadata so history captures it
       if (executedCs) {
@@ -763,18 +772,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyExecutedChangeset = useCallback((cs: ChangeSet) => {
-    const results = cs.execution?.results;
-    const hasResults = Array.isArray(results);
-    const successfulOpIds = new Set(
-      results
-        ?.filter((r: { status: string }) => r.status === "success")
-        .map((r: { operationId: string }) => r.operationId) ?? [],
+    const opsToApply = filterSuccessfulOps(
+      cs.operations,
+      cs.execution?.results,
     );
-    // If per-op results exist, apply only successful ops (may be empty).
-    // If no results provided, apply all ops as best effort.
-    const opsToApply = hasResults
-      ? cs.operations.filter((op) => successfulOpIds.has(op.id))
-      : cs.operations;
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
   }, []);
 
