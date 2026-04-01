@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, useSyncExternalStore } from "react";
 import {
   XIcon,
   PackageIcon,
@@ -420,11 +420,26 @@ function InspectorContent({
   );
 }
 
+// ── Viewport hook ─────────────────────────────────────────────────
+
+const lgSubscribe = (cb: () => void) => {
+  const mql = window.matchMedia("(min-width: 1024px)");
+  mql.addEventListener("change", cb);
+  return () => mql.removeEventListener("change", cb);
+};
+const lgSnapshot = () => window.matchMedia("(min-width: 1024px)").matches;
+const lgServerSnapshot = () => true;
+
+function useIsLg() {
+  return useSyncExternalStore(lgSubscribe, lgSnapshot, lgServerSnapshot);
+}
+
 // ── Main component ─────────────────────────────────────────────────
 
 export function InspectorPanel() {
   const { selectedIds, deselectAll } = useWorkspace();
   const isOpen = selectedIds.size > 0;
+  const isLg = useIsLg();
 
   const handleClose = useCallback(() => {
     deselectAll();
@@ -442,8 +457,8 @@ export function InspectorPanel() {
         {isOpen && <InspectorContent onClose={handleClose} />}
       </aside>
 
-      {/* Mobile — bottom sheet */}
-      <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      {/* Mobile — bottom sheet (only mount below lg to avoid backdrop on desktop) */}
+      <Sheet open={isOpen && !isLg} onOpenChange={(open) => !open && handleClose()}>
         <SheetContent
           side="bottom"
           className="max-h-[80vh] lg:hidden"
