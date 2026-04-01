@@ -130,14 +130,17 @@ function InspectorContent({
     isCommittingRef.current = true;
     setEditingPrice(false);
     try {
-      await submitIntentForProduct(
+      const cs = await submitIntentForProduct(
         `Change price of ${selectedProduct.sku} to $${newPrice.toFixed(2)}`,
         selectedProduct.id,
       );
+      // Close inspector to reveal the ChangesetSummary (Execute button + CIBA hint).
+      // On mobile the Sheet overlay would otherwise block it entirely.
+      if (cs) onClose();
     } finally {
       isCommittingRef.current = false;
     }
-  }, [selectedProduct, priceInput, submitIntentForProduct]);
+  }, [selectedProduct, priceInput, submitIntentForProduct, onClose]);
 
   const handlePriceKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -230,6 +233,11 @@ function InspectorContent({
             ) : (
               <p className="text-2xl font-bold tracking-tight">
                 ${selectedProduct.price.toFixed(2)}
+              </p>
+            )}
+            {selectedProduct.promoPrice != null && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Promo: ${selectedProduct.promoPrice.toFixed(2)}
               </p>
             )}
           </div>
