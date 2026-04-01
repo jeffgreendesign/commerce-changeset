@@ -148,10 +148,16 @@ export function ProductTile({
       data-has-diff={showDiff || undefined}
       data-recently-changed={phase === "complete" && showDiff ? true : undefined}
       data-has-issue={maxIssueSeverity ?? undefined}
-      onClick={(e) => onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey })}
+      onClick={(e) => {
+        // Blur before selection so the inspector sheet (Base UI Dialog) can
+        // safely apply aria-hidden without conflicting with retained focus.
+        (e.currentTarget as HTMLElement).blur();
+        onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey });
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          (e.currentTarget as HTMLElement).blur();
           onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey });
         }
       }}
