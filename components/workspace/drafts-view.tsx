@@ -145,7 +145,7 @@ export function DraftsView() {
                 variant="default"
                 size="sm"
                 className="min-h-[36px] gap-1"
-                onClick={executeChangeset}
+                onClick={() => executeChangeset()}
                 disabled={isExecuting}
               >
                 <PlayIcon className="size-3.5" />

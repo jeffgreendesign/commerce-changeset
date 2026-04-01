@@ -40,12 +40,16 @@ export function LivingSurface() {
   }, [products]);
 
   // Build operation lookup: target (SKU) → Operation
+  // Orchestrator targets include the product name (e.g. "STR-001 Classic Runner"),
+  // so we also key by extracted SKU prefix to match product.sku ("STR-001").
   const operationsByTarget = useMemo(() => {
     if (!draftChangeset) return new Map<string, Operation>();
     const map = new Map<string, Operation>();
     for (const op of draftChangeset.operations) {
       if (typeof op.target === "string") {
         map.set(op.target, op);
+        const skuMatch = op.target.match(/^([A-Z]{2,}-\d{3,})/);
+        if (skuMatch) map.set(skuMatch[1], op);
       }
     }
     return map;

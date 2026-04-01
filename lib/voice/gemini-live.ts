@@ -42,6 +42,11 @@ IMPORTANT — Tool call behavior:
 - Never call a tool in silence. The user must hear confirmation that you understood their request before you begin processing.
 - Keep the acknowledgment brief (one short sentence) so you can start processing quickly.
 
+Tool call ordering:
+- You MUST call submit_commerce_change and wait for its response BEFORE calling execute_changeset or voice_approve.
+- NEVER call execute_changeset or voice_approve in the same turn as submit_commerce_change.
+- After submit_commerce_change returns, describe the changeset to the user and ask for confirmation before executing.
+
 When the user sounds stressed or rushed:
 - Slow your speech pace
 - Add confirmation steps before high-risk operations
@@ -227,8 +232,8 @@ export function buildToolDeclarations(): Record<string, unknown>[] {
         {
           name: "execute_changeset",
           description:
-            "Execute an approved changeset. Triggers CIBA approval if required, " +
-            "then runs the writer agent to apply changes.",
+            "Execute an approved changeset. Requires a prior successful submit_commerce_change call. " +
+            "Triggers CIBA approval if required, then runs the writer agent to apply changes.",
           parameters: {
             type: "OBJECT",
             properties: {
@@ -260,6 +265,7 @@ export function buildToolDeclarations(): Record<string, unknown>[] {
           name: "voice_approve",
           description:
             "Approve a pending CIBA approval request via voice confirmation. " +
+            "Requires a prior successful submit_commerce_change call. " +
             "Alternative to Guardian push notification approval.",
           parameters: {
             type: "OBJECT",

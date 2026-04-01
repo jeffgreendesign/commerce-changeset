@@ -17,8 +17,6 @@ import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 export function Workspace() {
   const { activeView } = useLayout();
   const {
-    products,
-    selectedIds,
     draftChangeset,
     phase,
     cancelDraft,
@@ -49,24 +47,25 @@ export function Workspace() {
           if (phase === "executing" || phase === "preview") {
             return { error: "A changeset is already in progress" };
           }
-          const selectedProds = products.filter((p) => selectedIds.has(p.id));
-          const context =
-            selectedProds.length > 0
-              ? `\n\nSelected products: ${selectedProds.map((p) => `${p.name} (${p.sku})`).join(", ")}`
-              : "";
-          await submitIntent(args.request + context);
-          // submitIntent sets draftChangeset via React state — the UI will
-          // render ChangesetSummary automatically. We return a simple success
-          // so the model knows the request was processed.
+          // submitIntent already injects selected-product context internally
+          const cs = await submitIntent(args.request);
+          if (!cs) {
+            draftChangesetRef.current = null;
+            return { success: false, error: "Failed to create changeset — try a more specific request" };
+          }
+          // Store synchronously so execute_changeset can read it immediately
+          // even before React state commits.
+          draftChangesetRef.current = cs;
           return {
             success: true,
             message: "Changeset created and displayed for review. The user can see the operations on screen. Ask the user if they want to execute or modify.",
           };
         }
         case "execute_changeset": {
-          if (!draftChangesetRef.current) return { error: "No draft changeset to execute" };
-          await executeChangeset();
-          return { success: true, status: "executed" };
+          const cs = draftChangesetRef.current;
+          if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
+          const result = await executeChangeset(cs);
+          return result;
         }
         case "query_product_data": {
           if (typeof args.query !== "string") return { error: "Missing query" };
@@ -84,15 +83,16 @@ export function Workspace() {
           }
         }
         case "voice_approve": {
-          if (!draftChangesetRef.current) return { error: "No changeset to approve" };
-          await executeChangeset();
-          return { success: true, status: "approved_and_executed" };
+          const cs = draftChangesetRef.current;
+          if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
+          const result = await executeChangeset(cs);
+          return { ...result, status: result.success ? "approved_and_executed" : result.status };
         }
         default:
           return { error: `Unknown tool: ${name}` };
       }
     },
-    [phase, products, selectedIds, submitIntent, executeChangeset],
+    [phase, submitIntent, executeChangeset],
   );
 
   // User speech is processed by the Gemini model which invokes tools.
@@ -215,7 +215,7 @@ export function Workspace() {
             <ChangesetSummary
               changeset={draftChangeset}
               onCancel={cancelDraft}
-              onExecute={executeChangeset}
+              onExecute={() => executeChangeset().then(() => {})}
               executing={phase === "executing"}
             />
           )}

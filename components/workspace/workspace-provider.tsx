@@ -56,12 +56,14 @@ interface WorkspaceContextValue {
   select: (id: string) => void;
   multiSelect: (ids: string[]) => void;
   deselectAll: () => void;
-  submitIntent: (text: string) => Promise<void>;
+  submitIntent: (text: string) => Promise<ChangeSet | null>;
   /** Submit an intent scoped to a single product (used by the inspector). */
-  submitIntentForProduct: (text: string, productId: string) => Promise<void>;
-  executeChangeset: () => Promise<void>;
+  submitIntentForProduct: (text: string, productId: string) => Promise<ChangeSet | null>;
+  executeChangeset: (overrideCs?: ChangeSet) => Promise<{ success: boolean; status?: string; error?: string }>;
   cancelDraft: () => void;
   retryFetch: () => void;
+  /** Apply diffs from an externally-executed changeset (e.g. from the chat view). */
+  applyExecutedChangeset: (cs: ChangeSet) => void;
   /** Session-level changeset history (survives view switches). */
   changesetHistory: TimelineEntry[];
 }
@@ -94,6 +96,10 @@ const OrchestratorResponseSchema = z.object({
   reasoning: z.string(),
   readerText: z.string().optional(),
 });
+
+const ExecutorResponseSchema = z.object({
+  changeSet: ChangeSetSchema,
+}).passthrough();
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
@@ -301,40 +307,81 @@ function productsToRecords(products: Product[]): Record<string, string>[] {
   }));
 }
 
+/**
+ * Return operations that succeeded according to execution results.
+ * When results aren't provided (undefined/null), returns all operations
+ * as a best-effort fallback. When results exist but none succeeded,
+ * returns an empty array.
+ */
+function filterSuccessfulOps(
+  operations: Operation[],
+  results: Array<{ status: string; operationId: string }> | undefined | null,
+): Operation[] {
+  if (!Array.isArray(results)) return operations;
+  const successIds = new Set(
+    results.filter((r) => r.status === "success").map((r) => r.operationId),
+  );
+  return operations.filter((op) => successIds.has(op.id));
+}
+
 // ── Apply diffs to products after execution ────────────────────────
 
 function applyDiffsToProducts(
   products: Product[],
   operations: Operation[],
 ): Product[] {
-  const diffsByTarget = new Map<string, OperationDiff[]>();
-  for (const op of operations) {
-    if (typeof op.target === "string" && Array.isArray(op.diff)) {
-      const existing = diffsByTarget.get(op.target) ?? [];
-      diffsByTarget.set(op.target, [...existing, ...op.diff]);
-    }
-  }
+  // Match operations to products by SKU. The orchestrator produces targets
+  // like "STR-001 Classic Runner" (SKU + name) while product.sku is just
+  // "STR-001", so we check startsWith rather than exact equality.
+  // Bulk operations embed SKUs in diff field names (e.g. "Promo Price (STR-001)").
   return products.map((p) => {
-    const diffs = diffsByTarget.get(p.sku) ?? diffsByTarget.get(p.id);
-    if (!diffs) return p;
+    const matchingDiffs: OperationDiff[] = [];
+    for (const op of operations) {
+      if (typeof op.target !== "string" || !Array.isArray(op.diff)) continue;
+      // Bulk operations embed per-SKU fields (e.g. "Promo Price (STR-001)"),
+      // so always filter by SKU — even if the target happens to match via
+      // startsWith. Check bulk FIRST to avoid pushing unfiltered diffs.
+      if (op.action === "bulk_price_change" && p.sku) {
+        const skuDiffs = op.diff.filter((d) => d.field.includes(p.sku));
+        matchingDiffs.push(...skuDiffs);
+        continue;
+      }
+      const target = op.target;
+      if (
+        target === p.sku ||
+        target === p.id ||
+        (p.sku && target.startsWith(p.sku))
+      ) {
+        matchingDiffs.push(...op.diff);
+      }
+    }
+    if (matchingDiffs.length === 0) return p;
     const updated = { ...p };
-    for (const d of diffs) {
+    for (const d of matchingDiffs) {
       const field = d.field.toLowerCase();
       if (field.includes("price")) {
         const val =
           typeof d.after === "number"
             ? d.after
             : parseFloat(String(d.after).replace(/[^0-9.]/g, ""));
-        if (!Number.isNaN(val)) updated.price = val;
-      }
-      if (field.includes("inventory") || field.includes("stock")) {
+        if (!Number.isNaN(val)) {
+          // "Promo Price" → promoPrice only; "Base Price" or plain "Price" → price only.
+          // Do NOT set both — promo updates must preserve the base price so
+          // productsToRecords() and product tiles show the correct values.
+          if (field.includes("promo")) {
+            updated.promoPrice = val;
+          } else {
+            updated.price = val;
+          }
+        }
+      } else if (field.includes("inventory") || field.includes("stock")) {
         const val =
           typeof d.after === "number"
             ? d.after
             : parseInt(String(d.after).replace(/[^0-9]/g, ""), 10);
         if (!Number.isNaN(val)) updated.inventory = val;
-      }
-      if (field.includes("promo") || field.includes("status")) {
+      } else if (field.includes("promo") || field.includes("status")) {
+        // "Promo Active" / "Promo Status" — NOT "Promo Price" (handled above via else-if)
         const val = String(d.after).toLowerCase();
         updated.promoStatus =
           val === "active" || val === "true" || val === "yes" || val === "on"
@@ -542,7 +589,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const submitIntent = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
       setDraftChangeset(null); // clear stale draft immediately
@@ -564,7 +611,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
 
         const json: unknown = await res.json();
@@ -573,7 +620,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           console.error("[workspace] Invalid orchestrator response:", validated.error);
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         // Schema validates structural shape; cast through unknown since Zod passthrough
         // infers a wider type than the full ChangeSet with its deep nested types
@@ -583,19 +630,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         setDraftChangeset(cs);
+        return cs;
       } catch {
         setDraftChangeset(null);
         setPhase("error");
+        return null;
       }
     },
     [products, selectedIds],
   );
 
   const submitIntentForProduct = useCallback(
-    async (text: string, productId: string) => {
+    async (text: string, productId: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
       setDraftChangeset(null); // clear stale draft immediately
@@ -605,7 +654,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setExecutionError("Product not found — it may have been removed. Please try again.");
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         const context = `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`;
 
@@ -618,7 +667,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
 
         const json: unknown = await res.json();
@@ -627,7 +676,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           console.error("[workspace] Invalid orchestrator response:", validated.error);
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         const cs = validated.data.changeSet as unknown as ChangeSet;
         if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
@@ -635,19 +684,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
           setDraftChangeset(null);
           setPhase("error");
-          return;
+          return null;
         }
         setDraftChangeset(cs);
+        return cs;
       } catch {
         setDraftChangeset(null);
         setPhase("error");
+        return null;
       }
     },
     [products],
   );
 
-  const executeChangeset = useCallback(async () => {
-    if (!draftChangeset || executeInFlightRef.current) return;
+  const executeChangeset = useCallback(async (overrideCs?: ChangeSet): Promise<{ success: boolean; status?: string; error?: string }> => {
+    // Allow callers (e.g. voice tool handlers) to pass the changeset directly,
+    // bypassing stale React state from closure capture.
+    const cs = overrideCs ?? draftChangeset;
+    if (!cs || executeInFlightRef.current) {
+      return { success: false, status: "ignored", error: cs ? "Execution already in flight" : "No changeset to execute" };
+    }
     executeInFlightRef.current = true;
     setPhase("executing");
     setExecutionError(null);
@@ -655,7 +711,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/orchestrator/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ changeSet: draftChangeset }),
+        body: JSON.stringify({ changeSet: cs }),
       });
       if (!res.ok) {
         let msg = "Execution failed";
@@ -670,22 +726,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setExecutionError(msg);
         setPhase("error");
         executeInFlightRef.current = false;
-        return;
+        return { success: false, status: "failed", error: msg };
       }
-      // Parse response to capture execution metadata (receipt, verification)
-      const executeData = (await res.json()) as { changeSet?: unknown };
-      const executedCs = executeData.changeSet as ChangeSet | undefined;
-      // Only apply diffs for operations that actually succeeded; fall back
-      // to all operations when the response lacks per-operation results.
-      const successfulOpIds = new Set(
-        executedCs?.execution?.results
-          ?.filter((r: { status: string }) => r.status === "success")
-          .map((r: { operationId: string }) => r.operationId) ?? [],
+      // Parse and validate response to capture execution metadata
+      const json: unknown = await res.json();
+      const validated = ExecutorResponseSchema.safeParse(json);
+      let executedCs: ChangeSet | undefined;
+      if (validated.success) {
+        executedCs = validated.data.changeSet as unknown as ChangeSet;
+      } else {
+        console.error("[workspace] Invalid executor response:", validated.error);
+        // Fall back to applying all ops from the original changeset
+      }
+      const opsToApply = filterSuccessfulOps(
+        cs.operations,
+        executedCs?.execution?.results,
       );
-      const opsToApply =
-        successfulOpIds.size > 0
-          ? draftChangeset.operations.filter((op) => successfulOpIds.has(op.id))
-          : draftChangeset.operations;
       setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
       // Update draft with execution metadata so history captures it
       if (executedCs) {
@@ -698,12 +754,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setExecutionError(null);
         executeInFlightRef.current = false;
       }, 2000);
+      return { success: true, status: "executed" };
     } catch (err) {
-      setExecutionError(
-        err instanceof Error ? err.message : "Network error — check your connection",
-      );
+      const msg = err instanceof Error ? err.message : "Network error — check your connection";
+      setExecutionError(msg);
       setPhase("error");
       executeInFlightRef.current = false;
+      return { success: false, status: "failed", error: msg };
     }
   }, [draftChangeset]);
 
@@ -712,6 +769,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setExecutionError(null);
     executeInFlightRef.current = false;
     setPhase("idle");
+  }, []);
+
+  const applyExecutedChangeset = useCallback((cs: ChangeSet) => {
+    const opsToApply = filterSuccessfulOps(
+      cs.operations,
+      cs.execution?.results,
+    );
+    setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
   }, []);
 
   const ctx = useMemo<WorkspaceContextValue>(
@@ -735,6 +800,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       executeChangeset,
       cancelDraft,
       retryFetch,
+      applyExecutedChangeset,
       changesetHistory,
     }),
     [
@@ -757,6 +823,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       executeChangeset,
       cancelDraft,
       retryFetch,
+      applyExecutedChangeset,
       changesetHistory,
     ],
   );

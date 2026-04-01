@@ -200,6 +200,11 @@ export function ProductTile({
           ${product.price.toFixed(2)}
         </p>
       )}
+      {product.promoPrice != null && product.promoStatus === "active" && (
+        <p className="text-xs text-muted-foreground">
+          Promo: ${product.promoPrice.toFixed(2)}
+        </p>
+      )}
 
       {/* Non-price diff badges (promo toggle, inventory, etc.) */}
       {showDiff && hasNonPriceDiff && diffs && (
