@@ -127,6 +127,20 @@ function haptic(pattern: number | number[]) {
   }
 }
 
+/** Show execution feedback (toast + haptic) based on changeset status. */
+function showExecutionFeedback(changeSet: ChangeSet) {
+  if (changeSet.status === "completed") {
+    const passedChecks = changeSet.execution?.receipt.verification.checksPassed ?? 0;
+    const totalChecks = changeSet.execution?.receipt.verification.checksRun ?? 0;
+    toast.success(
+      `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
+    );
+    haptic(200);
+  } else {
+    toast.warning(`Execution finished with status: ${changeSet.status}`);
+  }
+}
+
 /** Detect mobile viewport via matchMedia (SSR-safe). */
 const mobileSubscribe = (cb: () => void) => {
   const mql = window.matchMedia("(max-width: 639px)");
@@ -316,16 +330,7 @@ export function Chat({ chatId }: ChatProps) {
           setDraftChangeSet(null);
           draftChangeSetRef.current = null;
           setPhase("complete");
-          if (data.changeSet.status === "completed") {
-            const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
-            const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
-            toast.success(
-              `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
-            );
-            haptic(200);
-          } else {
-            toast.warning(`Execution finished with status: ${data.changeSet.status}`);
-          }
+          showExecutionFeedback(data.changeSet);
           return { success: true, status: data.changeSet.status };
         }
         case "query_product_data": {
@@ -366,16 +371,7 @@ export function Chat({ chatId }: ChatProps) {
           setDraftChangeSet(null);
           draftChangeSetRef.current = null;
           setPhase("complete");
-          if (data.changeSet.status === "completed") {
-            const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
-            const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
-            toast.success(
-              `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
-            );
-            haptic(200);
-          } else {
-            toast.warning(`Execution finished with status: ${data.changeSet.status}`);
-          }
+          showExecutionFeedback(data.changeSet);
           return { approved: true, status: data.changeSet.status };
         }
         default:
@@ -469,17 +465,7 @@ export function Chat({ chatId }: ChatProps) {
       ]);
       setDraftChangeSet(null); draftChangeSetRef.current = null;
       setPhase("complete");
-
-      if (data.changeSet.status === "completed") {
-        const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
-        const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
-        toast.success(
-          `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
-        );
-        haptic(200); // Long pulse on execution complete
-      } else {
-        toast.warning(`Execution finished with status: ${data.changeSet.status}`);
-      }
+      showExecutionFeedback(data.changeSet);
 
       scrollToBottom();
     } catch (err) {
