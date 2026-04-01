@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
-import { ContextSpine } from "@/components/workspace/context-spine";
 import { LivingSurface } from "@/components/workspace/living-surface";
 import { IntentBar } from "@/components/workspace/intent-bar";
 import { ChangesetSummary } from "@/components/workspace/changeset-summary";
@@ -162,10 +161,7 @@ export function Workspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-1">
-      {/* Context Spine — desktop only (hidden on mobile via CSS) */}
-      <ContextSpine />
-
-      {/* View routing based on Context Spine selection */}
+      {/* View routing */}
       {activeView === "drafts" ? (
         <DraftsView />
       ) : activeView === "timeline" ? (

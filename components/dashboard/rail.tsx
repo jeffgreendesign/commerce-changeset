@@ -5,6 +5,9 @@ import {
   LayoutDashboardIcon,
   LayoutGridIcon,
   MessageSquareIcon,
+  ClockIcon,
+  LayersIcon,
+  ActivityIcon,
   HistoryIcon,
   ZapIcon,
   MenuIcon,
@@ -25,20 +28,32 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { ChatHistoryPanel } from "./chat-history-panel";
-import { useLayout, isWorkspaceView } from "./layout-shell";
+import { useLayout } from "./layout-shell";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
 
 // ── Nav items ────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
-  { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
-  { icon: HistoryIcon, label: "History", id: "history" as const, enabled: true },
-  { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: true },
-] as const;
+const NAV_GROUPS = [
+  {
+    items: [
+      { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
+      { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
+      { icon: ClockIcon, label: "Timeline", id: "timeline" as const, enabled: true },
+      { icon: LayersIcon, label: "Drafts", id: "drafts" as const, enabled: true },
+      { icon: ActivityIcon, label: "Activity", id: "activity" as const, enabled: true },
+    ],
+  },
+  {
+    items: [
+      { icon: HistoryIcon, label: "History", id: "history" as const, enabled: true },
+      { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: true },
+    ],
+  },
+];
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -46,7 +61,6 @@ interface RailProps {
   expanded: boolean;
   onToggle: () => void;
   userName: string;
-  hideDesktopSidebar?: boolean;
 }
 
 // ── Rail Content (shared between desktop sidebar and mobile sheet) ───
@@ -63,52 +77,57 @@ function RailNav({
   return (
     <nav className="flex flex-col gap-1.5 px-2.5 py-3">
       <TooltipProvider>
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeItem === item.id;
-          return (
-            <Tooltip key={item.id}>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    size={expanded ? "default" : "icon"}
-                    className={cn(
-                      "min-h-[44px] min-w-[44px]",
-                      expanded && "justify-start gap-3 px-3",
-                      !item.enabled && "opacity-50",
-                    )}
-                    onClick={() => {
-                      if (item.enabled) {
-                        onSelect(item.id);
-                      } else {
-                        toast.info(`${item.label} — coming soon`);
-                      }
-                    }}
-                  />
-                }
-              >
-                <Icon className="size-4 shrink-0" />
-                {expanded && (
-                  <span className="text-sm font-medium">
-                    {item.label}
-                    {!item.enabled && (
-                      <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
-                        Soon
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={gi} className="flex flex-col gap-1.5">
+            {gi > 0 && <Separator className="my-1" />}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeItem === item.id;
+              return (
+                <Tooltip key={item.id}>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant={isActive ? "secondary" : "ghost"}
+                        size={expanded ? "default" : "icon"}
+                        className={cn(
+                          "min-h-[44px] min-w-[44px]",
+                          expanded && "justify-start gap-3 px-3",
+                          !item.enabled && "opacity-50",
+                        )}
+                        onClick={() => {
+                          if (item.enabled) {
+                            onSelect(item.id);
+                          } else {
+                            toast.info(`${item.label} — coming soon`);
+                          }
+                        }}
+                      />
+                    }
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {expanded && (
+                      <span className="text-sm font-medium">
+                        {item.label}
+                        {!item.enabled && (
+                          <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
+                            Soon
+                          </span>
+                        )}
                       </span>
                     )}
-                  </span>
-                )}
-              </TooltipTrigger>
-              {!expanded && (
-                <TooltipContent side="right">
-                  {item.label}
-                  {!item.enabled && " (coming soon)"}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          );
-        })}
+                  </TooltipTrigger>
+                  {!expanded && (
+                    <TooltipContent side="right">
+                      {item.label}
+                      {!item.enabled && " (coming soon)"}
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              );
+            })}
+          </div>
+        ))}
       </TooltipProvider>
     </nav>
   );
@@ -116,29 +135,14 @@ function RailNav({
 
 // ── Main export ──────────────────────────────────────────────────────
 
-export function Rail({ expanded, onToggle, userName, hideDesktopSidebar }: RailProps) {
+export function Rail({ expanded, onToggle, userName }: RailProps) {
   const { activeChatId, startNewChat, loadChat, activeView, setActiveView } = useLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const activeItem =
-    isWorkspaceView(activeView)
-      ? "workspace"
-      : activeView === "history"
-        ? "history"
-        : activeView === "actions"
-          ? "actions"
-          : "chat";
+  const activeItem = activeView;
 
   const handleSelect = (id: string) => {
-    if (id === "workspace") {
-      setActiveView("workspace");
-    } else if (id === "chat") {
-      setActiveView("chat");
-    } else if (id === "history") {
-      setActiveView("history");
-    } else if (id === "actions") {
-      setActiveView("actions");
-    }
+    setActiveView(id as typeof activeView);
   };
 
   const handleNewChat = () => {
@@ -215,8 +219,8 @@ export function Rail({ expanded, onToggle, userName, hideDesktopSidebar }: RailP
         </SheetContent>
       </Sheet>
 
-      {/* Desktop rail — hidden below md, hidden in workspace views */}
-      {!hideDesktopSidebar && <aside
+      {/* Desktop rail — hidden below md */}
+      <aside
         className={cn(
           "hidden flex-col border-r bg-sidebar transition-[width] duration-200 ease-in-out md:flex",
           expanded ? "w-60" : "w-16",
@@ -303,7 +307,7 @@ export function Rail({ expanded, onToggle, userName, hideDesktopSidebar }: RailP
             <p className="truncate text-xs text-muted-foreground">{userName}</p>
           </div>
         )}
-      </aside>}
+      </aside>
     </>
   );
 }
