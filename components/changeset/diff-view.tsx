@@ -1,8 +1,14 @@
+import Image from "next/image";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OperationDiff } from "@/lib/changeset/types";
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+/** Fields whose values should be rendered as image thumbnails. */
+function isImageField(field: string): boolean {
+  return /^Image\s*URL$/i.test(field);
+}
 
 /** Fields whose values should be displayed as currency. */
 function isCurrencyField(field: string): boolean {
@@ -54,6 +60,33 @@ export function DiffView({ diffs }: { diffs: OperationDiff[] }) {
   return (
     <div className="space-y-2">
       {diffs.map((d, i) => {
+        if (isImageField(d.field)) {
+          const before = String(d.before).trim();
+          const after = String(d.after).trim();
+          const hasBefore = before !== "" && before !== "undefined" && before !== "null";
+          const hasAfter = after !== "" && after !== "undefined" && after !== "null";
+          if (!hasBefore && !hasAfter) return null;
+          return (
+            <div
+              key={i}
+              className="flex flex-col gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs"
+            >
+              <span className="font-medium">{d.field}</span>
+              <div className="flex items-center gap-3">
+                {hasBefore && (
+                  <Image src={before} alt="before" width={64} height={64} className="rounded border object-cover opacity-50" />
+                )}
+                {hasBefore && hasAfter && (
+                  <span className="text-muted-foreground">&rarr;</span>
+                )}
+                {hasAfter && (
+                  <Image src={after} alt="after" width={64} height={64} className="rounded border object-cover" />
+                )}
+              </div>
+            </div>
+          );
+        }
+
         const change = computeChange(d.before, d.after, d.field);
         return (
           <div

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -99,10 +100,20 @@ export function OperationCard({
   result?: OperationResult;
   checks?: VerificationCheck[];
 }) {
+  const imageUrl = operation.diff.find(
+    (d) => /^Image\s*URL$/i.test(d.field) && String(d.after ?? d.before).trim(),
+  );
+  const thumbSrc = imageUrl
+    ? String(imageUrl.after || imageUrl.before).trim()
+    : null;
+
   return (
     <Card size="sm">
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
+          {thumbSrc && (
+            <Image src={thumbSrc} alt="" width={32} height={32} className="rounded border object-cover" />
+          )}
           <AgentBadge agent={operation.agent} />
           <span className="min-w-0 font-mono text-sm">{operation.action}</span>
           <span className="text-muted-foreground">&rarr;</span>

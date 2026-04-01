@@ -80,7 +80,7 @@ function buildReaderTools(refreshToken: string): Record<string, Tool> {
     get_products: withGoogleToken(
       tool({
         description:
-          "Fetch all products from the Products sheet (SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory)",
+          "Fetch all products from the Products sheet (SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory, Image URL)",
         inputSchema: z.object({}),
         execute: async () => {
           const { headers, rows } = await fetchSheet("Products");
