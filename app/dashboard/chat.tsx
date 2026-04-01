@@ -313,7 +313,7 @@ export function Chat({ chatId }: ChatProps) {
               changeSet: data.changeSet,
             },
           ]);
-          setDraftChangeSet(null); draftChangeSetRef.current = null;
+          setDraftChangeSet(null);
           draftChangeSetRef.current = null;
           setPhase("complete");
           return { success: true, status: data.changeSet.status };
@@ -345,7 +345,7 @@ export function Chat({ chatId }: ChatProps) {
           if (!res.ok) throw new Error("Approval/execution failed");
           const data: ExecuteChangeSetResult = await res.json();
           applyExecutedChangeset(data.changeSet);
-          setDraftChangeSet(null); draftChangeSetRef.current = null;
+          setDraftChangeSet(null);
           draftChangeSetRef.current = null;
           setPhase("complete");
           return { approved: true, status: data.changeSet.status };

@@ -59,7 +59,7 @@ interface WorkspaceContextValue {
   submitIntent: (text: string) => Promise<ChangeSet | null>;
   /** Submit an intent scoped to a single product (used by the inspector). */
   submitIntentForProduct: (text: string, productId: string) => Promise<ChangeSet | null>;
-  executeChangeset: (overrideCs?: ChangeSet) => Promise<void>;
+  executeChangeset: (overrideCs?: ChangeSet) => Promise<{ success: boolean; status?: string; error?: string }>;
   cancelDraft: () => void;
   retryFetch: () => void;
   /** Apply diffs from an externally-executed changeset (e.g. from the chat view). */
@@ -96,6 +96,10 @@ const OrchestratorResponseSchema = z.object({
   reasoning: z.string(),
   readerText: z.string().optional(),
 });
+
+const ExecutorResponseSchema = z.object({
+  changeSet: ChangeSetSchema,
+}).passthrough();
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
@@ -344,12 +348,14 @@ function applyDiffsToProducts(
             ? d.after
             : parseFloat(String(d.after).replace(/[^0-9.]/g, ""));
         if (!Number.isNaN(val)) {
-          // "Promo Price" → promoPrice; "Base Price" or plain "Price" → price.
-          // Always update price (the displayed value) so the tile reflects the change.
+          // "Promo Price" → promoPrice only; "Base Price" or plain "Price" → price only.
+          // Do NOT set both — promo updates must preserve the base price so
+          // productsToRecords() and product tiles show the correct values.
           if (field.includes("promo")) {
             updated.promoPrice = val;
+          } else {
+            updated.price = val;
           }
-          updated.price = val;
         }
       } else if (field.includes("inventory") || field.includes("stock")) {
         const val =
@@ -674,11 +680,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [products],
   );
 
-  const executeChangeset = useCallback(async (overrideCs?: ChangeSet) => {
+  const executeChangeset = useCallback(async (overrideCs?: ChangeSet): Promise<{ success: boolean; status?: string; error?: string }> => {
     // Allow callers (e.g. voice tool handlers) to pass the changeset directly,
     // bypassing stale React state from closure capture.
     const cs = overrideCs ?? draftChangeset;
-    if (!cs || executeInFlightRef.current) return;
+    if (!cs || executeInFlightRef.current) {
+      return { success: false, status: "ignored", error: cs ? "Execution already in flight" : "No changeset to execute" };
+    }
     executeInFlightRef.current = true;
     setPhase("executing");
     setExecutionError(null);
@@ -701,22 +709,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setExecutionError(msg);
         setPhase("error");
         executeInFlightRef.current = false;
-        return;
+        return { success: false, status: "failed", error: msg };
       }
-      // Parse response to capture execution metadata (receipt, verification)
-      const executeData = (await res.json()) as { changeSet?: unknown };
-      const executedCs = executeData.changeSet as ChangeSet | undefined;
+      // Parse and validate response to capture execution metadata
+      const json: unknown = await res.json();
+      const validated = ExecutorResponseSchema.safeParse(json);
+      let executedCs: ChangeSet | undefined;
+      if (validated.success) {
+        executedCs = validated.data.changeSet as unknown as ChangeSet;
+      } else {
+        console.error("[workspace] Invalid executor response:", validated.error);
+        // Fall back to applying all ops from the original changeset
+      }
       // Only apply diffs for operations that actually succeeded; fall back
       // to all operations when the response lacks per-operation results.
+      const results = executedCs?.execution?.results;
+      const hasResults = Array.isArray(results);
       const successfulOpIds = new Set(
-        executedCs?.execution?.results
+        results
           ?.filter((r: { status: string }) => r.status === "success")
           .map((r: { operationId: string }) => r.operationId) ?? [],
       );
-      const opsToApply =
-        successfulOpIds.size > 0
-          ? cs.operations.filter((op) => successfulOpIds.has(op.id))
-          : cs.operations;
+      const opsToApply = hasResults
+        ? cs.operations.filter((op) => successfulOpIds.has(op.id))
+        : cs.operations;
       setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
       // Update draft with execution metadata so history captures it
       if (executedCs) {
@@ -729,12 +745,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setExecutionError(null);
         executeInFlightRef.current = false;
       }, 2000);
+      return { success: true, status: "executed" };
     } catch (err) {
-      setExecutionError(
-        err instanceof Error ? err.message : "Network error — check your connection",
-      );
+      const msg = err instanceof Error ? err.message : "Network error — check your connection";
+      setExecutionError(msg);
       setPhase("error");
       executeInFlightRef.current = false;
+      return { success: false, status: "failed", error: msg };
     }
   }, [draftChangeset]);
 
@@ -746,15 +763,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyExecutedChangeset = useCallback((cs: ChangeSet) => {
+    const results = cs.execution?.results;
+    const hasResults = Array.isArray(results);
     const successfulOpIds = new Set(
-      cs.execution?.results
+      results
         ?.filter((r: { status: string }) => r.status === "success")
         .map((r: { operationId: string }) => r.operationId) ?? [],
     );
-    const opsToApply =
-      successfulOpIds.size > 0
-        ? cs.operations.filter((op) => successfulOpIds.has(op.id))
-        : cs.operations;
+    // If per-op results exist, apply only successful ops (may be empty).
+    // If no results provided, apply all ops as best effort.
+    const opsToApply = hasResults
+      ? cs.operations.filter((op) => successfulOpIds.has(op.id))
+      : cs.operations;
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
   }, []);
 
