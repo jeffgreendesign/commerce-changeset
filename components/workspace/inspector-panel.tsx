@@ -443,7 +443,15 @@ export function InspectorPanel() {
       </aside>
 
       {/* Mobile — bottom sheet */}
-      <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <Sheet
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (open && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          if (!open) handleClose();
+        }}
+      >
         <SheetContent
           side="bottom"
           className="max-h-[80vh] lg:hidden"
