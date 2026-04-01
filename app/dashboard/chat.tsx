@@ -316,6 +316,16 @@ export function Chat({ chatId }: ChatProps) {
           setDraftChangeSet(null);
           draftChangeSetRef.current = null;
           setPhase("complete");
+          if (data.changeSet.status === "completed") {
+            const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
+            const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
+            toast.success(
+              `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
+            );
+            haptic(200);
+          } else {
+            toast.warning(`Execution finished with status: ${data.changeSet.status}`);
+          }
           return { success: true, status: data.changeSet.status };
         }
         case "query_product_data": {
@@ -345,9 +355,27 @@ export function Chat({ chatId }: ChatProps) {
           if (!res.ok) throw new Error("Approval/execution failed");
           const data: ExecuteChangeSetResult = await res.json();
           applyExecutedChangeset(data.changeSet);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `Execution ${data.changeSet.status === "completed" ? "completed successfully" : "finished: " + data.changeSet.status}.`,
+              changeSet: data.changeSet,
+            },
+          ]);
           setDraftChangeSet(null);
           draftChangeSetRef.current = null;
           setPhase("complete");
+          if (data.changeSet.status === "completed") {
+            const passedChecks = data.changeSet.execution?.receipt.verification.checksPassed ?? 0;
+            const totalChecks = data.changeSet.execution?.receipt.verification.checksRun ?? 0;
+            toast.success(
+              `Execution complete \u2014 ${passedChecks}/${totalChecks} checks passed`,
+            );
+            haptic(200);
+          } else {
+            toast.warning(`Execution finished with status: ${data.changeSet.status}`);
+          }
           return { approved: true, status: data.changeSet.status };
         }
         default:
