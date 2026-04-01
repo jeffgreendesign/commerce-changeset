@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- Fix missing voice and visual feedback after changeset execution via voice approval (PR `#29`)
+- Add error handling and logging to Gemini Live tool response pipeline to prevent silent failures (PR `#29`)
+- Add toast notifications and haptic feedback to voice-triggered execution paths (PR `#29`)
+- Fix aria-hidden focus conflict when inspector sheet opens on mobile (PR `#29`)
+
 ## [0.2.0] — 2026-03-31
 
 ### Features

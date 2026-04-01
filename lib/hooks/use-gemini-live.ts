@@ -279,8 +279,7 @@ export function useGeminiLive(
 
       // Tool calls (3.1 synchronous — model blocks until we respond)
       if (message.toolCall?.functionCalls) {
-        const session = primarySessionRef.current;
-        if (!session) return;
+        if (!primarySessionRef.current) return;
 
         const calls = message.toolCall.functionCalls;
         Promise.all(
@@ -313,7 +312,17 @@ export function useGeminiLive(
             }
           })
         ).then((responses) => {
-          session.sendToolResponse({ functionResponses: responses });
+          // Re-read ref — session may have changed during async tool execution
+          const activeSession = primarySessionRef.current;
+          if (!activeSession) {
+            console.error("[gemini-live] Session lost before tool response could be sent");
+            return;
+          }
+          console.log("[gemini-live] Sending tool responses:", responses.map(r => r.name).join(", "));
+          activeSession.sendToolResponse({ functionResponses: responses });
+          console.log("[gemini-live] Tool responses sent");
+        }).catch((err) => {
+          console.error("[gemini-live] Failed to process tool calls:", err);
         });
       }
 
