@@ -50,7 +50,7 @@ export default async function Home() {
   const session = await auth0.getSession();
 
   return (
-    <div className="flex min-h-dvh flex-col overflow-y-auto bg-[oklch(0.08_0_0)] text-white">
+    <div className="flex h-dvh flex-col overflow-y-auto bg-[oklch(0.08_0_0)] text-white">
       {/* ── Nav ─────────────────────────────────────────────────── */}
       <nav className="flex items-center justify-between px-6 py-4 sm:px-10">
         <span className="font-mono text-xs font-medium tracking-wide">
