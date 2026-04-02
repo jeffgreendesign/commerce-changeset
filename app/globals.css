@@ -413,6 +413,16 @@
   background-size: 24px 24px;
 }
 
+.header-gradient-line {
+  background-image: linear-gradient(
+    90deg,
+    oklch(0.6 0.2 264),
+    oklch(0.72 0.2 185),
+    oklch(0.7 0.18 85),
+    oklch(0.7 0.18 155)
+  );
+}
+
 @keyframes pipeline-flow {
   0% { stroke-dashoffset: 16; }
   100% { stroke-dashoffset: 0; }
@@ -428,9 +438,6 @@
 }
 .pipeline-node {
   animation: node-pulse 3s ease-in-out infinite;
-}
-.pipeline-node[data-agent="reader"] {
-  --node-color: oklch(0.6 0.2 264);
 }
 .pipeline-node[data-agent="reader"] {
   animation-name: node-pulse-reader;

@@ -13,29 +13,25 @@ export default function ContentLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-dvh flex-col overflow-y-auto">
-      <header className="glass sticky top-0 z-30 border-b border-border/50 pt-safe">
+    <div className="flex h-dvh flex-col overflow-y-auto bg-[oklch(0.15_0_0)] text-white [--border:oklch(1_0_0/12%)] [--foreground:oklch(0.95_0_0)] [--muted-foreground:oklch(0.65_0_0)]">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[oklch(0.15_0_0/80%)] pt-safe [-webkit-backdrop-filter:blur(12px)_saturate(1.4)] [backdrop-filter:blur(12px)_saturate(1.4)]">
         <div
-          className="absolute inset-x-0 top-0 h-px"
-          style={{
-            backgroundImage:
-              "linear-gradient(90deg, oklch(0.6 0.2 264), oklch(0.72 0.2 185), oklch(0.7 0.18 85), oklch(0.7 0.18 155))",
-          }}
+          className="header-gradient-line absolute inset-x-0 top-0 h-px"
           aria-hidden="true"
         />
         <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
           <Link
             href="/"
-            className="text-sm font-semibold tracking-tight transition-colors hover:text-accent-teal"
+            className="text-sm font-semibold tracking-tight text-white transition-colors hover:text-accent-teal"
           >
             Commerce Changeset
           </Link>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-4 text-sm text-white/40">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="underline-offset-4 hover:text-foreground hover:underline"
+                className="underline-offset-4 transition-colors hover:text-white/70 hover:underline"
               >
                 {link.label}
               </Link>

@@ -34,10 +34,10 @@ const features = [
 ];
 
 const agents = [
-  { name: "Reader", color: "oklch(0.6 0.2 264)" },
-  { name: "Orchestrator", color: "oklch(0.85 0 0)" },
-  { name: "Writer", color: "oklch(0.7 0.18 85)" },
-  { name: "Notifier", color: "oklch(0.7 0.18 155)" },
+  { name: "Reader", color: "oklch(0.6 0.2 264)", agent: "reader" },
+  { name: "Orchestrator", color: "oklch(0.85 0 0)", agent: "orchestrator" },
+  { name: "Writer", color: "oklch(0.7 0.18 85)", agent: "writer" },
+  { name: "Notifier", color: "oklch(0.7 0.18 155)", agent: "notifier" },
 ];
 
 const navLinks = [
@@ -50,7 +50,7 @@ export default async function Home() {
   const session = await auth0.getSession();
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[oklch(0.08_0_0)] text-white">
+    <div className="flex min-h-dvh flex-col overflow-y-auto bg-[oklch(0.08_0_0)] text-white">
       {/* ── Nav ─────────────────────────────────────────────────── */}
       <nav className="flex items-center justify-between px-6 py-4 sm:px-10">
         <span className="font-mono text-xs font-medium tracking-wide">
@@ -86,28 +86,27 @@ export default async function Home() {
           inventory &mdash; through auditable, authorization-gated AI workflows.
         </p>
 
-        <a
+        <Link
           href="/demo"
           className="mt-10 inline-flex min-h-[48px] items-center gap-2 rounded-lg bg-accent-teal px-8 py-3.5 text-base font-semibold text-black transition-all hover:brightness-110 active:scale-[0.98]"
         >
           Launch Interactive Demo
           <span aria-hidden="true">&rarr;</span>
-        </a>
+        </Link>
 
         {session && (
-          <a
+          <Link
             href="/dashboard"
             className="mt-3 inline-flex min-h-[44px] items-center text-sm text-white/40 underline-offset-4 transition-colors hover:text-white/60 hover:underline"
           >
             Go to Dashboard &rarr;
-          </a>
+          </Link>
         )}
 
         {/* ── Animated Pipeline ──────────────────────────────────── */}
         <div className="mt-16 w-full max-w-2xl sm:mt-20">
-          {/* SVG connector lines */}
+          {/* Dots row with connector line behind */}
           <div className="relative flex items-center justify-between px-4 sm:px-8">
-            {/* Connector SVG behind the nodes */}
             <svg
               className="absolute inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-8"
               height="2"
@@ -126,24 +125,26 @@ export default async function Home() {
               />
             </svg>
 
-            {/* Nodes */}
-            {agents.map((agent) => (
+            {agents.map((a) => (
               <div
-                key={agent.name}
-                className="relative z-10 flex flex-col items-center gap-2"
+                key={a.name}
+                className="pipeline-node relative z-10 size-3 rounded-full sm:size-4"
+                data-agent={a.agent}
+                style={{ backgroundColor: a.color }}
+              />
+            ))}
+          </div>
+
+          {/* Labels row (separate so dots row is perfectly centered for SVG) */}
+          <div className="mt-2 flex justify-between px-4 sm:px-8">
+            {agents.map((a) => (
+              <span
+                key={a.name}
+                className="text-center font-mono text-[10px] tracking-wider sm:text-xs"
+                style={{ color: a.color }}
               >
-                <div
-                  className="pipeline-node size-3 rounded-full sm:size-4"
-                  data-agent={agent.name.toLowerCase()}
-                  style={{ backgroundColor: agent.color }}
-                />
-                <span
-                  className="font-mono text-[10px] tracking-wider sm:text-xs"
-                  style={{ color: agent.color }}
-                >
-                  {agent.name.toUpperCase()}
-                </span>
-              </div>
+                {a.name.toUpperCase()}
+              </span>
             ))}
           </div>
         </div>
@@ -176,12 +177,12 @@ export default async function Home() {
         <p className="font-mono text-[11px] tracking-[0.2em] text-white/30">
           NO SIGN-UP REQUIRED
         </p>
-        <a
+        <Link
           href="/demo"
           className="mt-5 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-accent-teal underline-offset-4 transition-colors hover:text-white hover:underline"
         >
           Try the Demo &rarr;
-        </a>
+        </Link>
         <div className="mt-6 flex items-center justify-center gap-4 text-sm text-white/25">
           <Link
             href="/about"
