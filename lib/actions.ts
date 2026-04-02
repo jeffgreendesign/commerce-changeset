@@ -395,3 +395,80 @@ export const ACTIONS: ActionDefinition[] = [
 
 /** The original 4 actions shown on the idle chat screen. */
 export const FEATURED_ACTIONS = ACTIONS.filter((a) => a.featured);
+
+// ── Product-scoped & bulk actions for workspace CTAs ────────────────
+
+export interface ProductAction {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  promptTemplate: string;
+  category: ActionCategory;
+  riskLevel: RiskLevel;
+}
+
+/** Actions available per-product via long-press. Template placeholders: {sku}, {name}, {price}. */
+export const PRODUCT_ACTIONS: ProductAction[] = [
+  {
+    id: "price-change",
+    icon: DollarSignIcon,
+    label: "Change Price",
+    description: "Set a new promo price",
+    promptTemplate: "Set a 20% discount on {sku} {name}",
+    category: "pricing",
+    riskLevel: "moderate",
+  },
+  {
+    id: "toggle-promo",
+    icon: TagIcon,
+    label: "Toggle Promo",
+    description: "Activate or deactivate promo",
+    promptTemplate: "Toggle promo status for {sku} {name}",
+    category: "promos",
+    riskLevel: "moderate",
+  },
+  {
+    id: "flash-sale",
+    icon: ZapIcon,
+    label: "Flash Sale",
+    description: "Activate promo + set discount",
+    promptTemplate:
+      "Set up a flash sale: activate promo and set 25% discount on {sku} {name}",
+    category: "promos",
+    riskLevel: "elevated",
+  },
+  {
+    id: "update-stock",
+    icon: PackageIcon,
+    label: "Update Stock",
+    description: "Change inventory flag",
+    promptTemplate: "Update inventory flag for {sku} {name}",
+    category: "inventory",
+    riskLevel: "moderate",
+  },
+];
+
+/** Bulk / global actions surfaced via the workspace FAB. */
+export const BULK_ACTIONS: ActionDefinition[] = ACTIONS.filter((a) =>
+  [
+    "bulk-price-change",
+    "launch-promo",
+    "campaign-wind-down",
+    "seasonal-markdown",
+    "morning-price-check",
+    "inventory-audit",
+    "eod-review",
+  ].includes(a.id),
+);
+
+/** Interpolate product details into a prompt template. */
+export function interpolatePrompt(
+  template: string,
+  product: { sku: string; name: string; price: number },
+): string {
+  return template
+    .replace(/\{sku\}/g, product.sku)
+    .replace(/\{name\}/g, product.name)
+    .replace(/\{price\}/g, `$${product.price.toFixed(2)}`);
+}
