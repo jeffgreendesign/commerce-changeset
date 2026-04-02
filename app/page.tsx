@@ -46,6 +46,13 @@ export default async function Home() {
             </a>
           </div>
         )}
+
+        <a
+          href="/demo"
+          className="inline-flex min-h-[44px] items-center text-sm text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
+        >
+          Try the interactive demo &rarr;
+        </a>
       </main>
     </div>
     <Footer />

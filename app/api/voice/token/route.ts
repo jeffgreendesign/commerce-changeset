@@ -15,11 +15,16 @@ import { GoogleGenAI } from "@google/genai";
 
 import { auth0 } from "@/lib/auth0";
 import { PRIMARY_MODEL, SIDECAR_MODEL } from "@/lib/voice/gemini-live";
+import { isDemoSession } from "@/lib/demo/config.server";
 
 export async function POST() {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const isDemo = await isDemoSession();
+
+  if (!isDemo) {
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -36,7 +41,9 @@ export async function POST() {
     httpOptions: { apiVersion: "v1alpha" },
   });
 
-  const expireTime = new Date(Date.now() + 30 * 60_000).toISOString();
+  // Demo sessions capped at 3 minutes; production gets 30 minutes
+  const sessionMinutes = isDemo ? 3 : 30;
+  const expireTime = new Date(Date.now() + sessionMinutes * 60_000).toISOString();
   const newSessionExpireTime = new Date(Date.now() + 60_000).toISOString();
 
   try {
@@ -59,7 +66,7 @@ export async function POST() {
     ]);
 
     console.log(
-      `[voice/token] Minted ephemeral tokens for user ${session.user.sub}`
+      `[voice/token] Minted ephemeral tokens (${sessionMinutes}min) for ${isDemo ? "demo user" : "authenticated user"}`
     );
 
     return NextResponse.json({
