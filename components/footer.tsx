@@ -37,6 +37,12 @@ export function Footer() {
           >
             GitHub
           </a>
+          <a
+            href="/auth/login"
+            className="underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Log in
+          </a>
         </nav>
       </div>
     </footer>

@@ -29,6 +29,7 @@
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-accent-teal: var(--accent-teal);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -72,6 +73,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --accent-teal: oklch(0.72 0.20 185);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -84,6 +86,7 @@
 }
 
 .dark {
+  --accent-teal: oklch(0.75 0.20 185);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -401,6 +404,82 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* ── Homepage: dot grid & pipeline animations ────────────────────── */
+
+.dot-grid {
+  background-image: radial-gradient(oklch(1 0 0 / 7%) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.header-gradient-line {
+  background-image: linear-gradient(
+    90deg,
+    oklch(0.6 0.2 264),
+    oklch(0.72 0.2 185),
+    oklch(0.7 0.18 85),
+    oklch(0.7 0.18 155)
+  );
+}
+
+@keyframes pipeline-flow {
+  0% { stroke-dashoffset: 16; }
+  100% { stroke-dashoffset: 0; }
+}
+.pipeline-connector {
+  stroke-dasharray: 8 8;
+  animation: pipeline-flow 1.2s linear infinite;
+}
+
+@keyframes node-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.72 0.20 185 / 0%); }
+  50% { box-shadow: 0 0 12px 4px oklch(0.72 0.20 185 / 20%); }
+}
+.pipeline-node {
+  animation: node-pulse 3s ease-in-out infinite;
+}
+.pipeline-node[data-agent="reader"] {
+  animation-name: node-pulse-reader;
+}
+@keyframes node-pulse-reader {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.6 0.2 264 / 0%); }
+  50% { box-shadow: 0 0 12px 4px oklch(0.6 0.2 264 / 25%); }
+}
+.pipeline-node[data-agent="orchestrator"] {
+  animation-name: node-pulse-orchestrator;
+}
+@keyframes node-pulse-orchestrator {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.85 0 0 / 0%); }
+  50% { box-shadow: 0 0 12px 4px oklch(0.85 0 0 / 25%); }
+}
+.pipeline-node[data-agent="writer"] {
+  animation-name: node-pulse-writer;
+}
+@keyframes node-pulse-writer {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.7 0.18 85 / 0%); }
+  50% { box-shadow: 0 0 12px 4px oklch(0.7 0.18 85 / 25%); }
+}
+.pipeline-node[data-agent="notifier"] {
+  animation-name: node-pulse-notifier;
+}
+@keyframes node-pulse-notifier {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.7 0.18 155 / 0%); }
+  50% { box-shadow: 0 0 12px 4px oklch(0.7 0.18 155 / 25%); }
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-connector { animation: none; }
+  .pipeline-node { animation: none; }
+  .animate-fade-up { animation: none; opacity: 1; transform: none; }
 }
 
 /* ── Safe area insets for iOS (all sides) ──────────────────────────── */
