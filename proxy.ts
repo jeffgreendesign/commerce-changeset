@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function proxy(request: Request) {
   // Skip Auth0 middleware for /demo routes — demo mode uses cookie-based mock auth
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/demo")) {
+  if (url.pathname === "/demo" || url.pathname.startsWith("/demo/")) {
     return NextResponse.next();
   }
 
