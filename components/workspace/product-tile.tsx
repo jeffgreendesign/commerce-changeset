@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Image from "next/image";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -169,6 +170,19 @@ export function ProductTile({
           data-severity={maxIssueSeverity}
           aria-hidden="true"
         />
+      )}
+
+      {/* Product image */}
+      {product.imageUrl && (
+        <div className="mb-2 -mx-4 -mt-4 overflow-hidden rounded-t-[inherit]">
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            width={320}
+            height={240}
+            className="w-full h-auto object-cover"
+          />
+        </div>
       )}
 
       {/* Product name */}

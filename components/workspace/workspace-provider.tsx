@@ -32,6 +32,7 @@ export interface Product {
   inventory: number;
   promoStatus: "active" | "inactive";
   category: string;
+  imageUrl?: string | null;
 }
 
 export type WorkspacePhase =
@@ -146,6 +147,7 @@ function parseProductsFromToolResults(
             ? ("active" as const)
             : ("inactive" as const),
         category: (row["Category"] ?? row["Type"] ?? "uncategorized").toLowerCase(),
+        imageUrl: row["Image URL"] || null,
       };
     });
 }
@@ -201,6 +203,8 @@ function parseProductsFromMarkdown(text: string): Product[] {
           columnMap["promo"] = i;
         if (lower.includes("category") || lower.includes("type"))
           columnMap["category"] = i;
+        if (lower.includes("image"))
+          columnMap["imageUrl"] = i;
       });
 
       // Positional fallback when header heuristics matched fewer than 2 columns
@@ -234,6 +238,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
     const inventoryStr = safeCell("inventory") || "0";
     const promoStr = safeCell("promo").toLowerCase();
     const category = (safeCell("category") || "uncategorized").toLowerCase();
+    const imageUrl = safeCell("imageUrl");
 
     if (!name && !sku) continue;
 
@@ -254,6 +259,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
       inventory,
       promoStatus,
       category,
+      imageUrl: imageUrl || null,
     });
   }
 
