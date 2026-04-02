@@ -209,11 +209,16 @@ export async function runReaderAgent(
   const readerStart = performance.now();
 
   const result = await generateText({
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: anthropic("claude-sonnet-4-6"),
     tools,
     system: SYSTEM_PROMPT,
     prompt: message,
     stopWhen: stepCountIs(10),
+    providerOptions: {
+      anthropic: {
+        thinking: { type: "adaptive" },
+      },
+    },
   });
 
   const toolNames = result.steps.flatMap((step) => step.toolCalls.map((tc) => tc.toolName));

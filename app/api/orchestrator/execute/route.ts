@@ -19,12 +19,72 @@ import { setAIContext } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 import { executeChangeSet } from "@/lib/changeset/executor";
 import type { ChangeSet } from "@/lib/changeset/types";
+import { isDemoSession } from "@/lib/demo/config.server";
+import { DEMO_SCENARIOS } from "@/lib/demo/scenarios";
 
 const RequestBody = z.object({
   changeSet: z.record(z.string(), z.unknown()),
 });
 
 export async function POST(request: Request) {
+  // ── Demo mode: simulate execution with 1.5s delay ─────────────────
+  if (await isDemoSession()) {
+    const body: unknown = await request.json();
+    const parsed = RequestBody.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+    const cs = parsed.data.changeSet as unknown as ChangeSet;
+
+    // Simulate CIBA approval + execution delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Find matching scenario by changeset ID or prompt
+    const scenario = DEMO_SCENARIOS.find(
+      (s) =>
+        s.changeSet.id === cs.id ||
+        s.changeSet.originalPrompt === cs.originalPrompt
+    );
+
+    const executionResult = scenario?.executionResult ?? {
+      executedAt: new Date().toISOString(),
+      results: cs.operations.map((op) => ({
+        operationId: typeof op === "object" && op !== null && "id" in op ? (op as { id: string }).id : "",
+        status: "success" as const,
+        duration: 400,
+      })),
+      receipt: {
+        changeSetId: cs.id ?? "",
+        executedBy: "demo@stride-athletics.com",
+        executedAt: new Date().toISOString(),
+        oboChain: { user: "auth0|demo-user-001", delegatedTo: ["writer", "reader"] },
+        agentDelegations: [],
+        verification: { checksRun: 0, checksPassed: 0, results: [] },
+        rollbackInstructions: "No rollback data available for this demo execution.",
+        auditHash: `sha256:${crypto.randomUUID().replace(/-/g, "")}`,
+      },
+    };
+
+    return NextResponse.json({
+      changeSet: {
+        ...cs,
+        status: "completed",
+        approval: {
+          approvedBy: "auth0|demo-user-001",
+          approvedAt: new Date().toISOString(),
+          cibaTransactionId: `ciba_demo_${crypto.randomUUID().slice(0, 8)}`,
+          scopesGranted: ["openid", "commerce:write"],
+          authorizationDetails: [],
+        },
+        execution: executionResult,
+      },
+    });
+  }
+
+  // ── Production mode ───────────────────────────────────────────────
   const session = await auth0.getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

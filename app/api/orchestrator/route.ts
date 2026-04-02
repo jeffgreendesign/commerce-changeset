@@ -13,12 +13,44 @@ import { auth0 } from "@/lib/auth0";
 import { setAIContext } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 import { runOrchestratorAgent } from "@/lib/agents/orchestrator";
+import { isDemoSession } from "@/lib/demo/config.server";
+import { matchScenario } from "@/lib/demo/classifier";
+import { DEMO_SUGGESTIONS } from "@/lib/demo/scenarios";
+import { buildMockReaderText } from "@/lib/demo/mock-data";
 
 const RequestBody = z.object({
   message: z.string().min(1).max(2000),
 });
 
 export async function POST(request: Request) {
+  // ── Demo mode: classifier → pre-built changeset ───────────────────
+  if (await isDemoSession()) {
+    const body: unknown = await request.json();
+    const parsed = RequestBody.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const scenario = await matchScenario(parsed.data.message);
+    if (!scenario) {
+      return NextResponse.json({
+        changeSet: null,
+        reasoning: "I didn't recognize that request. Try one of these:",
+        suggestions: DEMO_SUGGESTIONS,
+      });
+    }
+
+    return NextResponse.json({
+      changeSet: scenario.changeSet,
+      reasoning: scenario.reasoning,
+      readerText: scenario.readerText || buildMockReaderText(),
+    });
+  }
+
+  // ── Production mode ───────────────────────────────────────────────
   const session = await auth0.getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

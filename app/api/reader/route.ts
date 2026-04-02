@@ -15,12 +15,24 @@ import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 import { runReaderAgent } from "@/lib/agents/reader";
 import { evaluatePolicy } from "@/lib/policy/engine";
 import { RiskTier } from "@/lib/policy/types";
+import { isDemoSession } from "@/lib/demo/config.server";
+import { buildMockReaderText } from "@/lib/demo/mock-data";
 
 const RequestBody = z.object({
   message: z.string().min(1).max(2000),
 });
 
 export async function POST(request: Request) {
+  // ── Demo mode: return mock product data ───────────────────────────
+  if (await isDemoSession()) {
+    return NextResponse.json({
+      text: buildMockReaderText(),
+      toolCalls: [{ toolName: "get_products", args: {} }],
+      toolResults: [{ toolName: "get_products", result: { products: [] } }],
+    });
+  }
+
+  // ── Production mode ───────────────────────────────────────────────
   const session = await auth0.getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

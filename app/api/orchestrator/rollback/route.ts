@@ -18,6 +18,8 @@ import {
   RollbackValidationError,
 } from "@/lib/changeset/rollback-builder";
 import type { ChangeSet } from "@/lib/changeset/types";
+import { isDemoSession } from "@/lib/demo/config.server";
+import { DEMO_SCENARIOS } from "@/lib/demo/scenarios";
 
 const OperationDiffSchema = z.object({
   field: z.string(),
@@ -77,6 +79,19 @@ const RequestBody = z.object({
 });
 
 export async function POST(request: Request) {
+  // ── Demo mode: return pre-built rollback scenario ─────────────────
+  if (await isDemoSession()) {
+    const rollbackScenario = DEMO_SCENARIOS.find((s) => s.id === "scenario-4");
+    if (rollbackScenario) {
+      return NextResponse.json({ changeSet: rollbackScenario.changeSet });
+    }
+    return NextResponse.json(
+      { error: "No rollback scenario available in demo mode" },
+      { status: 400 }
+    );
+  }
+
+  // ── Production mode ───────────────────────────────────────────────
   const session = await auth0.getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

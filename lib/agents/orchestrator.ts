@@ -182,7 +182,7 @@ export async function runOrchestratorAgent(
   // Wrapped in an object because Anthropic requires top-level type: 'object'.
   const decompStart = performance.now();
   const { object: decomposition } = await generateObject({
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: anthropic("claude-sonnet-4-6"),
     schema: z.object({
       operations: z.array(ParsedOperationSchema),
       reasoning: z.string().describe(
