@@ -95,3 +95,13 @@ export function appendTimelineEntry(entry: TimelineEntry): void {
   persistToStorage(cache);
   notify();
 }
+
+// ── Cross-tab sync ──────────────────────────────────────────────────
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e: StorageEvent) => {
+    if (e.key !== STORAGE_KEY) return;
+    cache = e.newValue === null ? EMPTY : loadFromStorage();
+    notify();
+  });
+}

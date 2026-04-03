@@ -806,9 +806,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cs.execution?.results,
     );
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
-    // Capture into timeline history so chat-executed changesets appear
+    // Normalize status — executor returns terminal status, but guard defensively
+    const normalizedCs = cs.status === "executing"
+      ? { ...cs, status: "completed" as const }
+      : cs;
     appendTimelineEntry({
-      changeset: cs,
+      changeset: normalizedCs,
       completedAt: new Date().toISOString(),
     });
   }, []);
