@@ -368,6 +368,7 @@ function MobileVoiceDock({
 
         {/* Mic button — compact */}
         <Button
+          type="button"
           variant={isActive ? "default" : "outline"}
           size="icon"
           onClick={onToggle}
@@ -479,7 +480,7 @@ export function VoiceControls({
     ? { connected: true, receiving: true }
     : sidecarStatus;
   const effectiveEmotionalState: EmotionalState | undefined = isDemo
-    ? (emotionalState !== "calm" ? emotionalState : demoAffectFromPhase(phase))
+    ? (emotionalState != null && emotionalState !== "calm" ? emotionalState : demoAffectFromPhase(phase))
     : emotionalState;
   const effectiveStressLevel = isDemo
     ? (stressLevel !== undefined && stressLevel > 0.2 ? stressLevel : demoStressFromPhase(phase))
@@ -581,6 +582,7 @@ export function VoiceControls({
 
       {/* Mic toggle button */}
       <Button
+        type="button"
         variant={isActive ? "default" : "outline"}
         size="icon"
         onClick={handleToggle}
