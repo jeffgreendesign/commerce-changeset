@@ -13,6 +13,7 @@ import { Rail } from "./rail";
 import { Inspector, type InspectableItem } from "./inspector";
 import { QuickActionConfirmDialog } from "./quick-action-confirm-dialog";
 import { generateChatId } from "@/lib/chat-history";
+import { useNavigationHistory } from "@/lib/hooks/use-navigation-history";
 import type { ActionDefinition } from "@/lib/actions";
 
 // ── Context ──────────────────────────────────────────────────────────
@@ -85,6 +86,14 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   const pendingPromptRef = useRef<string | null>(null);
   const [pendingAction, setPendingActionState] = useState<ActionDefinition | null>(null);
 
+  // Browser history integration for back/forward navigation.
+  const { pushView } = useNavigationHistory({
+    activeView,
+    activeChatId,
+    setActiveView,
+    setActiveChatId,
+  });
+
   const inspect = useCallback((item: InspectableItem) => {
     setInspectorItem(item);
   }, []);
@@ -98,20 +107,24 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
   }, []);
 
   const startNewChat = useCallback(() => {
-    setActiveChatId(generateChatId());
+    const id = generateChatId();
+    setActiveChatId(id);
     setActiveView("chat");
-  }, []);
+    pushView("chat", id);
+  }, [pushView]);
 
   const loadChat = useCallback((id: string) => {
     setActiveChatId(id);
     setActiveView("chat");
-  }, []);
+    pushView("chat", id);
+  }, [pushView]);
 
   const setPendingPrompt = useCallback((prompt: string) => {
     pendingPromptRef.current = prompt;
     setPendingPromptState(prompt);
     setActiveView("chat");
-  }, []);
+    pushView("chat");
+  }, [pushView]);
 
   const consumePendingPrompt = useCallback(() => {
     const p = pendingPromptRef.current;
@@ -135,6 +148,12 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
     setPendingPrompt(action.prompt);
   }, [setPendingPrompt]);
 
+  // Wrap setActiveView so external consumers (Rail, etc.) push history.
+  const navigateToView = useCallback((view: ActiveView) => {
+    setActiveView(view);
+    pushView(view);
+  }, [pushView]);
+
   const ctx = useMemo<LayoutContextValue>(
     () => ({
       inspect,
@@ -146,7 +165,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
       startNewChat,
       loadChat,
       activeView,
-      setActiveView,
+      setActiveView: navigateToView,
       pendingPrompt,
       setPendingPrompt,
       consumePendingPrompt,
@@ -154,7 +173,7 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
       setPendingAction,
       clearPendingAction,
     }),
-    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, pendingPrompt, setPendingPrompt, consumePendingPrompt, pendingAction, setPendingAction, clearPendingAction],
+    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, navigateToView, pendingPrompt, setPendingPrompt, consumePendingPrompt, pendingAction, setPendingAction, clearPendingAction],
   );
 
   return (

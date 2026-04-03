@@ -172,27 +172,39 @@ export function WorkflowPipeline({ phase, requiresCIBA }: WorkflowPipelineProps)
         allComplete && "animate-shimmer-sweep",
       )}
     >
-      {/* Single horizontal layout for all breakpoints */}
+      {/* Dots + connectors row — connectors align to dot centers */}
       <div className="flex items-center">
         {steps.map((step, i) => (
           <div key={step.id} className="flex flex-1 items-center">
-            <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+            <div className="flex flex-1 justify-center">
               <StepDot status={step.status} />
-              <span
-                className={cn(
-                  "text-[9px] font-medium leading-none transition-colors sm:text-[10px]",
-                  step.status === "active" && "text-foreground",
-                  step.status === "completed" &&
-                    "text-emerald-700 dark:text-emerald-400",
-                  step.status === "failed" && "text-destructive",
-                  step.status === "pending" && "text-muted-foreground",
-                )}
-              >
-                {step.label}
-              </span>
             </div>
             {i < steps.length - 1 && (
               <Connector fromStatus={step.status} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Labels row — matches dot positions */}
+      <div className="mt-0.5 flex sm:mt-1">
+        {steps.map((step, i) => (
+          <div key={step.id} className="flex flex-1">
+            <span
+              className={cn(
+                "flex-1 text-center text-[9px] font-medium leading-none transition-colors sm:text-[10px]",
+                step.status === "active" && "text-foreground",
+                step.status === "completed" &&
+                  "text-emerald-700 dark:text-emerald-400",
+                step.status === "failed" && "text-destructive",
+                step.status === "pending" && "text-muted-foreground",
+              )}
+            >
+              {step.label}
+            </span>
+            {/* Spacer matching connector width for non-last steps */}
+            {i < steps.length - 1 && (
+              <div className="flex-1 px-0.5 sm:px-1" />
             )}
           </div>
         ))}
