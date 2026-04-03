@@ -9,12 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VoiceControls } from "@/components/dashboard/voice-controls";
 import { useIsMobile } from "@/lib/hooks/use-is-mobile";
-import { useWorkspace } from "./workspace-provider";
+import { useLayout } from "@/components/dashboard/layout-shell";
+import { useWorkspace, type WorkspacePhase } from "./workspace-provider";
 import type {
   EmotionalState,
   GeminiLiveConnectionState,
   SidecarStatus,
 } from "@/lib/voice/types";
+import type { PipelinePhase } from "@/lib/pipeline-phase";
+
+/** Map workspace phase to pipeline phase so VoiceControls demo affect works. */
+function toPipelinePhase(wp: WorkspacePhase): PipelinePhase {
+  if (wp === "preview") return "draft";
+  return wp;
+}
 
 // Chips prefill the input with a template — user must complete the detail
 const SINGLE_CHIPS = [
@@ -66,9 +74,11 @@ export function IntentBar({
     draftChangeset,
     executionError,
   } = useWorkspace();
+  const { isDemo } = useLayout();
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
+  const pipelinePhase = toPipelinePhase(phase);
 
   const selectedProducts = useMemo(
     () => products.filter((p) => selectedIds.has(p.id)),
@@ -173,6 +183,8 @@ export function IntentBar({
           onActivate={onVoiceActivate}
           onDeactivate={onVoiceDeactivate}
           mobile
+          phase={pipelinePhase}
+          isDemo={isDemo}
         />
       )}
 
@@ -207,6 +219,8 @@ export function IntentBar({
               onVolumeChange={onVolumeChange}
               onActivate={onVoiceActivate}
               onDeactivate={onVoiceDeactivate}
+              phase={pipelinePhase}
+              isDemo={isDemo}
             />
             <Button
               type="submit"

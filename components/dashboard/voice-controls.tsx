@@ -336,8 +336,8 @@ function MobileVoiceDock({
     <div className="glass relative flex flex-col gap-2 border-t px-4 py-3 pb-safe animate-voice-dock-enter">
       <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} mobile />
 
-      {/* Compact single-row layout: affect | visualizer | mic | visualizer | volume */}
-      <div className="flex w-full items-center gap-3">
+      {/* Compact layout: affect | visualizer | mic | visualizer | volume */}
+      <div className="flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-2">
         {/* Affect chip — left side */}
         {isActive && sidecarStatus?.receiving ? (
           <div
@@ -355,14 +355,16 @@ function MobileVoiceDock({
           </span>
         )}
 
-        {/* Left visualizer */}
-        <AudioVisualizer
-          isActive={isActive}
-          inputLevel={inputLevel}
-          isSpeaking={isSpeaking}
-          mobile
-          stressLevel={stressLevel}
-        />
+        {/* Left visualizer — hidden on small phones */}
+        <div className="hidden sm:flex">
+          <AudioVisualizer
+            isActive={isActive}
+            inputLevel={inputLevel}
+            isSpeaking={isSpeaking}
+            mobile
+            stressLevel={stressLevel}
+          />
+        </div>
 
         {/* Mic button — compact */}
         <Button
@@ -403,9 +405,9 @@ function MobileVoiceDock({
           stressLevel={stressLevel}
         />
 
-        {/* Volume slider — right side */}
+        {/* Volume slider — inline on sm+, hidden on small phones */}
         {isActive && onVolumeChange ? (
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
             <Volume2Icon className="size-3 text-muted-foreground" />
             <input
               type="range"
@@ -414,7 +416,7 @@ function MobileVoiceDock({
               step={0.05}
               value={volume ?? 1}
               onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-              className="h-1 w-16 accent-primary"
+              className="h-1 w-16 text-base accent-primary md:text-sm"
               aria-label="Output volume"
             />
           </div>
@@ -424,6 +426,23 @@ function MobileVoiceDock({
           </span>
         )}
       </div>
+
+      {/* Volume slider — separate row on small phones */}
+      {isActive && onVolumeChange && (
+        <div className="flex w-full items-center justify-center gap-1.5 sm:hidden">
+          <Volume2Icon className="size-3 text-muted-foreground" />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume ?? 1}
+            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            className="h-1 w-32 text-base accent-primary"
+            aria-label="Output volume"
+          />
+        </div>
+      )}
 
       {/* Token Vault status (demo only) — below main row */}
       {isDemo && <VoiceTokenVaultStatus phase={phase} />}
