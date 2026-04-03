@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { XIcon } from "lucide-react";
 
 const HINT_KEY = "cc-action-hint-dismissed";
@@ -12,20 +12,31 @@ interface ActionHintProps {
 
 export function ActionHint({ onDismiss }: ActionHintProps) {
   const [state, setState] = useState<"hidden" | "entering" | "visible" | "exiting">("hidden");
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const track = useCallback((id: ReturnType<typeof setTimeout>) => {
+    timers.current.add(id);
+    return id;
+  }, []);
 
   const dismiss = useCallback(() => {
-    if (state === "exiting" || state === "hidden") return;
-    setState("exiting");
-    try {
-      sessionStorage.setItem(HINT_KEY, "1");
-    } catch {
-      // ignore
-    }
-    setTimeout(() => {
-      setState("hidden");
-      onDismiss();
-    }, 300);
-  }, [state, onDismiss]);
+    setState((prev) => {
+      if (prev === "exiting" || prev === "hidden") return prev;
+      // Clear all pending timers (enter, visible, auto-dismiss)
+      for (const id of timers.current) clearTimeout(id);
+      timers.current.clear();
+      try {
+        sessionStorage.setItem(HINT_KEY, "1");
+      } catch {
+        // ignore
+      }
+      track(setTimeout(() => {
+        setState("hidden");
+        onDismiss();
+      }, 300));
+      return "exiting";
+    });
+  }, [onDismiss, track]);
 
   useEffect(() => {
     // Skip if already dismissed this session
@@ -40,25 +51,34 @@ export function ActionHint({ onDismiss }: ActionHintProps) {
       }
     }
     // Delay appearance so it doesn't flash on fast loads
-    const showTimer = setTimeout(() => setState("entering"), 800);
-    const visibleTimer = setTimeout(() => setState("visible"), 1100);
+    track(setTimeout(() => setState("entering"), 800));
+    track(setTimeout(() => {
+      setState((prev) => (prev === "entering" ? "visible" : prev));
+    }, 1100));
+    const pending = timers.current;
     return () => {
-      clearTimeout(showTimer);
-      clearTimeout(visibleTimer);
+      for (const id of pending) clearTimeout(id);
+      pending.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (state !== "visible") return;
-    const hideTimer = setTimeout(() => dismiss(), AUTO_DISMISS_MS);
-    return () => clearTimeout(hideTimer);
-  }, [state, dismiss]);
+    const pending = timers.current;
+    const id = track(setTimeout(() => dismiss(), AUTO_DISMISS_MS));
+    return () => {
+      clearTimeout(id);
+      pending.delete(id);
+    };
+  }, [state, dismiss, track]);
 
   if (state === "hidden") return null;
 
   return (
     <div
+      role="status"
+      aria-atomic="true"
       className={`pointer-events-auto fixed bottom-24 left-1/2 z-40 -translate-x-1/2 transition-all duration-300 ease-out ${
         state === "exiting"
           ? "translate-y-2 opacity-0"
