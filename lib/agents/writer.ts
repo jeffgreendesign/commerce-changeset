@@ -24,7 +24,7 @@ export interface WriterAgentResult {
 
 // ── Column mapping ───────────────────────────────────────────────────
 // Products sheet columns: A=SKU, B=Name, C=Category, D=Base Price,
-// E=Promo Price, F=Promo Active, G=Inventory
+// E=Promo Price, F=Promo Active, G=Inventory, H=Image URL
 
 const ACTION_COLUMN: Record<string, string> = {
   update_price: "E",
@@ -184,7 +184,7 @@ function escapeSheetValue(value: string): string {
 }
 
 const ALLOWED_PRODUCT_FIELDS = new Set([
-  "SKU", "Name", "Category", "Base Price", "Promo Price", "Promo Active", "Inventory",
+  "SKU", "Name", "Category", "Base Price", "Promo Price", "Promo Active", "Inventory", "Image URL",
 ]);
 
 // ── Operation dispatch ───────────────────────────────────────────────
@@ -210,6 +210,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       // Normalize blank optionals to defaults (empty string is not nullish, so ?? doesn't catch it)
       const promoActive = String(fieldMap["Promo Active"] ?? "FALSE") || "FALSE";
       const inventory = String(fieldMap["Inventory"] ?? "in_stock") || "in_stock";
+      const imageUrl = String(fieldMap["Image URL"] ?? "");
 
       // Guardrails
       if (!sku || !name || !category || !basePrice) {
@@ -234,7 +235,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       }
 
       // Sanitize free-text fields against formula injection (USER_ENTERED mode)
-      await appendSheet("Products!A:G", [
+      await appendSheet("Products!A:H", [
         escapeSheetValue(sku),
         escapeSheetValue(name),
         escapeSheetValue(category),
@@ -242,6 +243,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
         escapeSheetValue(promoPrice),
         escapeSheetValue(promoActive),
         escapeSheetValue(inventory),
+        escapeSheetValue(imageUrl),
       ]);
       console.log(`[writer] ✓ create_product ${sku} "${name}" appended in ${Math.round(performance.now() - start)}ms`);
       return { operationId: op.id, status: "success", duration: performance.now() - start };

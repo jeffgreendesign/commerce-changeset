@@ -91,7 +91,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 199.99,
     "Promo Price": "$169.99",
     "Promo Active": "TRUE",
-    Inventory: "8",
+    Inventory: "low_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-006-Z2F9lhJQ49t3RvLdozOgXdBAWXZQ3r.jpeg",
   },
   {
@@ -141,7 +141,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 64.99,
     "Promo Price": "$54.99",
     "Promo Active": "FALSE",
-    Inventory: "5",
+    Inventory: "low_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-011-X1WVAPd6MWjjbVjZKhDgo0tgas7uc5.jpeg",
   },
   {
