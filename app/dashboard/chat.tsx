@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ const DemoAnnotation = dynamic(() => import("@/components/demo/demo-annotation")
 const DemoInsightBar = dynamic(() => import("@/components/demo/demo-insight-bar").then(m => ({ default: m.DemoInsightBar })), { ssr: false });
 const TokenVaultActivity = dynamic(() => import("@/components/demo/token-vault-activity").then(m => ({ default: m.TokenVaultActivity })), { ssr: false });
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
+import { useIsMobile } from "@/lib/hooks/use-is-mobile";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
@@ -139,18 +140,6 @@ function showExecutionFeedback(changeSet: ChangeSet) {
   }
 }
 
-/** Detect mobile viewport via matchMedia (SSR-safe). */
-const mobileSubscribe = (cb: () => void) => {
-  const mql = window.matchMedia("(max-width: 639px)");
-  mql.addEventListener("change", cb);
-  return () => mql.removeEventListener("change", cb);
-};
-const mobileSnapshot = () => window.matchMedia("(max-width: 639px)").matches;
-const mobileServerSnapshot = () => false;
-
-function useIsMobile() {
-  return useSyncExternalStore(mobileSubscribe, mobileSnapshot, mobileServerSnapshot);
-}
 
 // ── Component ────────────────────────────────────────────────────────
 

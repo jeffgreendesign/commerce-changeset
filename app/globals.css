@@ -1032,13 +1032,6 @@
 
 /* ── Intent Bar ───────────────────────────────────────────────────── */
 
-.intent-bar {
-  --intent-bg: color-mix(in oklch, var(--background) 85%, transparent 15%);
-  -webkit-backdrop-filter: blur(24px) saturate(2);
-  backdrop-filter: blur(24px) saturate(2);
-  background: var(--intent-bg);
-}
-
 .intent-suggestion {
   font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
