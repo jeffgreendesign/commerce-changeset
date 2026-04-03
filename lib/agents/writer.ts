@@ -161,6 +161,16 @@ function validatePromoStatus(value: string): void {
   }
 }
 
+/** Validate image URL is empty or syntactically valid. */
+function validateImageUrl(value: string): void {
+  if (value === "") return;
+  try {
+    new URL(value);
+  } catch {
+    throw new Error(`Invalid Image URL: "${value}". Must be empty or a valid URL.`);
+  }
+}
+
 /** Validate inventory flag is a known status. */
 const VALID_INVENTORY_FLAGS = ["in_stock", "low_stock", "out_of_stock", "discontinued", "pre_order"];
 function validateInventoryFlag(value: string): void {
@@ -224,6 +234,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       if (promoPrice !== "") validatePrice(promoPrice, "Promo Price");
       validatePromoStatus(promoActive);
       validateInventoryFlag(inventory);
+      validateImageUrl(imageUrl);
 
       // Duplicate check (live, not cached).
       // Note: this check-then-append is not atomic (TOCTOU). In practice the race

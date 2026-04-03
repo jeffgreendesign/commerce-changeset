@@ -44,9 +44,11 @@ const INVENTORY_LABELS: Record<string, string> = {
 };
 
 export function inventoryLabel(value: string): string {
-  const label = INVENTORY_LABELS[value];
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  const label = INVENTORY_LABELS[trimmed];
   if (label) return label;
-  const num = Number(value);
+  const num = Number(trimmed);
   if (!Number.isNaN(num)) return `${num.toLocaleString()} units`;
   return value;
 }
@@ -146,7 +148,7 @@ function parseProductsFromToolResults(
     .map((row, i) => {
       const priceStr = row["Base Price"] ?? row["Price"] ?? "0";
       const promoPriceStr = row["Promo Price"] ?? "";
-      const inventoryStr = row["Inventory"] ?? row["Stock"] ?? "in_stock";
+      const inventoryStr = row["Inventory"] || row["Stock"] || "in_stock";
       const promoStr = (row["Promo Active"] ?? row["On Sale"] ?? "").toLowerCase();
       const sku = row["SKU"] ?? row["ID"] ?? "";
       const parsedPromoPrice = parseFloat(promoPriceStr.replace(/[^0-9.]/g, ""));
