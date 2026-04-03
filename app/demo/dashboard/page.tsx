@@ -16,5 +16,5 @@ export default async function DemoDashboardPage() {
     redirect("/demo");
   }
 
-  return <DashboardClient userName="Demo User" />;
+  return <DashboardClient userName="Demo User" isDemo />;
 }
