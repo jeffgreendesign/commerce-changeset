@@ -14,7 +14,7 @@ import {
   interpolatePrompt,
 } from "@/lib/actions";
 import { useLayout } from "@/components/dashboard/layout-shell";
-import type { Product } from "./workspace-provider";
+import type { Product } from "@/components/workspace/workspace-provider";
 
 interface ProductActionSheetProps {
   product: Product | null;

@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
 import { AmbientLayer } from "./ambient-layer";
-import { ProductActionSheet } from "./product-action-sheet";
-import { WorkspaceActionsSheet } from "./workspace-actions-sheet";
-import { ActionHint } from "./action-hint";
-import type { Product } from "./workspace-provider";
+import { ProductActionSheet } from "@/components/workspace/product-action-sheet";
+import { WorkspaceActionsSheet } from "@/components/workspace/workspace-actions-sheet";
+import { ActionHint } from "@/components/workspace/action-hint";
+import type { Product } from "@/components/workspace/workspace-provider";
 import type { Operation } from "@/lib/changeset/types";
 
 export function LivingSurface() {
@@ -68,9 +68,9 @@ export function LivingSurface() {
   const handleLongPress = useCallback(
     (product: Product) => {
       setActionProduct(product);
-      if (!hintDismissed) setHintDismissed(true);
+      setHintDismissed(() => true);
     },
-    [hintDismissed],
+    [],
   );
 
   const handleTileClick = useCallback(

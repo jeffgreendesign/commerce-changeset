@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import {
   ArrowDownIcon,
@@ -103,6 +103,9 @@ export function ProductTile({
     pressing.current = false;
   }, []);
 
+  // Clean up timer on unmount to prevent ghost callbacks
+  useEffect(() => clearLongPress, [clearLongPress]);
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!onLongPress) return;
@@ -131,9 +134,10 @@ export function ProductTile({
     (e: React.MouseEvent) => {
       if (!onLongPress) return;
       e.preventDefault();
+      clearLongPress();
       onLongPress(product);
     },
-    [onLongPress, product],
+    [onLongPress, product, clearLongPress],
   );
   const showDiff =
     !!operation &&
