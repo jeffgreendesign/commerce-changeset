@@ -65,6 +65,16 @@ export type WorkspacePhase =
   | "complete"
   | "error";
 
+/** Phase values reported by the Chat component (superset of WorkspacePhase). */
+export type ChatActivityPhase =
+  | "idle"
+  | "loading"
+  | "draft"
+  | "executing"
+  | "rolling_back"
+  | "complete"
+  | "error";
+
 interface WorkspaceContextValue {
   products: Product[];
   loading: boolean;
@@ -88,6 +98,12 @@ interface WorkspaceContextValue {
   retryFetch: () => void;
   /** Apply diffs from an externally-executed changeset (e.g. from the chat view). */
   applyExecutedChangeset: (cs: ChangeSet) => void;
+  /** Chat-reported activity phase (for the Activity panel when workspace is idle). */
+  chatActivityPhase: ChatActivityPhase;
+  /** Chat-reported changeset (for the Activity panel when workspace is idle). */
+  chatActivityChangeset: ChangeSet | null;
+  /** Called by the Chat component to sync its phase/changeset into the workspace context. */
+  reportChatActivity: (phase: ChatActivityPhase, changeset?: ChangeSet | null) => void;
   /** Session-level changeset history (survives view switches). */
   changesetHistory: TimelineEntry[];
   /** ISO timestamp of when this browser session started (for filtering). */
@@ -430,6 +446,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [draftChangeset, setDraftChangeset] = useState<ChangeSet | null>(null);
   const [phase, setPhase] = useState<WorkspacePhase>("idle");
+  const [chatActivityPhase, setChatActivityPhase] = useState<ChatActivityPhase>("idle");
+  const [chatActivityChangeset, setChatActivityChangeset] = useState<ChangeSet | null>(null);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
@@ -816,6 +834,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const reportChatActivity = useCallback(
+    (p: ChatActivityPhase, changeset?: ChangeSet | null) => {
+      setChatActivityPhase(p);
+      setChatActivityChangeset(changeset ?? null);
+    },
+    [],
+  );
+
   const ctx = useMemo<WorkspaceContextValue>(
     () => ({
       products,
@@ -838,6 +864,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cancelDraft,
       retryFetch,
       applyExecutedChangeset,
+      chatActivityPhase,
+      chatActivityChangeset,
+      reportChatActivity,
       changesetHistory,
       sessionStart,
     }),
@@ -862,6 +891,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cancelDraft,
       retryFetch,
       applyExecutedChangeset,
+      chatActivityPhase,
+      chatActivityChangeset,
+      reportChatActivity,
       changesetHistory,
       sessionStart,
     ],

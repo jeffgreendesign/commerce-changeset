@@ -159,7 +159,7 @@ interface ChatProps {
 }
 
 export function Chat({ chatId }: ChatProps) {
-  const { applyExecutedChangeset } = useWorkspace();
+  const { applyExecutedChangeset, reportChatActivity } = useWorkspace();
   const { isDemo } = useLayout();
   const demoAnnotations = useDemoAnnotations();
   // Load persisted session once so all initializers can use it
@@ -220,6 +220,15 @@ export function Chat({ chatId }: ChatProps) {
       return phases.includes(phase);
     });
   }, [phase, demoAnnotations?.enabled]);
+
+  // Sync chat activity to workspace context so the Activity panel can display traces
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    reportChatActivity(
+      phase,
+      draftChangeSet ?? lastMsg?.changeSet,
+    );
+  }, [phase, draftChangeSet, messages, reportChatActivity]);
 
   // Auto-save messages to localStorage on changes
   useEffect(() => {
@@ -879,7 +888,7 @@ export function Chat({ chatId }: ChatProps) {
           const isLastAssistant = isLast && msg.role === "assistant";
           const hasOps = !!(msg.changeSet && msg.changeSet.operations.length > 0);
           const showInlinePipeline = isLastAssistant && hasOps && phase !== "idle" && phase !== "error";
-          const showInlineActivity = isLastAssistant && hasOps && (phase === "loading" || phase === "executing" || phase === "rolling_back" || phase === "complete");
+          const showInlineActivity = isLastAssistant && hasOps && (phase === "loading" || phase === "draft" || phase === "executing" || phase === "rolling_back" || phase === "complete");
 
           return (
           <div key={i} className="animate-message-enter space-y-3">
