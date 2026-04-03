@@ -44,10 +44,6 @@ warn() {
 # Get files to check (staged files, or all source files if not in a git context)
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.tsx' '*.js' '*.jsx' 2>/dev/null || true)
-  if [ -z "$FILES" ]; then
-    # No staged files — check all source files
-    FILES=$(find "$PROJECT_DIR/app" "$PROJECT_DIR/lib" "$PROJECT_DIR/components" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) 2>/dev/null || true)
-  fi
 else
   FILES=$(find "$PROJECT_DIR/app" "$PROJECT_DIR/lib" "$PROJECT_DIR/components" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) 2>/dev/null || true)
 fi

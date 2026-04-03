@@ -11,5 +11,4 @@ fi
 
 bash scripts/security-check.sh
 
-npm run lint
-npm run typecheck
+npx lint-staged
