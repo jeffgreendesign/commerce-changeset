@@ -75,6 +75,11 @@
   --chart-5: oklch(0.269 0 0);
   --accent-teal: oklch(0.72 0.20 185);
   --approve-glow: oklch(0.596 0.145 163.2);
+  --glow-indigo: oklch(0.7 0.15 264);
+  --glow-teal: oklch(0.7 0.15 145);
+  --glow-magenta: oklch(0.7 0.15 330);
+  --glow-cyan: oklch(0.7 0.15 185);
+  --shine-white: oklch(1 0 0);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -89,6 +94,11 @@
 .dark {
   --accent-teal: oklch(0.75 0.20 185);
   --approve-glow: oklch(0.65 0.17 163.2);
+  --glow-indigo: oklch(0.65 0.18 264);
+  --glow-teal: oklch(0.65 0.18 145);
+  --glow-magenta: oklch(0.65 0.18 330);
+  --glow-cyan: oklch(0.65 0.18 185);
+  --shine-white: oklch(1 0 0);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -253,11 +263,11 @@
   border-radius: inherit;
   background: conic-gradient(
     from var(--gradient-angle),
-    oklch(0.7 0.15 264) 0%,
-    oklch(0.7 0.15 145) 25%,
-    oklch(0.7 0.15 264) 50%,
-    oklch(0.7 0.15 330) 75%,
-    oklch(0.7 0.15 264) 100%
+    var(--glow-indigo) 0%,
+    var(--glow-teal) 25%,
+    var(--glow-indigo) 50%,
+    var(--glow-magenta) 75%,
+    var(--glow-indigo) 100%
   );
   filter: blur(6px);
   opacity: 0.4;
@@ -281,9 +291,9 @@
   background: conic-gradient(
     from var(--gradient-angle),
     var(--approve-glow) 0%,
-    oklch(0.7 0.15 145) 33%,
+    var(--glow-teal) 33%,
     var(--approve-glow) 66%,
-    oklch(0.7 0.15 185) 100%
+    var(--glow-cyan) 100%
   );
   filter: blur(5px);
   opacity: 0.6;
@@ -296,11 +306,11 @@
 @keyframes dot-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 currentColor;
+    box-shadow: 0 0 0 0 currentcolor;
     opacity: 0.7;
   }
   50% {
-    box-shadow: 0 0 4px 1.5px currentColor;
+    box-shadow: 0 0 4px 1.5px currentcolor;
     opacity: 1;
   }
 }
@@ -327,9 +337,9 @@
   background: linear-gradient(
     120deg,
     transparent 30%,
-    oklch(1 0 0 / 15%) 45%,
-    oklch(1 0 0 / 25%) 50%,
-    oklch(1 0 0 / 15%) 55%,
+    color-mix(in oklch, var(--shine-white) 15%, transparent) 45%,
+    color-mix(in oklch, var(--shine-white) 25%, transparent) 50%,
+    color-mix(in oklch, var(--shine-white) 15%, transparent) 55%,
     transparent 70%
   );
   background-size: 200% 100%;
@@ -429,11 +439,11 @@
   border-radius: inherit;
   background: conic-gradient(
     from var(--gradient-angle),
-    oklch(0.7 0.15 264) 0%,
-    oklch(0.7 0.15 145) 25%,
-    oklch(0.7 0.15 264) 50%,
-    oklch(0.7 0.15 330) 75%,
-    oklch(0.7 0.15 264) 100%
+    var(--glow-indigo) 0%,
+    var(--glow-teal) 25%,
+    var(--glow-indigo) 50%,
+    var(--glow-magenta) 75%,
+    var(--glow-indigo) 100%
   );
   z-index: -1;
   opacity: 0;
@@ -780,7 +790,7 @@
 }
 
 .product-tile[data-selected="true"] {
-  outline: 2px solid oklch(0.7 0.15 264);
+  outline: 2px solid var(--glow-indigo);
   outline-offset: 2px;
 }
 
