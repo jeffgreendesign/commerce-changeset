@@ -7,10 +7,9 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import type { PipelinePhase as Phase } from "@/lib/pipeline-phase";
 
 // ── Types ───────────────────────────────────────────────────────────
-
-type Phase = "idle" | "loading" | "draft" | "executing" | "rolling_back" | "complete" | "error";
 
 type AnnotationCategory = "auth0" | "policy" | "agent" | "security" | "audit";
 
@@ -33,7 +32,7 @@ interface DemoAnnotationContextValue {
 
 // ── Annotation definitions ──────────────────────────────────────────
 
-const ANNOTATIONS: AnnotationDef[] = [
+export const ANNOTATIONS: AnnotationDef[] = [
   {
     id: "loading-token-vault",
     phase: "loading",

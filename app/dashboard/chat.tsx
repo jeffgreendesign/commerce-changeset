@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
@@ -30,11 +30,18 @@ import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card"
 import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
 import { useLayout } from "@/components/dashboard/layout-shell";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { useDemoAnnotations, ANNOTATIONS } from "@/components/demo/demo-annotation-provider";
+import dynamic from "next/dynamic";
+
+const DemoAnnotation = dynamic(() => import("@/components/demo/demo-annotation").then(m => ({ default: m.DemoAnnotation })), { ssr: false });
+const DemoInsightBar = dynamic(() => import("@/components/demo/demo-insight-bar").then(m => ({ default: m.DemoInsightBar })), { ssr: false });
+const TokenVaultActivity = dynamic(() => import("@/components/demo/token-vault-activity").then(m => ({ default: m.TokenVaultActivity })), { ssr: false });
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
+import type { PipelinePhase as Phase } from "@/lib/pipeline-phase";
 import {
   loadSession,
   buildChatSession,
@@ -56,15 +63,6 @@ interface Message {
   /** Repetition signal if the orchestrator detected a repetitive workflow. */
   repetitionSignal?: RepetitionSignal;
 }
-
-type Phase =
-  | "idle"
-  | "loading"
-  | "draft"
-  | "executing"
-  | "rolling_back"
-  | "complete"
-  | "error";
 
 interface OrchestratorResponse {
   changeSet: ChangeSet;
@@ -163,6 +161,7 @@ interface ChatProps {
 export function Chat({ chatId }: ChatProps) {
   const { applyExecutedChangeset } = useWorkspace();
   const { isDemo } = useLayout();
+  const demoAnnotations = useDemoAnnotations();
   // Load persisted session once so all initializers can use it
   const [restoredSession] = useState(() => loadSession(chatId));
 
@@ -212,6 +211,15 @@ export function Chat({ chatId }: ChatProps) {
   const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
+
+  // Compute active annotations locally to avoid one-render lag from context sync
+  const localActiveAnnotations = useMemo(() => {
+    if (!demoAnnotations?.enabled) return [];
+    return ANNOTATIONS.filter((a) => {
+      const phases = Array.isArray(a.phase) ? a.phase : [a.phase];
+      return phases.includes(phase);
+    });
+  }, [phase, demoAnnotations?.enabled]);
 
   // Auto-save messages to localStorage on changes
   useEffect(() => {
@@ -985,6 +993,20 @@ export function Chat({ chatId }: ChatProps) {
                 results={msg.changeSet?.execution?.results}
               />
             )}
+
+            {/* Token Vault activity — real-time token exchange visibility (demo only, mutations only) */}
+            {isLastAssistant && isDemo && hasOps && (
+              <TokenVaultActivity phase={phase} />
+            )}
+
+            {/* Demo annotations — phase-aware tech callouts (mutations only) */}
+            {isDemo && isLastAssistant && hasOps && localActiveAnnotations.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {localActiveAnnotations.map((a) => (
+                  <DemoAnnotation key={a.id} annotation={a} />
+                ))}
+              </div>
+            )}
           </div>
           );
         })}
@@ -1014,6 +1036,14 @@ export function Chat({ chatId }: ChatProps) {
                 />
                 <ChangeSetSkeleton />
               </>
+            )}
+            {isDemo && <TokenVaultActivity phase={phase} />}
+            {isDemo && localActiveAnnotations.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {localActiveAnnotations.map((a) => (
+                  <DemoAnnotation key={a.id} annotation={a} />
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -1111,8 +1141,13 @@ export function Chat({ chatId }: ChatProps) {
           onActivate={handleVoiceActivate}
           onDeactivate={handleVoiceDeactivate}
           mobile
+          phase={phase}
+          isDemo={isDemo}
         />
       )}
+
+      {/* Demo insight bar — phase-aware one-liner above input */}
+      {isDemo && <DemoInsightBar phase={phase} />}
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
@@ -1144,6 +1179,8 @@ export function Chat({ chatId }: ChatProps) {
               onVolumeChange={geminiLive.setVolume}
               onActivate={handleVoiceActivate}
               onDeactivate={handleVoiceDeactivate}
+              phase={phase}
+              isDemo={isDemo}
             />
             <Button
               type="submit"

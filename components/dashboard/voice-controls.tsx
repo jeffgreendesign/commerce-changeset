@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { MicIcon, MicOffIcon, ActivityIcon, Loader2Icon, Volume2Icon } from "lucide-react";
+import { MicIcon, MicOffIcon, ActivityIcon, Loader2Icon, Volume2Icon, LockKeyholeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -9,6 +9,7 @@ import type {
   GeminiLiveConnectionState,
   SidecarStatus,
 } from "@/lib/voice/types";
+import type { PipelinePhase } from "@/lib/pipeline-phase";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -39,6 +40,10 @@ interface VoiceControlsProps {
   onVolumeChange?: (volume: number) => void;
   /** Render as mobile voice dock (expanded layout). */
   mobile?: boolean;
+  /** Current pipeline phase (for Token Vault overlay in demo). */
+  phase?: PipelinePhase;
+  /** Whether demo mode is active. */
+  isDemo?: boolean;
 }
 
 // ── Stress indicator colors ──────────────────────────────────────────
@@ -83,6 +88,36 @@ function getStressChipColor(state?: EmotionalState): string {
     default:
       return "bg-muted text-muted-foreground";
   }
+}
+
+// ── Token Vault status for voice mode (demo only) ───────────────────
+
+function getTokenVaultMessage(phase?: PipelinePhase): string | null {
+  switch (phase) {
+    case "loading":
+      return "Reader exchanging OBO token...";
+    case "draft":
+      return "Reader token exchanged";
+    case "executing":
+    case "rolling_back":
+      return "Writer scoped to approved ops";
+    case "complete":
+      return "3 agents delegated, 0 credential leaks";
+    default:
+      return null;
+  }
+}
+
+function VoiceTokenVaultStatus({ phase }: { phase?: PipelinePhase }) {
+  const message = getTokenVaultMessage(phase);
+  if (!message) return null;
+
+  return (
+    <div className="animate-step-enter inline-flex items-center gap-1.5 rounded-full border border-tv-border bg-tv-bg px-3 py-1 text-[11px] font-medium text-tv-text">
+      <LockKeyholeIcon className="size-3 shrink-0" />
+      Token Vault: {message}
+    </div>
+  );
 }
 
 // ── Dynamic audio visualizer ─────────────────────────────────────────
@@ -244,6 +279,8 @@ function MobileVoiceDock({
   onToggle,
   isConnecting,
   isTransitioning,
+  phase,
+  isDemo,
 }: {
   isActive: boolean;
   emotionalState?: EmotionalState;
@@ -258,6 +295,8 @@ function MobileVoiceDock({
   onToggle: () => void;
   isConnecting: boolean;
   isTransitioning: boolean;
+  phase?: PipelinePhase;
+  isDemo?: boolean;
 }) {
   return (
     <div className="glass relative flex flex-col items-center gap-3 border-t px-6 py-4 pb-safe animate-voice-dock-enter">
@@ -275,6 +314,9 @@ function MobileVoiceDock({
           {getStressLabel(emotionalState)}
         </div>
       )}
+
+      {/* Token Vault status (demo only) */}
+      {isDemo && <VoiceTokenVaultStatus phase={phase} />}
 
       {/* Visualizer + mic button */}
       <div className="flex items-center gap-4">
@@ -364,6 +406,8 @@ export function VoiceControls({
   onActivate,
   onDeactivate,
   mobile = false,
+  phase,
+  isDemo,
 }: VoiceControlsProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -411,6 +455,8 @@ export function VoiceControls({
         onToggle={handleToggle}
         isConnecting={isConnecting}
         isTransitioning={isTransitioning}
+        phase={phase}
+        isDemo={isDemo}
       />
     );
   }
@@ -420,6 +466,9 @@ export function VoiceControls({
     <div className="flex items-center gap-2">
       {/* Connection state indicator */}
       <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} />
+
+      {/* Token Vault status (demo only, inline) */}
+      {isDemo && isActive && <VoiceTokenVaultStatus phase={phase} />}
 
       {/* Stress/emotional state indicator — hidden on mobile to save space */}
       {isActive && stressLevel !== undefined && sidecarStatus?.receiving && (
