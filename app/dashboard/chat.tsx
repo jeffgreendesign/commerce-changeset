@@ -162,6 +162,7 @@ interface ChatProps {
 
 export function Chat({ chatId }: ChatProps) {
   const { applyExecutedChangeset } = useWorkspace();
+  const { isDemo } = useLayout();
   // Load persisted session once so all initializers can use it
   const [restoredSession] = useState(() => loadSession(chatId));
 
@@ -201,6 +202,7 @@ export function Chat({ chatId }: ChatProps) {
     () => restoredSession?.draftReasoning ?? "",
   );
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
+  const [cibaApproved, setCibaApproved] = useState(false);
   const [sessionPattern, setSessionPattern] = useState<string | null>(null);
   const [showScrollPill, setShowScrollPill] = useState(false);
   const [patternDismissed, setPatternDismissed] = useState(false);
@@ -432,6 +434,7 @@ export function Chat({ chatId }: ChatProps) {
 
     setPhase("executing");
     setError("");
+    setCibaApproved(false);
     scrollToBottom();
 
     try {
@@ -454,7 +457,10 @@ export function Chat({ chatId }: ChatProps) {
         throw new Error(data.error.message);
       }
 
-      // Brief pause so demo users see the executing state before completion
+      // Show approved state before transitioning to complete
+      setCibaApproved(true);
+
+      // Brief pause so demo users see the approved state before completion
       if (res.headers.get("x-demo-session") === "1") {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
@@ -494,6 +500,7 @@ export function Chat({ chatId }: ChatProps) {
     setPhase("rolling_back");
     setActiveRollbackId(sourceId);
     setError("");
+    setCibaApproved(false);
     setDraftChangeSet(null); draftChangeSetRef.current = null;
     scrollToBottom();
 
@@ -550,6 +557,7 @@ export function Chat({ chatId }: ChatProps) {
         throw new Error(execData.error.message);
       }
 
+      setCibaApproved(true);
       applyExecutedChangeset(execData.changeSet);
 
       // Step 4: Update messages — conditionally mark original, replace draft
@@ -616,6 +624,9 @@ export function Chat({ chatId }: ChatProps) {
     setError("");
     setDraftChangeSet(null); draftChangeSetRef.current = null;
     setDraftReasoning("");
+    // Pre-fill input with last user message for retry convenience
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUserMsg) setInput(lastUserMsg.content);
   };
 
   const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
@@ -1014,12 +1025,20 @@ export function Chat({ chatId }: ChatProps) {
 
         {/* CIBA approval gate during execution */}
         {phase === "executing" && (
-          <CIBAApprovalGate isRollback={false} />
+          <CIBAApprovalGate
+            isRollback={false}
+            timeoutSeconds={isDemo ? 10 : 120}
+            approved={cibaApproved}
+          />
         )}
 
         {/* CIBA approval gate during rollback */}
         {phase === "rolling_back" && (
-          <CIBAApprovalGate isRollback />
+          <CIBAApprovalGate
+            isRollback
+            timeoutSeconds={isDemo ? 10 : 120}
+            approved={cibaApproved}
+          />
         )}
 
         {/* Error */}
