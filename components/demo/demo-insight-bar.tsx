@@ -1,5 +1,6 @@
 "use client";
 
+import type { PipelinePhase as Phase } from "@/lib/pipeline-phase";
 import { useDemoAnnotations } from "./demo-annotation-provider";
 
 const PHASE_MESSAGES: Record<string, string> = {
@@ -16,11 +17,11 @@ const PHASE_MESSAGES: Record<string, string> = {
  * Slim bar pinned above the chat input with a one-liner about the current phase.
  * Only renders when demo annotations are enabled.
  */
-export function DemoInsightBar() {
+export function DemoInsightBar({ phase }: { phase?: Phase }) {
   const ctx = useDemoAnnotations();
   if (!ctx?.enabled) return null;
 
-  const message = PHASE_MESSAGES[ctx.phase] ?? PHASE_MESSAGES.idle;
+  const message = PHASE_MESSAGES[phase ?? ctx.phase] ?? PHASE_MESSAGES.idle;
 
   return (
     <div className="animate-step-enter border-t border-tv-border-subtle bg-tv-bg px-4 py-1.5">

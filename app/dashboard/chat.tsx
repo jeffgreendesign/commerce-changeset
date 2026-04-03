@@ -210,11 +210,6 @@ export function Chat({ chatId }: ChatProps) {
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
 
-  // Sync phase to demo annotation context (DemoInsightBar reads ctx.phase)
-  useEffect(() => {
-    demoAnnotations?.setPhase(phase);
-  }, [phase, demoAnnotations]);
-
   // Compute active annotations locally to avoid one-render lag from context sync
   const localActiveAnnotations = useMemo(() => {
     if (!demoAnnotations?.enabled) return [];
@@ -1003,7 +998,7 @@ export function Chat({ chatId }: ChatProps) {
             )}
 
             {/* Demo annotations — phase-aware tech callouts (mutations only) */}
-            {isLastAssistant && hasOps && localActiveAnnotations.length > 0 && (
+            {isDemo && isLastAssistant && hasOps && localActiveAnnotations.length > 0 && (
               <div className="grid gap-2 sm:grid-cols-2">
                 {localActiveAnnotations.map((a) => (
                   <DemoAnnotation key={a.id} annotation={a} />
@@ -1143,7 +1138,7 @@ export function Chat({ chatId }: ChatProps) {
       )}
 
       {/* Demo insight bar — phase-aware one-liner above input */}
-      {isDemo && <DemoInsightBar />}
+      {isDemo && <DemoInsightBar phase={phase} />}
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
