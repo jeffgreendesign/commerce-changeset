@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { RiskTier } from "@/lib/policy/types";
 import type { Operation, OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
+import { inventoryLabel } from "./workspace-provider";
 import type { Product, WorkspacePhase } from "./workspace-provider";
 
 export interface TileClickModifiers {
@@ -326,7 +327,7 @@ export function ProductTile({
       {/* Inventory + promo/risk/issue row */}
       <div className="mt-1.5 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
-          {product.inventory.toLocaleString()} units
+          {inventoryLabel(product.inventory)}
         </span>
         <span className="inline-flex items-center gap-1">
           {maxIssueSeverity && (
