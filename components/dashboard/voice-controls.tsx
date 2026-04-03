@@ -101,6 +101,8 @@ function demoAffectFromPhase(phase?: PipelinePhase): EmotionalState {
     case "executing":
     case "rolling_back":
       return "stressed";
+    case "error":
+      return "stressed";
     case "complete":
       return "calm";
     default:
@@ -117,6 +119,8 @@ function demoStressFromPhase(phase?: PipelinePhase): number {
     case "executing":
     case "rolling_back":
       return 0.75;
+    case "error":
+      return 0.8;
     case "complete":
       return 0.1;
     default:
@@ -351,7 +355,7 @@ function MobileVoiceDock({
           </div>
         ) : (
           <span className="shrink-0 text-[11px] text-muted-foreground">
-            {isActive ? "Tap to stop" : "Tap to speak"}
+            {isConnecting ? "Connecting\u2026" : isActive ? "Tap to stop" : "Tap to speak"}
           </span>
         )}
 
@@ -423,7 +427,7 @@ function MobileVoiceDock({
           </div>
         ) : (
           <span className="shrink-0 text-[11px] text-muted-foreground">
-            {isActive ? "Tap to stop" : "Tap to speak"}
+            {isConnecting ? "Connecting\u2026" : isActive ? "Tap to stop" : "Tap to speak"}
           </span>
         )}
       </div>
