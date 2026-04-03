@@ -57,6 +57,8 @@ interface LayoutContextValue {
   setPendingAction: (action: ActionDefinition) => void;
   /** Close the confirmation dialog without running. */
   clearPendingAction: () => void;
+  /** Whether the current session is a demo (mock data, no real Auth0). */
+  isDemo: boolean;
 }
 
 const LayoutContext = createContext<LayoutContextValue | null>(null);
@@ -72,9 +74,10 @@ export function useLayout() {
 interface LayoutShellProps {
   children: ReactNode;
   userName: string;
+  isDemo?: boolean;
 }
 
-export function LayoutShell({ children, userName }: LayoutShellProps) {
+export function LayoutShell({ children, userName, isDemo = false }: LayoutShellProps) {
   const [railExpanded, setRailExpanded] = useState(false);
   const [inspectorItem, setInspectorItem] = useState<InspectableItem | null>(
     null,
@@ -171,8 +174,9 @@ export function LayoutShell({ children, userName }: LayoutShellProps) {
       pendingAction,
       setPendingAction,
       clearPendingAction,
+      isDemo,
     }),
-    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, navigateToView, pendingPrompt, setPendingPrompt, consumePendingPrompt, pendingAction, setPendingAction, clearPendingAction],
+    [inspect, closeInspector, inspectorItem, railExpanded, toggleRail, activeChatId, startNewChat, loadChat, activeView, navigateToView, pendingPrompt, setPendingPrompt, consumePendingPrompt, pendingAction, setPendingAction, clearPendingAction, isDemo],
   );
 
   return (

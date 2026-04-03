@@ -96,10 +96,10 @@ function DashboardContent({ userName }: { userName: string }) {
 
 // ── Main export ──────────────────────────────────────────────────────
 
-export function DashboardClient({ userName }: { userName: string }) {
+export function DashboardClient({ userName, isDemo = false }: { userName: string; isDemo?: boolean }) {
   return (
     <StatusBarProvider>
-      <LayoutShell userName={userName}>
+      <LayoutShell userName={userName} isDemo={isDemo}>
         <WorkspaceProvider>
           <DashboardContent userName={userName} />
         </WorkspaceProvider>
