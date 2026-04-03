@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { ShieldCheckIcon, XIcon, SmartphoneIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface MockCIBAApprovalProps {
   operationCount: number;
@@ -89,7 +90,7 @@ export function MockCIBAApproval({
               size="sm"
               onClick={handleApprove}
               disabled={approving}
-              className="h-9 flex-1 rounded-xl bg-emerald-600 text-xs font-medium text-white hover:bg-emerald-500"
+              className={cn("h-9 flex-1 rounded-xl bg-emerald-600 text-xs font-medium text-white hover:bg-emerald-500", !approving && "animate-cta-pulse-approve")}
             >
               {approving ? (
                 <span className="flex items-center gap-1.5">

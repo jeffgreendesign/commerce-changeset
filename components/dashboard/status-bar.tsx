@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, createContext, useContext, useMemo, type ReactNode } from "react";
-// ActivityIcon removed — replaced with live dot indicator
+import { useMemo, type ReactNode } from "react";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { useLayout } from "@/components/dashboard/layout-shell";
 
-// ── Stats context — allows chat.tsx to push stats up ─────────────────
+// ── Derive stats from workspace timeline history ────────────────────
 
 interface SessionStats {
   changesets: number;
@@ -11,50 +12,29 @@ interface SessionStats {
   failures: number;
 }
 
-interface StatusBarContextValue {
-  stats: SessionStats;
-  recordChangeset: (opCount: number, failCount: number) => void;
-}
-
-const StatusBarContext = createContext<StatusBarContextValue | null>(null);
-
-export function useStatusBar() {
-  const ctx = useContext(StatusBarContext);
-  if (!ctx) throw new Error("useStatusBar must be used inside <StatusBarProvider>");
-  return ctx;
-}
-
-export function StatusBarProvider({ children }: { children: ReactNode }) {
-  const [stats, setStats] = useState<SessionStats>({
-    changesets: 0,
-    operations: 0,
-    failures: 0,
-  });
-
-  const recordChangeset = useCallback((opCount: number, failCount: number) => {
-    setStats((prev) => ({
-      changesets: prev.changesets + 1,
-      operations: prev.operations + opCount,
-      failures: prev.failures + failCount,
-    }));
-  }, []);
-
-  const value = useMemo(
-    () => ({ stats, recordChangeset }),
-    [stats, recordChangeset],
-  );
-
-  return (
-    <StatusBarContext.Provider value={value}>
-      {children}
-    </StatusBarContext.Provider>
-  );
+function useSessionStats(): SessionStats {
+  const { changesetHistory, sessionStart } = useWorkspace();
+  return useMemo(() => {
+    let operations = 0;
+    let failures = 0;
+    let changesets = 0;
+    for (const entry of changesetHistory) {
+      if (entry.completedAt < sessionStart) continue;
+      changesets += 1;
+      operations += entry.changeset.operations.length;
+      if (entry.changeset.status === "partial_failure") {
+        failures += 1;
+      }
+    }
+    return { changesets, operations, failures };
+  }, [changesetHistory, sessionStart]);
 }
 
 // ── Status bar content (embeddable, no wrapper) ─────────────────────
 
 export function StatusBarContent() {
-  const { stats } = useStatusBar();
+  const stats = useSessionStats();
+  const { setActiveView } = useLayout();
 
   return (
     <>
@@ -64,9 +44,13 @@ export function StatusBarContent() {
         </span>
         <span className="font-medium">Session</span>
       </span>
-      <span className="rounded-full bg-muted px-1.5 py-0.5 tabular-nums">
+      <button
+        type="button"
+        onClick={() => setActiveView("timeline")}
+        className="rounded-full bg-muted px-1.5 py-0.5 tabular-nums transition-colors hover:bg-muted/80 hover:text-foreground"
+      >
         {stats.changesets} changeset{stats.changesets !== 1 ? "s" : ""}
-      </span>
+      </button>
       <span className="hidden rounded-full bg-muted px-1.5 py-0.5 tabular-nums sm:inline">
         {stats.operations} op{stats.operations !== 1 ? "s" : ""}
       </span>
@@ -84,12 +68,8 @@ export function StatusBarContent() {
   );
 }
 
-// ── Standalone status bar (legacy, kept for backwards compatibility) ──
+// ── Provider (kept for backwards compatibility — now a passthrough) ──
 
-export function StatusBar() {
-  return (
-    <div className="flex h-7 items-center gap-2 border-b bg-muted/20 pl-[calc(env(safe-area-inset-left,0px)+3.5rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)] text-[11px] text-muted-foreground md:pl-4 md:pr-4">
-      <StatusBarContent />
-    </div>
-  );
+export function StatusBarProvider({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }

@@ -74,6 +74,12 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --accent-teal: oklch(0.72 0.20 185);
+  --approve-glow: oklch(0.596 0.145 163.2);
+  --glow-indigo: oklch(0.7 0.15 264);
+  --glow-teal: oklch(0.7 0.15 145);
+  --glow-magenta: oklch(0.7 0.15 330);
+  --glow-cyan: oklch(0.7 0.15 185);
+  --shine-white: oklch(1 0 0);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -87,6 +93,12 @@
 
 .dark {
   --accent-teal: oklch(0.75 0.20 185);
+  --approve-glow: oklch(0.65 0.17 163.2);
+  --glow-indigo: oklch(0.65 0.18 264);
+  --glow-teal: oklch(0.65 0.18 145);
+  --glow-magenta: oklch(0.65 0.18 330);
+  --glow-cyan: oklch(0.65 0.18 185);
+  --shine-white: oklch(1 0 0);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -185,6 +197,15 @@
   }
 }
 
+@keyframes cta-shine {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @keyframes connector-flow {
   0% {
     stroke-dashoffset: 20;
@@ -228,6 +249,103 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ── CTA iridescent glow ──────────────────────────────────────────── */
+.animate-cta-pulse {
+  position: relative;
+  isolation: isolate;
+}
+.animate-cta-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--glow-indigo) 0%,
+    var(--glow-teal) 25%,
+    var(--glow-indigo) 50%,
+    var(--glow-magenta) 75%,
+    var(--glow-indigo) 100%
+  );
+  filter: blur(6px);
+  opacity: 0.4;
+  z-index: -1;
+  animation: gradient-rotate 3s linear infinite;
+  pointer-events: none;
+}
+:is(.dark) .animate-cta-pulse::after {
+  opacity: 0.7;
+}
+
+.animate-cta-pulse-approve {
+  position: relative;
+  isolation: isolate;
+}
+.animate-cta-pulse-approve::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--approve-glow) 0%,
+    var(--glow-teal) 33%,
+    var(--approve-glow) 66%,
+    var(--glow-cyan) 100%
+  );
+  filter: blur(5px);
+  opacity: 0.6;
+  z-index: -1;
+  animation: gradient-rotate 3s linear infinite;
+  pointer-events: none;
+}
+
+/* ── Risk dot glow — staggered per dot ─────────────────────────────── */
+@keyframes dot-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentcolor;
+    opacity: 0.7;
+  }
+  50% {
+    box-shadow: 0 0 4px 1.5px currentcolor;
+    opacity: 1;
+  }
+}
+.animate-dot-pulse {
+  animation: dot-glow 1.8s ease-in-out infinite;
+}
+.animate-dot-pulse:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.animate-dot-pulse:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ── CTA shine sweep ───────────────────────────────────────────────── */
+.animate-cta-shine {
+  position: relative;
+  overflow: hidden;
+}
+.animate-cta-shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    color-mix(in oklch, var(--shine-white) 15%, transparent) 45%,
+    color-mix(in oklch, var(--shine-white) 25%, transparent) 50%,
+    color-mix(in oklch, var(--shine-white) 15%, transparent) 55%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: cta-shine 3s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .animate-step-enter {
@@ -321,11 +439,11 @@
   border-radius: inherit;
   background: conic-gradient(
     from var(--gradient-angle),
-    oklch(0.7 0.15 264) 0%,
-    oklch(0.7 0.15 145) 25%,
-    oklch(0.7 0.15 264) 50%,
-    oklch(0.7 0.15 330) 75%,
-    oklch(0.7 0.15 264) 100%
+    var(--glow-indigo) 0%,
+    var(--glow-teal) 25%,
+    var(--glow-indigo) 50%,
+    var(--glow-magenta) 75%,
+    var(--glow-indigo) 100%
   );
   z-index: -1;
   opacity: 0;
@@ -384,6 +502,20 @@
   .animate-slide-down-fade,
   .animate-category-enter {
     animation: none;
+  }
+  .animate-cta-pulse::after,
+  .animate-cta-pulse-approve::after {
+    animation: none;
+    opacity: 0.4;
+  }
+  .animate-dot-pulse {
+    animation: none;
+    opacity: 1;
+    box-shadow: none;
+  }
+  .animate-cta-shine::before {
+    animation: none;
+    background: none;
   }
   .agent-card-glow::before {
     animation: none;
@@ -658,7 +790,7 @@
 }
 
 .product-tile[data-selected="true"] {
-  outline: 2px solid oklch(0.7 0.15 264);
+  outline: 2px solid var(--glow-indigo);
   outline-offset: 2px;
 }
 

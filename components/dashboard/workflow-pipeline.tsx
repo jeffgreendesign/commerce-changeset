@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import {
   CheckIcon,
@@ -172,29 +173,38 @@ export function WorkflowPipeline({ phase, requiresCIBA }: WorkflowPipelineProps)
         allComplete && "animate-shimmer-sweep",
       )}
     >
-      {/* Single horizontal layout for all breakpoints */}
+      {/* Dots + connectors row — dots are fixed-width, connectors stretch */}
       <div className="flex items-center">
         {steps.map((step, i) => (
-          <div key={step.id} className="flex flex-1 items-center">
-            <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+          <Fragment key={step.id}>
+            <div className="flex-none">
               <StepDot status={step.status} />
-              <span
-                className={cn(
-                  "text-[9px] font-medium leading-none transition-colors sm:text-[10px]",
-                  step.status === "active" && "text-foreground",
-                  step.status === "completed" &&
-                    "text-emerald-700 dark:text-emerald-400",
-                  step.status === "failed" && "text-destructive",
-                  step.status === "pending" && "text-muted-foreground",
-                )}
-              >
-                {step.label}
-              </span>
             </div>
             {i < steps.length - 1 && (
               <Connector fromStatus={step.status} />
             )}
-          </div>
+          </Fragment>
+        ))}
+      </div>
+
+      {/* Labels row — fixed-width labels match dot sizes, spacers match connectors */}
+      <div className="mt-0.5 flex items-start sm:mt-1">
+        {steps.map((step, i) => (
+          <Fragment key={step.id}>
+            <span
+              className={cn(
+                "w-5 flex-none text-center text-[9px] font-medium leading-none transition-colors sm:w-6 sm:text-[10px]",
+                step.status === "active" && "text-foreground",
+                step.status === "completed" &&
+                  "text-emerald-700 dark:text-emerald-400",
+                step.status === "failed" && "text-destructive",
+                step.status === "pending" && "text-muted-foreground",
+              )}
+            >
+              {step.label}
+            </span>
+            {i < steps.length - 1 && <div className="flex-1" />}
+          </Fragment>
         ))}
       </div>
     </div>
