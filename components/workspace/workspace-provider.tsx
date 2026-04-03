@@ -8,13 +8,20 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { runProactiveChecks } from "@/lib/voice/proactive-insights";
-import { loadTimeline, saveTimeline, cappedAppend, type TimelineEntry } from "@/lib/timeline-history";
+import {
+  subscribeTimeline,
+  getTimelineSnapshot,
+  getTimelineServerSnapshot,
+  appendTimelineEntry,
+  type TimelineEntry,
+} from "@/lib/timeline-history";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -427,20 +434,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
 
-  // ── Timeline history (survives view switches + page refreshes) ────
-  // Lazy initializer is safe: loadTimeline returns [] on server; any brief
-  // hydration mismatch is invisible since the timeline renders an empty state.
-  const [changesetHistory, setChangesetHistory] = useState<TimelineEntry[]>(() => loadTimeline());
-  const initialLoadCompleteRef = useRef(false);
+  // ── Timeline history (useSyncExternalStore — SSR-safe, no hydration mismatch) ──
+  const changesetHistory = useSyncExternalStore(
+    subscribeTimeline,
+    getTimelineSnapshot,
+    getTimelineServerSnapshot,
+  );
   const [sessionStart] = useState(() => new Date().toISOString());
-  const [prevPhaseForHistory, setPrevPhaseForHistory] = useState<WorkspacePhase>(phase);
 
-  // Capture completed changesets into session history using the
-  // "setState during render" pattern (React-endorsed for derived state).
-  if (phase !== prevPhaseForHistory) {
-    setPrevPhaseForHistory(phase);
+  // Capture workspace-executed changesets into timeline when phase
+  // transitions from "executing" → "complete".
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = phase;
     if (
-      prevPhaseForHistory === "executing" &&
+      prev === "executing" &&
       phase === "complete" &&
       draftChangeset &&
       draftChangeset.execution?.receipt &&
@@ -448,28 +457,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         draftChangeset.status === "partial_failure" ||
         draftChangeset.status === "executing")
     ) {
-      // Preserve the real terminal status from the executor; only coerce
-      // "executing" (the transient provider status) to "completed".
       const terminalStatus: ChangeSetStatus =
         draftChangeset.status === "executing"
           ? "completed"
           : draftChangeset.status;
-      setChangesetHistory((prev) => cappedAppend(prev, {
+      appendTimelineEntry({
         changeset: { ...draftChangeset, status: terminalStatus },
         completedAt: new Date().toISOString(),
-      }));
+      });
     }
-  }
-
-  // Persist timeline to localStorage whenever it changes.
-  // Skip the first render (initial load from localStorage) to avoid a redundant write.
-  useEffect(() => {
-    if (!initialLoadCompleteRef.current) {
-      initialLoadCompleteRef.current = true;
-      return;
-    }
-    saveTimeline(changesetHistory);
-  }, [changesetHistory]);
+  }, [phase, draftChangeset]);
 
   const wsTemperature = temperatureFromPhase(phase);
 
@@ -810,10 +807,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     );
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
     // Capture into timeline history so chat-executed changesets appear
-    setChangesetHistory((prev) => cappedAppend(prev, {
+    appendTimelineEntry({
       changeset: cs,
       completedAt: new Date().toISOString(),
-    }));
+    });
   }, []);
 
   const ctx = useMemo<WorkspaceContextValue>(
