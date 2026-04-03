@@ -39,10 +39,10 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     Name: "Classic Runner",
     Category: "Running",
     "Base Price": 129.99,
-    "Promo Price": "",
-    "Promo Active": "FALSE",
+    "Promo Price": "$109.99",
+    "Promo Active": "TRUE",
     Inventory: "450",
-    "Image URL": "",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-001-vW5xPrRgYLvkbsU4UpmHOYAf8Vvcse.jpeg",
   },
   {
     SKU: "STR-002",
@@ -51,58 +51,58 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 149.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "320",
-    "Image URL": "",
+    Inventory: "280",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-002-0BCoCn9gzDl9tBRLtZi1k49nbcTb12.jpeg",
   },
   {
     SKU: "STR-003",
     Name: "Speed Elite",
     Category: "Running",
     "Base Price": 179.99,
-    "Promo Price": "",
-    "Promo Active": "FALSE",
-    Inventory: "185",
-    "Image URL": "",
+    "Promo Price": "$159.99",
+    "Promo Active": "TRUE",
+    Inventory: "120",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-003-yHMRGAB7iu1JJ3HMOjXnkPuvu5ikuw.jpeg",
   },
   {
     SKU: "STR-004",
     Name: "Urban Walk",
     Category: "Lifestyle",
     "Base Price": 89.99,
-    "Promo Price": "",
-    "Promo Active": "FALSE",
-    Inventory: "520",
-    "Image URL": "",
+    "Promo Price": "$74.99",
+    "Promo Active": "TRUE",
+    Inventory: "340",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-004-AGyOBkKWHeVgubhO7lgmnsdQjA8s9a.jpeg",
   },
   {
     SKU: "STR-005",
     Name: "Flex Training",
     Category: "Training",
     "Base Price": 109.99,
-    "Promo Price": "",
+    "Promo Price": "$99.99",
     "Promo Active": "FALSE",
-    Inventory: "275",
-    "Image URL": "",
+    Inventory: "200",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-005-US8Qck4jEXOOdH9gTuCUtE0uE1HBfn.jpeg",
   },
   {
     SKU: "STR-006",
     Name: "Marathon Pro",
     Category: "Running",
     "Base Price": 199.99,
-    "Promo Price": "",
-    "Promo Active": "FALSE",
-    Inventory: "42",
-    "Image URL": "",
+    "Promo Price": "$169.99",
+    "Promo Active": "TRUE",
+    Inventory: "8",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-006-Z2F9lhJQ49t3RvLdozOgXdBAWXZQ3r.jpeg",
   },
   {
     SKU: "STR-007",
     Name: "Weekend Jogger",
     Category: "Lifestyle",
     "Base Price": 79.99,
-    "Promo Price": "",
-    "Promo Active": "FALSE",
-    Inventory: "610",
-    "Image URL": "",
+    "Promo Price": "$69.99",
+    "Promo Active": "TRUE",
+    Inventory: "500",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-007-C55BYP4XvFhZz85iIAnmlBpNe9iMr7.jpeg",
   },
   {
     SKU: "STR-008",
@@ -111,8 +111,48 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 139.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "390",
-    "Image URL": "",
+    Inventory: "150",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-008-l9QUnbTELdsjfiXNO8KhX0en7V0Hs6.jpeg",
+  },
+  {
+    SKU: "STR-009",
+    Name: "Performance Hoodie",
+    Category: "Apparel",
+    "Base Price": 89.99,
+    "Promo Price": "$69.99",
+    "Promo Active": "TRUE",
+    Inventory: "75",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-009-XTVZykBFU5QCwbzlob3DJ5DnChcojG.jpeg",
+  },
+  {
+    SKU: "STR-010",
+    Name: "Gym Duffel",
+    Category: "Accessories",
+    "Base Price": 49.99,
+    "Promo Price": "$39.99",
+    "Promo Active": "TRUE",
+    Inventory: "220",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-010-CFUxI5VvqTJBdAXwnJOy7M4ovZTTHF.jpeg",
+  },
+  {
+    SKU: "STR-011",
+    Name: "Compression Tights",
+    Category: "Apparel",
+    "Base Price": 64.99,
+    "Promo Price": "$54.99",
+    "Promo Active": "FALSE",
+    Inventory: "5",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-011-X1WVAPd6MWjjbVjZKhDgo0tgas7uc5.jpeg",
+  },
+  {
+    SKU: "STR-012",
+    Name: "Training Socks 3-Pack",
+    Category: "Accessories",
+    "Base Price": 24.99,
+    "Promo Price": "$19.99",
+    "Promo Active": "TRUE",
+    Inventory: "800",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-012-jOh10A5zNm6BKHblXXCVqMIFhqYCdJ.jpeg",
   },
 ];
 
@@ -153,12 +193,12 @@ export const MOCK_LAUNCHES: MockLaunch[] = [
 
 export function buildMockReaderText(): string {
   const header =
-    "| SKU | Name | Category | Base Price | Promo Price | Promo Active | Inventory |";
+    "| SKU | Name | Category | Base Price | Promo Price | Promo Active | Inventory | Image URL |";
   const sep =
-    "|-----|------|----------|-----------|-------------|--------------|-----------|";
+    "|-----|------|----------|-----------|-------------|--------------|-----------|-----------|";
   const rows = MOCK_PRODUCTS.map(
     (p) =>
-      `| ${p.SKU} | ${p.Name} | ${p.Category} | $${p["Base Price"].toFixed(2)} | ${p["Promo Price"] || "—"} | ${p["Promo Active"]} | ${p.Inventory} |`
+      `| ${p.SKU} | ${p.Name} | ${p.Category} | $${p["Base Price"].toFixed(2)} | ${p["Promo Price"] || "—"} | ${p["Promo Active"]} | ${p.Inventory} | ${p["Image URL"]} |`
   );
   return [header, sep, ...rows].join("\n");
 }
