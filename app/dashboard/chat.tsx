@@ -159,7 +159,7 @@ interface ChatProps {
 }
 
 export function Chat({ chatId }: ChatProps) {
-  const { applyExecutedChangeset } = useWorkspace();
+  const { applyExecutedChangeset, reportChatActivity } = useWorkspace();
   const { isDemo } = useLayout();
   const demoAnnotations = useDemoAnnotations();
   // Load persisted session once so all initializers can use it
@@ -220,6 +220,19 @@ export function Chat({ chatId }: ChatProps) {
       return phases.includes(phase);
     });
   }, [phase, demoAnnotations?.enabled]);
+
+  // Sync chat activity to workspace context so the Activity panel can display traces
+  useEffect(() => {
+    if (phase === "idle" && !draftChangeSet) {
+      reportChatActivity("idle", null);
+      return;
+    }
+    const lastMsg = messages[messages.length - 1];
+    reportChatActivity(
+      phase,
+      draftChangeSet ?? lastMsg?.changeSet,
+    );
+  }, [phase, draftChangeSet, messages, reportChatActivity]);
 
   // Auto-save messages to localStorage on changes
   useEffect(() => {
@@ -344,18 +357,25 @@ export function Chat({ chatId }: ChatProps) {
           return { success: true, status: data.changeSet.status };
         }
         case "query_product_data": {
-          const res = await fetch("/api/reader", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: args.query }),
-          });
-          if (!res.ok) throw new Error("Reader request failed");
-          const data = (await res.json()) as { text: string };
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: "Here\u2019s what I found:", readResult: data.text },
-          ]);
-          return { data: data.text };
+          setPhase("loading");
+          try {
+            const res = await fetch("/api/reader", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: args.query }),
+            });
+            if (!res.ok) throw new Error("Reader request failed");
+            const data = (await res.json()) as { text: string };
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "Here\u2019s what I found:", readResult: data.text },
+            ]);
+            setPhase("idle");
+            return { data: data.text };
+          } catch (err) {
+            setPhase("error");
+            throw err;
+          }
         }
         case "voice_approve": {
           // Voice approval — trigger execution with CIBA
@@ -879,7 +899,7 @@ export function Chat({ chatId }: ChatProps) {
           const isLastAssistant = isLast && msg.role === "assistant";
           const hasOps = !!(msg.changeSet && msg.changeSet.operations.length > 0);
           const showInlinePipeline = isLastAssistant && hasOps && phase !== "idle" && phase !== "error";
-          const showInlineActivity = isLastAssistant && hasOps && (phase === "loading" || phase === "executing" || phase === "rolling_back" || phase === "complete");
+          const showInlineActivity = isLastAssistant && hasOps && (phase === "loading" || phase === "draft" || phase === "executing" || phase === "rolling_back" || phase === "complete");
 
           return (
           <div key={i} className="animate-message-enter space-y-3">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { useWorkspace, type ChatActivityPhase, type WorkspacePhase } from "@/components/workspace/workspace-provider";
 import { LivingSurface } from "@/components/workspace/living-surface";
 import { IntentBar } from "@/components/workspace/intent-bar";
 import { ChangesetSummary } from "@/components/workspace/changeset-summary";
@@ -21,6 +21,8 @@ export function Workspace() {
     cancelDraft,
     executeChangeset,
     submitIntent,
+    chatActivityPhase,
+    chatActivityChangeset,
   } = useWorkspace();
 
   const voiceStartTimeRef = useRef(0);
@@ -159,6 +161,15 @@ export function Workspace() {
     }
   }, [activeView, voiceActive]);
 
+  // When the workspace itself is idle, fall back to chat-reported activity
+  // so the Activity panel reflects Chat, Voice, and Quick Action interactions.
+  const wsActive = phase !== "idle";
+  const activityPhase: ChatActivityPhase | WorkspacePhase = wsActive
+    ? phase
+    : chatActivityPhase;
+  const activityChangeset = wsActive ? draftChangeset : chatActivityChangeset;
+  const activityIdle = activityPhase === "idle" && !activityChangeset;
+
   return (
     <div className="flex h-full min-h-0 flex-1">
       {/* View routing */}
@@ -176,28 +187,16 @@ export function Workspace() {
               </p>
             </div>
             <AgentActivity
-              phase={
-                phase === "idle"
-                  ? "idle"
-                  : phase === "preview"
-                    ? "draft"
-                    : phase === "executing"
-                      ? "executing"
-                      : phase === "complete"
-                        ? "complete"
-                        : phase === "error"
-                          ? "error"
-                          : "idle"
-              }
-              requiresCIBA={draftChangeset?.riskSummary?.requiresCIBA === true}
-              operationCount={draftChangeset?.operations.length ?? 0}
-              results={draftChangeset?.execution?.results}
+              phase={activityPhase === "preview" ? "draft" : activityPhase}
+              requiresCIBA={activityChangeset?.riskSummary?.requiresCIBA === true}
+              operationCount={activityChangeset?.operations.length ?? 0}
+              results={activityChangeset?.execution?.results}
             />
-            {phase === "idle" && !draftChangeset && (
+            {activityIdle && (
               <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
                 <p className="text-xs text-muted-foreground">
-                  No active agent operations. Submit a change from the workspace
-                  to see agent traces here.
+                  No recent activity — actions from chat, voice, or Quick Actions
+                  will appear here.
                 </p>
               </div>
             )}
