@@ -1,10 +1,15 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
+import { ZapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./workspace-provider";
 import { ProductTile, type TileClickModifiers } from "./product-tile";
 import { AmbientLayer } from "./ambient-layer";
+import { ProductActionSheet } from "@/components/workspace/product-action-sheet";
+import { WorkspaceActionsSheet } from "@/components/workspace/workspace-actions-sheet";
+import { ActionHint } from "@/components/workspace/action-hint";
+import type { Product } from "@/components/workspace/workspace-provider";
 import type { Operation } from "@/lib/changeset/types";
 
 export function LivingSurface() {
@@ -54,6 +59,19 @@ export function LivingSurface() {
     }
     return map;
   }, [draftChangeset]);
+
+  // ── Action sheet state ───────────────────────────────────────────
+  const [actionProduct, setActionProduct] = useState<Product | null>(null);
+  const [fabSheetOpen, setFabSheetOpen] = useState(false);
+  const [hintDismissed, setHintDismissed] = useState(false);
+
+  const handleLongPress = useCallback(
+    (product: Product) => {
+      setActionProduct(product);
+      setHintDismissed(() => true);
+    },
+    [],
+  );
 
   const handleTileClick = useCallback(
     (id: string, modifiers: TileClickModifiers) => {
@@ -151,6 +169,7 @@ export function LivingSurface() {
                 onClick={(modifiers) =>
                   handleTileClick(product.id, modifiers)
                 }
+                onLongPress={handleLongPress}
                 operation={
                   operationsByTarget.get(product.sku) ??
                   operationsByTarget.get(product.id)
@@ -166,6 +185,43 @@ export function LivingSurface() {
         </section>
       ))}
 
+      {/* Coach mark — first-use hint */}
+      {!hintDismissed && (
+        <ActionHint onDismiss={() => setHintDismissed(true)} />
+      )}
+
+      {/* FAB — quick actions */}
+      <div className="sticky bottom-4 z-30 flex justify-end pointer-events-none pr-2">
+        <Button
+          size="lg"
+          className="pointer-events-auto h-14 w-14 rounded-full shadow-lg active:scale-95 transition-transform"
+          onClick={() => setFabSheetOpen(true)}
+          aria-label={
+            selectedIds.size > 0
+              ? `Open quick actions, ${selectedIds.size} products selected`
+              : "Open quick actions"
+          }
+        >
+          <ZapIcon className="size-5" />
+          {selectedIds.size > 0 && (
+            <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {selectedIds.size}
+            </span>
+          )}
+        </Button>
+      </div>
+
+      {/* Bottom sheets */}
+      <ProductActionSheet
+        product={actionProduct}
+        open={!!actionProduct}
+        onClose={() => setActionProduct(null)}
+      />
+      <WorkspaceActionsSheet
+        open={fabSheetOpen}
+        onClose={() => setFabSheetOpen(false)}
+        selectedCount={selectedIds.size}
+      />
     </div>
   );
 }

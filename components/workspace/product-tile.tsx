@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import {
   ArrowDownIcon,
@@ -23,6 +23,7 @@ interface ProductTileProps {
   product: Product;
   selected: boolean;
   onClick: (modifiers: TileClickModifiers) => void;
+  onLongPress?: (product: Product) => void;
   operation?: Operation;
   phase?: WorkspacePhase;
   proactiveIssues?: ProactiveIssue[];
@@ -79,14 +80,75 @@ const TIER_DOT_STYLE: Record<number, string> = {
 
 // ── Component ───────────────────────────────────────────────────────
 
+const LONG_PRESS_MS = 450;
+
 export function ProductTile({
   product,
   selected,
   onClick,
+  onLongPress,
   operation,
   phase,
   proactiveIssues,
 }: ProductTileProps) {
+  const tileRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+  const pressing = useRef(false);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    pressing.current = false;
+  }, []);
+
+  // Clean up timer on unmount to prevent ghost callbacks
+  useEffect(() => clearLongPress, [clearLongPress]);
+
+  /** Blur the tile and forward to onLongPress — mirrors onClick's bookkeeping. */
+  const activateLongPress = useCallback(
+    (p: Product) => {
+      tileRef.current?.blur();
+      onLongPress?.(p);
+    },
+    [onLongPress],
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!onLongPress) return;
+      didLongPress.current = false;
+      pressing.current = true;
+      longPressTimer.current = setTimeout(() => {
+        didLongPress.current = true;
+        pressing.current = false;
+        activateLongPress(product);
+      }, LONG_PRESS_MS);
+      // Capture pointer so we get pointerup even if finger slides off
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [onLongPress, activateLongPress, product],
+  );
+
+  const handlePointerUp = useCallback(() => {
+    clearLongPress();
+  }, [clearLongPress]);
+
+  const handlePointerCancel = useCallback(() => {
+    clearLongPress();
+  }, [clearLongPress]);
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onLongPress) return;
+      e.preventDefault();
+      clearLongPress();
+      activateLongPress(product);
+    },
+    [onLongPress, activateLongPress, product, clearLongPress],
+  );
   const showDiff =
     !!operation &&
     (phase === "preview" || phase === "executing" || phase === "complete");
@@ -131,6 +193,7 @@ export function ProductTile({
 
   return (
     <div
+      ref={tileRef}
       className={cn(
         "product-tile cursor-pointer px-4 py-4 min-h-[44px]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
@@ -149,7 +212,17 @@ export function ProductTile({
       data-has-diff={showDiff || undefined}
       data-recently-changed={phase === "complete" && showDiff ? true : undefined}
       data-has-issue={maxIssueSeverity ?? undefined}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerCancel}
+      onContextMenu={handleContextMenu}
       onClick={(e) => {
+        // Suppress click if a long-press just fired
+        if (didLongPress.current) {
+          didLongPress.current = false;
+          return;
+        }
         // Blur before selection so the inspector sheet (Base UI Dialog) can
         // safely apply aria-hidden without conflicting with retained focus.
         (e.currentTarget as HTMLElement).blur();
@@ -158,6 +231,11 @@ export function ProductTile({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          // Shift+Enter opens the action sheet (but not Shift+Space)
+          if (e.key === "Enter" && e.shiftKey && onLongPress) {
+            activateLongPress(product);
+            return;
+          }
           (e.currentTarget as HTMLElement).blur();
           onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey });
         }
