@@ -14,11 +14,10 @@ import { Inspector, type InspectableItem } from "./inspector";
 import { QuickActionConfirmDialog } from "./quick-action-confirm-dialog";
 import { generateChatId } from "@/lib/chat-history";
 import { useNavigationHistory } from "@/lib/hooks/use-navigation-history";
+import { type ActiveView } from "@/lib/navigation-types";
 import type { ActionDefinition } from "@/lib/actions";
 
 // ── Context ──────────────────────────────────────────────────────────
-
-type ActiveView = "chat" | "history" | "actions" | "workspace" | "drafts" | "timeline" | "activity";
 
 const WORKSPACE_VIEWS: ReadonlySet<ActiveView> = new Set(["workspace", "drafts", "timeline", "activity"]);
 

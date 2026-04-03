@@ -2,12 +2,9 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { z } from "zod";
+import { ACTIVE_VIEWS, type ActiveView } from "@/lib/navigation-types";
 
 // ── Schema ──────────────────────────────────────────────────────────
-
-const ACTIVE_VIEWS = ["chat", "history", "actions", "workspace", "drafts", "timeline", "activity"] as const;
-
-type ActiveView = (typeof ACTIVE_VIEWS)[number];
 
 const dashboardStateSchema = z.object({
   __dashboard: z.literal(true),
@@ -48,6 +45,13 @@ export function useNavigationHistory({
   // don't re-push the entry we just popped.
   const isPopping = useRef(false);
 
+  // Keep the latest activeChatId in a ref so pushView always reads
+  // the current value instead of a stale closure capture.
+  const chatIdRef = useRef(activeChatId);
+  useEffect(() => {
+    chatIdRef.current = activeChatId;
+  }, [activeChatId]);
+
   // Seed the initial history entry on mount, preserving any existing
   // keys (e.g. Next.js internal state like PRIVATE_NEXTJS_INTERNALS_TREE).
   useEffect(() => {
@@ -83,15 +87,13 @@ export function useNavigationHistory({
   /**
    * Push a new view onto the browser history stack.
    *
-   * **Important:** `pushView` reads `activeChatId` from a React closure, so
-   * callers that call `setActiveChatId` in the same synchronous batch **must**
-   * pass the new `chatId` explicitly — otherwise the stale closure value is
-   * pushed. For example, `startNewChat` and `loadChat` in `layout-shell.tsx`
-   * both pass the id they just set.
+   * Reads the latest `activeChatId` from a ref, so callers never push
+   * a stale id. Pass `chatId` explicitly to override (e.g. when the
+   * new id hasn't propagated to state yet, as in `startNewChat`).
    */
   const pushView = useCallback(
     (view: ActiveView, chatId?: string) => {
-      const resolvedChatId = chatId ?? activeChatId;
+      const resolvedChatId = chatId ?? chatIdRef.current;
 
       // Skip if this was triggered by a popstate handler.
       if (isPopping.current) return;
@@ -113,7 +115,7 @@ export function useNavigationHistory({
         "",
       );
     },
-    [activeChatId],
+    [],
   );
 
   return { pushView };
