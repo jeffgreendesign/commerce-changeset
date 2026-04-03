@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import {
   CheckIcon,
@@ -172,27 +173,27 @@ export function WorkflowPipeline({ phase, requiresCIBA }: WorkflowPipelineProps)
         allComplete && "animate-shimmer-sweep",
       )}
     >
-      {/* Dots + connectors row — connectors align to dot centers */}
+      {/* Dots + connectors row — dots are fixed-width, connectors stretch */}
       <div className="flex items-center">
         {steps.map((step, i) => (
-          <div key={step.id} className="flex flex-1 items-center">
-            <div className="flex flex-1 justify-center">
+          <Fragment key={step.id}>
+            <div className="flex-none">
               <StepDot status={step.status} />
             </div>
             {i < steps.length - 1 && (
               <Connector fromStatus={step.status} />
             )}
-          </div>
+          </Fragment>
         ))}
       </div>
 
-      {/* Labels row — matches dot positions */}
-      <div className="mt-0.5 flex sm:mt-1">
+      {/* Labels row — fixed-width labels match dot sizes, spacers match connectors */}
+      <div className="mt-0.5 flex items-start sm:mt-1">
         {steps.map((step, i) => (
-          <div key={step.id} className="flex flex-1">
+          <Fragment key={step.id}>
             <span
               className={cn(
-                "flex-1 text-center text-[9px] font-medium leading-none transition-colors sm:text-[10px]",
+                "w-5 flex-none text-center text-[9px] font-medium leading-none transition-colors sm:w-6 sm:text-[10px]",
                 step.status === "active" && "text-foreground",
                 step.status === "completed" &&
                   "text-emerald-700 dark:text-emerald-400",
@@ -202,11 +203,8 @@ export function WorkflowPipeline({ phase, requiresCIBA }: WorkflowPipelineProps)
             >
               {step.label}
             </span>
-            {/* Spacer matching connector width for non-last steps */}
-            {i < steps.length - 1 && (
-              <div className="flex-1 px-0.5 sm:px-1" />
-            )}
-          </div>
+            {i < steps.length - 1 && <div className="flex-1" />}
+          </Fragment>
         ))}
       </div>
     </div>
