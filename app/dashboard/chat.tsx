@@ -454,6 +454,9 @@ export function Chat({ chatId }: ChatProps) {
         throw new Error(data.error.message);
       }
 
+      // Brief pause so the user sees the executing state before completion
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       applyExecutedChangeset(data.changeSet);
       setMessages((prev) => [
         ...prev,

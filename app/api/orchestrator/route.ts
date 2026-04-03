@@ -34,6 +34,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Simulate reader agent + orchestrator analysis delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
     const scenario = await matchScenario(parsed.data.message);
     if (!scenario) {
       return NextResponse.json({

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const cs = parsed.data.changeSet as unknown as ChangeSet;
 
     // Simulate CIBA approval + execution delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
     // Find matching scenario by changeset ID or prompt
     const scenario = DEMO_SCENARIOS.find(
