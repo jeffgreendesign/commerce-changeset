@@ -8,20 +8,25 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { runProactiveChecks } from "@/lib/voice/proactive-insights";
+import {
+  subscribeTimeline,
+  getTimelineSnapshot,
+  getTimelineServerSnapshot,
+  appendTimelineEntry,
+  type TimelineEntry,
+} from "@/lib/timeline-history";
 
 // ── Types ────────────────────────────────────────────────────────────
 
-/** A completed (or in-progress) changeset snapshot for the session timeline. */
-export interface TimelineEntry {
-  changeset: ChangeSet;
-  completedAt: string;
-}
+// TimelineEntry is imported from @/lib/timeline-history and re-exported
+export type { TimelineEntry } from "@/lib/timeline-history";
 
 export interface Product {
   id: string;
@@ -85,6 +90,8 @@ interface WorkspaceContextValue {
   applyExecutedChangeset: (cs: ChangeSet) => void;
   /** Session-level changeset history (survives view switches). */
   changesetHistory: TimelineEntry[];
+  /** ISO timestamp of when this browser session started (for filtering). */
+  sessionStart: string;
 }
 
 // ── Response schemas ─────────────────────────────────────────────────
@@ -427,16 +434,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
 
-  // ── Timeline history (survives view switches) ─────────────────────
-  const [changesetHistory, setChangesetHistory] = useState<TimelineEntry[]>([]);
-  const [prevPhaseForHistory, setPrevPhaseForHistory] = useState<WorkspacePhase>(phase);
+  // ── Timeline history (useSyncExternalStore — SSR-safe, no hydration mismatch) ──
+  const changesetHistory = useSyncExternalStore(
+    subscribeTimeline,
+    getTimelineSnapshot,
+    getTimelineServerSnapshot,
+  );
+  const [sessionStart] = useState(() => new Date().toISOString());
 
-  // Capture completed changesets into session history using the
-  // "setState during render" pattern (React-endorsed for derived state).
-  if (phase !== prevPhaseForHistory) {
-    setPrevPhaseForHistory(phase);
+  // Capture workspace-executed changesets into timeline when phase
+  // transitions from "executing" → "complete".
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = phase;
     if (
-      prevPhaseForHistory === "executing" &&
+      prev === "executing" &&
       phase === "complete" &&
       draftChangeset &&
       draftChangeset.execution?.receipt &&
@@ -444,21 +457,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         draftChangeset.status === "partial_failure" ||
         draftChangeset.status === "executing")
     ) {
-      // Preserve the real terminal status from the executor; only coerce
-      // "executing" (the transient provider status) to "completed".
       const terminalStatus: ChangeSetStatus =
         draftChangeset.status === "executing"
           ? "completed"
           : draftChangeset.status;
-      setChangesetHistory((prev) => [
-        ...prev,
-        {
-          changeset: { ...draftChangeset, status: terminalStatus },
-          completedAt: new Date().toISOString(),
-        },
-      ]);
+      appendTimelineEntry({
+        changeset: { ...draftChangeset, status: terminalStatus },
+        completedAt: new Date().toISOString(),
+      });
     }
-  }
+  }, [phase, draftChangeset]);
 
   const wsTemperature = temperatureFromPhase(phase);
 
@@ -798,6 +806,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cs.execution?.results,
     );
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
+    // Normalize status — executor returns terminal status, but guard defensively
+    const normalizedCs = cs.status === "executing"
+      ? { ...cs, status: "completed" as const }
+      : cs;
+    appendTimelineEntry({
+      changeset: normalizedCs,
+      completedAt: new Date().toISOString(),
+    });
   }, []);
 
   const ctx = useMemo<WorkspaceContextValue>(
@@ -823,6 +839,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       retryFetch,
       applyExecutedChangeset,
       changesetHistory,
+      sessionStart,
     }),
     [
       products,
@@ -846,6 +863,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       retryFetch,
       applyExecutedChangeset,
       changesetHistory,
+      sessionStart,
     ],
   );
 
