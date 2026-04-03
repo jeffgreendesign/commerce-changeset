@@ -72,7 +72,7 @@ function buildReaderTools(refreshToken: string): Record<string, Tool> {
 
   const withGoogleToken = auth0AI.withTokenVault({
     connection: "google-oauth2",
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
     refreshToken: async () => refreshToken,
   });
 

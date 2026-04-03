@@ -14,6 +14,17 @@ interface ChangelogEntry {
 
 const entries: ChangelogEntry[] = [
   {
+    date: "Apr 3",
+    title: "Submission Hardening",
+    items: [
+      "Reader Agent OAuth scope narrowed to spreadsheets.readonly (per-agent isolation)",
+      "README restructured for Devpost submission format",
+      "About page: OAuth scope badges per agent (Reader read-only, Writer read-write, Notifier send-only)",
+      "Blog post updated: per-agent scope isolation moved from future work to accomplishment",
+      "Demo mode: 4 complete scenarios (discount, bulk, read-only, rollback) with mock Auth0 login",
+    ],
+  },
+  {
     date: "Mar 29",
     title: "Content & Polish",
     items: [

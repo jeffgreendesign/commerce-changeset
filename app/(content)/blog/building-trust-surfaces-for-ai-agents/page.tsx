@@ -135,6 +135,27 @@ export default function BlogPost() {
           enterprise licensing. We built the types and plumbing anyway &mdash;
           the enforcement layer is ready when the plan tier allows it.
         </p>
+        <p>
+          <strong>
+            Discovery 5: Per-agent scope isolation is achievable today.
+          </strong>{" "}
+          Reader gets{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+            spreadsheets.readonly
+          </code>
+          , Writer gets{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+            spreadsheets
+          </code>{" "}
+          (it needs read access for SKU lookup alongside write access for
+          mutations), and Notifier gets{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+            gmail.send
+          </code>
+          . Token Vault enforces the principle of least privilege at the token
+          exchange layer &mdash; each agent receives exactly the permissions its
+          role requires, and no more.
+        </p>
 
         {/* Section 3 */}
         <h2 className="mt-10 text-xl font-semibold tracking-tight sm:text-2xl">
@@ -176,11 +197,6 @@ export default function BlogPost() {
           What We Would Build Next
         </h2>
         <ul className="list-disc space-y-2 pl-6">
-          <li>
-            <strong>Per-agent scope isolation:</strong> The reader gets
-            read-only tokens, the writer gets read-write. Today all agents
-            share the same token scope.
-          </li>
           <li>
             <strong>Differentiated Tier 3 approval:</strong> Confirmation
             phrases, shorter timeouts, or dual-approver flows to make
