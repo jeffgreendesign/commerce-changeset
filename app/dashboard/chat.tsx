@@ -223,6 +223,10 @@ export function Chat({ chatId }: ChatProps) {
 
   // Sync chat activity to workspace context so the Activity panel can display traces
   useEffect(() => {
+    if (phase === "idle" && !draftChangeSet) {
+      reportChatActivity("idle", null);
+      return;
+    }
     const lastMsg = messages[messages.length - 1];
     reportChatActivity(
       phase,
@@ -353,18 +357,25 @@ export function Chat({ chatId }: ChatProps) {
           return { success: true, status: data.changeSet.status };
         }
         case "query_product_data": {
-          const res = await fetch("/api/reader", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: args.query }),
-          });
-          if (!res.ok) throw new Error("Reader request failed");
-          const data = (await res.json()) as { text: string };
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: "Here\u2019s what I found:", readResult: data.text },
-          ]);
-          return { data: data.text };
+          setPhase("loading");
+          try {
+            const res = await fetch("/api/reader", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: args.query }),
+            });
+            if (!res.ok) throw new Error("Reader request failed");
+            const data = (await res.json()) as { text: string };
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "Here\u2019s what I found:", readResult: data.text },
+            ]);
+            setPhase("idle");
+            return { data: data.text };
+          } catch (err) {
+            setPhase("error");
+            throw err;
+          }
         }
         case "voice_approve": {
           // Voice approval — trigger execution with CIBA
