@@ -11,6 +11,8 @@ import { StatusBarProvider, StatusBarContent } from "@/components/dashboard/stat
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { ChatHistoryPanel } from "@/components/dashboard/chat-history-panel";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
+import { DemoAnnotationProvider } from "@/components/demo/demo-annotation-provider";
+import { DemoAnnotationToggle } from "@/components/demo/demo-annotation-toggle";
 
 // ── Inner content that has access to layout context ──────────────────
 
@@ -97,12 +99,23 @@ function DashboardContent({ userName }: { userName: string }) {
 // ── Main export ──────────────────────────────────────────────────────
 
 export function DashboardClient({ userName, isDemo = false }: { userName: string; isDemo?: boolean }) {
+  const content = (
+    <WorkspaceProvider>
+      <DashboardContent userName={userName} />
+    </WorkspaceProvider>
+  );
+
   return (
     <StatusBarProvider>
       <LayoutShell userName={userName} isDemo={isDemo}>
-        <WorkspaceProvider>
-          <DashboardContent userName={userName} />
-        </WorkspaceProvider>
+        {isDemo ? (
+          <DemoAnnotationProvider>
+            {content}
+            <DemoAnnotationToggle />
+          </DemoAnnotationProvider>
+        ) : (
+          content
+        )}
       </LayoutShell>
     </StatusBarProvider>
   );
