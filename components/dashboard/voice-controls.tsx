@@ -90,6 +90,40 @@ function getStressChipColor(state?: EmotionalState): string {
   }
 }
 
+// ── Demo affect simulation ──────────────────────────────────────────
+
+function demoAffectFromPhase(phase?: PipelinePhase): EmotionalState {
+  switch (phase) {
+    case "loading":
+      return "rushed";
+    case "draft":
+      return "uncertain";
+    case "executing":
+    case "rolling_back":
+      return "stressed";
+    case "complete":
+      return "calm";
+    default:
+      return "calm";
+  }
+}
+
+function demoStressFromPhase(phase?: PipelinePhase): number {
+  switch (phase) {
+    case "loading":
+      return 0.5;
+    case "draft":
+      return 0.35;
+    case "executing":
+    case "rolling_back":
+      return 0.75;
+    case "complete":
+      return 0.1;
+    default:
+      return 0.15;
+  }
+}
+
 // ── Token Vault status for voice mode (demo only) ───────────────────
 
 function getTokenVaultMessage(phase?: PipelinePhase): string | null {
@@ -299,27 +333,29 @@ function MobileVoiceDock({
   isDemo?: boolean;
 }) {
   return (
-    <div className="glass relative flex flex-col items-center justify-center gap-4 border-t px-6 py-6 pb-safe animate-voice-dock-enter">
+    <div className="glass relative flex flex-col gap-2 border-t px-4 py-3 pb-safe animate-voice-dock-enter">
       <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} mobile />
 
-      {/* Emotional state chip */}
-      {isActive && sidecarStatus?.receiving && (
-        <div
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-            getStressChipColor(emotionalState),
-          )}
-        >
-          <ActivityIcon className={cn("size-3", getStressColor(stressLevel))} />
-          {getStressLabel(emotionalState)}
-        </div>
-      )}
+      {/* Compact single-row layout: affect | visualizer | mic | visualizer | volume */}
+      <div className="flex w-full items-center gap-3">
+        {/* Affect chip — left side */}
+        {isActive && sidecarStatus?.receiving ? (
+          <div
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              getStressChipColor(emotionalState),
+            )}
+          >
+            <ActivityIcon className={cn("size-2.5", getStressColor(stressLevel))} />
+            {getStressLabel(emotionalState)}
+          </div>
+        ) : (
+          <span className="shrink-0 text-[11px] text-muted-foreground">
+            {isActive ? "Tap to stop" : "Tap to speak"}
+          </span>
+        )}
 
-      {/* Token Vault status (demo only) */}
-      {isDemo && <VoiceTokenVaultStatus phase={phase} />}
-
-      {/* Visualizer + mic button */}
-      <div className="flex w-full items-center justify-center gap-6">
+        {/* Left visualizer */}
         <AudioVisualizer
           isActive={isActive}
           inputLevel={inputLevel}
@@ -328,13 +364,14 @@ function MobileVoiceDock({
           stressLevel={stressLevel}
         />
 
+        {/* Mic button — compact */}
         <Button
           variant={isActive ? "default" : "outline"}
-          size="lg"
+          size="icon"
           onClick={onToggle}
           disabled={disabled || isTransitioning || isConnecting}
           className={cn(
-            "relative h-20 w-20 rounded-full",
+            "relative h-14 w-14 shrink-0 rounded-full",
             isActive &&
               "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
             !isActive && !isConnecting && "animate-mic-prismatic",
@@ -343,20 +380,21 @@ function MobileVoiceDock({
           aria-label={isActive ? "Stop voice input" : "Start voice input"}
         >
           {isConnecting ? (
-            <Loader2Icon className="size-7 animate-spin" />
+            <Loader2Icon className="size-5 animate-spin" />
           ) : isActive ? (
-            <MicOffIcon className="size-7" />
+            <MicOffIcon className="size-5" />
           ) : (
-            <MicIcon className="size-7" />
+            <MicIcon className="size-5" />
           )}
 
           {isActive && (
             <span
-              className="animate-mic-active-ring -inset-1.5 rounded-full"
+              className="animate-mic-active-ring -inset-1 rounded-full"
             />
           )}
         </Button>
 
+        {/* Right visualizer */}
         <AudioVisualizer
           isActive={isActive}
           inputLevel={inputLevel}
@@ -364,28 +402,31 @@ function MobileVoiceDock({
           mobile
           stressLevel={stressLevel}
         />
+
+        {/* Volume slider — right side */}
+        {isActive && onVolumeChange ? (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Volume2Icon className="size-3 text-muted-foreground" />
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume ?? 1}
+              onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+              className="h-1 w-16 accent-primary"
+              aria-label="Output volume"
+            />
+          </div>
+        ) : (
+          <span className="shrink-0 text-[11px] text-muted-foreground">
+            {isActive ? "Tap to stop" : "Tap to speak"}
+          </span>
+        )}
       </div>
 
-      {/* Volume slider */}
-      {isActive && onVolumeChange && (
-        <div className="flex w-full max-w-60 items-center gap-2">
-          <Volume2Icon className="size-3.5 shrink-0 text-muted-foreground" />
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume ?? 1}
-            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            className="h-1 w-full accent-primary"
-            aria-label="Output volume"
-          />
-        </div>
-      )}
-
-      <span className="text-xs text-muted-foreground">
-        {isActive ? "Tap to stop" : "Tap to speak"}
-      </span>
+      {/* Token Vault status (demo only) — below main row */}
+      {isDemo && <VoiceTokenVaultStatus phase={phase} />}
     </div>
   );
 }
@@ -414,11 +455,16 @@ export function VoiceControls({
 
   const isConnecting = connectionState === "connecting";
 
-  // In demo mode, simulate sidecar connected so affect UI renders
+  // In demo mode, simulate sidecar connected and derive affect from phase
   const effectiveSidecarStatus: SidecarStatus | undefined = isDemo
     ? { connected: true, receiving: true }
     : sidecarStatus;
-  const effectiveEmotionalState = isDemo ? (emotionalState ?? "calm" as const) : emotionalState;
+  const effectiveEmotionalState: EmotionalState | undefined = isDemo
+    ? (emotionalState !== "calm" ? emotionalState : demoAffectFromPhase(phase))
+    : emotionalState;
+  const effectiveStressLevel = isDemo
+    ? (stressLevel !== undefined && stressLevel > 0.2 ? stressLevel : demoStressFromPhase(phase))
+    : stressLevel;
 
   const handleToggle = useCallback(() => {
     if (disabled || isTransitioning || isConnecting) return;
@@ -450,7 +496,7 @@ export function VoiceControls({
       <MobileVoiceDock
         isActive={isActive}
         emotionalState={effectiveEmotionalState}
-        stressLevel={stressLevel}
+        stressLevel={effectiveStressLevel}
         inputLevel={inputLevel}
         connectionState={connectionState}
         isSpeaking={isSpeaking}
@@ -477,10 +523,10 @@ export function VoiceControls({
       {isDemo && isActive && <VoiceTokenVaultStatus phase={phase} />}
 
       {/* Stress/emotional state indicator — hidden on mobile to save space */}
-      {isActive && stressLevel !== undefined && effectiveSidecarStatus?.receiving && (
+      {isActive && effectiveStressLevel !== undefined && effectiveSidecarStatus?.receiving && (
         <div className="hidden items-center gap-1.5 sm:flex">
           <ActivityIcon
-            className={cn("size-3.5", getStressColor(stressLevel))}
+            className={cn("size-3.5", getStressColor(effectiveStressLevel))}
           />
           <span className="text-[10px] text-muted-foreground">
             {getStressLabel(effectiveEmotionalState)}
