@@ -14,7 +14,7 @@ import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { runProactiveChecks } from "@/lib/voice/proactive-insights";
-import { loadTimeline, saveTimeline, type TimelineEntry } from "@/lib/timeline-history";
+import { loadTimeline, saveTimeline, cappedAppend, type TimelineEntry } from "@/lib/timeline-history";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -83,6 +83,8 @@ interface WorkspaceContextValue {
   applyExecutedChangeset: (cs: ChangeSet) => void;
   /** Session-level changeset history (survives view switches). */
   changesetHistory: TimelineEntry[];
+  /** ISO timestamp of when this browser session started (for filtering). */
+  sessionStart: string;
 }
 
 // ── Response schemas ─────────────────────────────────────────────────
@@ -426,7 +428,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const executeInFlightRef = useRef(false);
 
   // ── Timeline history (survives view switches + page refreshes) ────
+  // Lazy initializer is safe: loadTimeline returns [] on server; any brief
+  // hydration mismatch is invisible since the timeline renders an empty state.
   const [changesetHistory, setChangesetHistory] = useState<TimelineEntry[]>(() => loadTimeline());
+  const initialLoadCompleteRef = useRef(false);
+  const [sessionStart] = useState(() => new Date().toISOString());
   const [prevPhaseForHistory, setPrevPhaseForHistory] = useState<WorkspacePhase>(phase);
 
   // Capture completed changesets into session history using the
@@ -448,18 +454,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         draftChangeset.status === "executing"
           ? "completed"
           : draftChangeset.status;
-      setChangesetHistory((prev) => [
-        ...prev,
-        {
-          changeset: { ...draftChangeset, status: terminalStatus },
-          completedAt: new Date().toISOString(),
-        },
-      ]);
+      setChangesetHistory((prev) => cappedAppend(prev, {
+        changeset: { ...draftChangeset, status: terminalStatus },
+        completedAt: new Date().toISOString(),
+      }));
     }
   }
 
-  // Persist timeline to localStorage whenever it changes
+  // Persist timeline to localStorage whenever it changes.
+  // Skip the first render (initial load from localStorage) to avoid a redundant write.
   useEffect(() => {
+    if (!initialLoadCompleteRef.current) {
+      initialLoadCompleteRef.current = true;
+      return;
+    }
     saveTimeline(changesetHistory);
   }, [changesetHistory]);
 
@@ -802,10 +810,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     );
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
     // Capture into timeline history so chat-executed changesets appear
-    setChangesetHistory((prev) => [
-      ...prev,
-      { changeset: cs, completedAt: new Date().toISOString() },
-    ]);
+    setChangesetHistory((prev) => cappedAppend(prev, {
+      changeset: cs,
+      completedAt: new Date().toISOString(),
+    }));
   }, []);
 
   const ctx = useMemo<WorkspaceContextValue>(
@@ -831,6 +839,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       retryFetch,
       applyExecutedChangeset,
       changesetHistory,
+      sessionStart,
     }),
     [
       products,
@@ -854,6 +863,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       retryFetch,
       applyExecutedChangeset,
       changesetHistory,
+      sessionStart,
     ],
   );
 

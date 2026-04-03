@@ -13,18 +13,21 @@ interface SessionStats {
 }
 
 function useSessionStats(): SessionStats {
-  const { changesetHistory } = useWorkspace();
+  const { changesetHistory, sessionStart } = useWorkspace();
   return useMemo(() => {
     let operations = 0;
     let failures = 0;
+    let changesets = 0;
     for (const entry of changesetHistory) {
+      if (entry.completedAt < sessionStart) continue;
+      changesets += 1;
       operations += entry.changeset.operations.length;
       if (entry.changeset.status === "partial_failure") {
         failures += 1;
       }
     }
-    return { changesets: changesetHistory.length, operations, failures };
-  }, [changesetHistory]);
+    return { changesets, operations, failures };
+  }, [changesetHistory, sessionStart]);
 }
 
 // ── Status bar content (embeddable, no wrapper) ─────────────────────
