@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="100%" height="100%">
+  <style>
+    @media (prefers-color-scheme: light) {
+      .dt { fill: #1a1a1a; }
+      .ds { fill: #666; }
+      .dl { stroke: #ccc; }
+      .db { fill: #f8f8f8; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .dt { fill: #e5e5e5; }
+      .ds { fill: #999; }
+      .dl { stroke: #444; }
+      .db { fill: #1a1a1a; }
+    }
+    /* Default to dark (About page is dark-themed) */
+    .dt { fill: #e5e5e5; }
+    .ds { fill: #999; }
+    .dl { stroke: #444; }
+    .db { fill: #1a1a1a; }
+    text { font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace; }
+    .label { font-size: 13px; font-weight: 600; }
+    .sublabel { font-size: 9.5px; }
+    .scope { font-size: 8.5px; letter-spacing: 0.02em; }
+    .step-num { font-size: 10px; font-weight: 700; }
+    .tier-label { font-size: 7.5px; font-weight: 600; }
+  </style>
+  <defs>
+    <!-- Arrow markers -->
+    <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="oklch(0.6 0 0)" class="dl"/>
+    </marker>
+    <marker id="arrow-dash" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="oklch(0.5 0 0)"/>
+    </marker>
+  </defs>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- ROW 1: User/Auth0 Login → Orchestrator                          -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+
+  <!-- User / Auth0 Login -->
+  <rect x="40" y="40" width="200" height="72" rx="12" fill="oklch(0.55 0.25 295 / 12%)" stroke="oklch(0.55 0.25 295)" stroke-width="2"/>
+  <text x="140" y="70" text-anchor="middle" class="label" fill="oklch(0.55 0.25 295)">User / Auth0</text>
+  <text x="140" y="88" text-anchor="middle" class="sublabel ds">Universal Login + MFA</text>
+
+  <!-- Arrow 1 -->
+  <line x1="240" y1="76" x2="340" y2="76" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="290" cy="76" r="10" fill="oklch(0.55 0.25 295 / 20%)" stroke="oklch(0.55 0.25 295)" stroke-width="1.2"/>
+  <text x="290" y="80" text-anchor="middle" class="step-num" fill="oklch(0.55 0.25 295)">1</text>
+
+  <!-- Orchestrator Agent -->
+  <rect x="350" y="40" width="220" height="72" rx="12" fill="oklch(0.85 0 0 / 12%)" stroke="oklch(0.85 0 0)" stroke-width="2"/>
+  <text x="460" y="70" text-anchor="middle" class="label" fill="oklch(0.85 0 0)">Orchestrator</text>
+  <text x="460" y="88" text-anchor="middle" class="sublabel ds">Plans only — no API access</text>
+
+  <!-- Arrow 2 (down from Orchestrator to Reader) -->
+  <path d="M 420 112 L 420 140 L 120 140 L 120 190" fill="none" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="420" cy="130" r="10" fill="oklch(0.6 0.2 264 / 20%)" stroke="oklch(0.6 0.2 264)" stroke-width="1.2"/>
+  <text x="420" y="134" text-anchor="middle" class="step-num" fill="oklch(0.6 0.2 264)">2</text>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- ROW 2: Reader → LLM → Policy Engine → CIBA Gate                 -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+
+  <!-- Reader Agent -->
+  <rect x="30" y="195" width="180" height="72" rx="12" fill="oklch(0.6 0.2 264 / 12%)" stroke="oklch(0.6 0.2 264)" stroke-width="2"/>
+  <text x="120" y="225" text-anchor="middle" class="label" fill="oklch(0.6 0.2 264)">Reader Agent</text>
+  <text x="120" y="243" text-anchor="middle" class="sublabel ds">Token Vault OBO</text>
+  <text x="120" y="280" text-anchor="middle" class="scope" fill="oklch(0.6 0.2 264)">spreadsheets.readonly</text>
+
+  <!-- Arrow 3 (Reader → LLM) -->
+  <line x1="210" y1="231" x2="280" y2="231" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="245" cy="231" r="10" fill="oklch(0.85 0 0 / 20%)" stroke="oklch(0.85 0 0)" stroke-width="1.2"/>
+  <text x="245" y="235" text-anchor="middle" class="step-num" fill="oklch(0.85 0 0)">3</text>
+
+  <!-- LLM Decomposition -->
+  <rect x="290" y="195" width="170" height="72" rx="12" fill="oklch(0.85 0 0 / 12%)" stroke="oklch(0.85 0 0)" stroke-width="2"/>
+  <text x="375" y="225" text-anchor="middle" class="label" fill="oklch(0.85 0 0)">LLM Analysis</text>
+  <text x="375" y="243" text-anchor="middle" class="sublabel ds">Discrete operations</text>
+
+  <!-- Arrow 4 (LLM → Policy Engine) -->
+  <line x1="460" y1="231" x2="520" y2="231" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="490" cy="231" r="10" fill="oklch(0.65 0 0 / 20%)" stroke="oklch(0.65 0 0)" stroke-width="1.2"/>
+  <text x="490" y="235" text-anchor="middle" class="step-num dt">4</text>
+
+  <!-- Policy Engine -->
+  <rect x="530" y="185" width="200" height="92" rx="12" fill="oklch(0.65 0 0 / 8%)" stroke="oklch(0.65 0 0)" stroke-width="2" stroke-dasharray="6 3"/>
+  <text x="630" y="210" text-anchor="middle" class="label dt">Policy Engine</text>
+  <text x="630" y="226" text-anchor="middle" class="sublabel ds">json-rules-engine — 7 rules</text>
+
+  <!-- Risk tier badges inside Policy Engine -->
+  <rect x="544" y="238" width="42" height="16" rx="8" fill="oklch(0.7 0.18 155 / 25%)" stroke="oklch(0.7 0.18 155)" stroke-width="0.8"/>
+  <text x="565" y="250" text-anchor="middle" class="tier-label" fill="oklch(0.7 0.18 155)">T0</text>
+  <rect x="592" y="238" width="42" height="16" rx="8" fill="oklch(0.6 0.2 264 / 25%)" stroke="oklch(0.6 0.2 264)" stroke-width="0.8"/>
+  <text x="613" y="250" text-anchor="middle" class="tier-label" fill="oklch(0.6 0.2 264)">T1</text>
+  <rect x="640" y="238" width="42" height="16" rx="8" fill="oklch(0.7 0.18 85 / 25%)" stroke="oklch(0.7 0.18 85)" stroke-width="0.8"/>
+  <text x="661" y="250" text-anchor="middle" class="tier-label" fill="oklch(0.7 0.18 85)">T2</text>
+  <rect x="688" y="238" width="42" height="16" rx="8" fill="oklch(0.65 0.25 25 / 25%)" stroke="oklch(0.65 0.25 25)" stroke-width="0.8"/>
+  <text x="709" y="250" text-anchor="middle" class="tier-label" fill="oklch(0.65 0.25 25)">T3</text>
+
+  <!-- Arrow 5 (Policy Engine → CIBA Gate) -->
+  <line x1="730" y1="231" x2="790" y2="231" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="760" cy="231" r="10" fill="oklch(0.55 0.25 295 / 20%)" stroke="oklch(0.55 0.25 295)" stroke-width="1.2"/>
+  <text x="760" y="235" text-anchor="middle" class="step-num" fill="oklch(0.55 0.25 295)">5</text>
+
+  <!-- CIBA Gate -->
+  <rect x="800" y="195" width="140" height="72" rx="12" fill="oklch(0.55 0.25 295 / 12%)" stroke="oklch(0.55 0.25 295)" stroke-width="2"/>
+  <text x="870" y="222" text-anchor="middle" class="label" fill="oklch(0.55 0.25 295)">CIBA Gate</text>
+  <text x="870" y="240" text-anchor="middle" class="sublabel ds">Guardian push</text>
+  <text x="870" y="254" text-anchor="middle" class="sublabel ds">Tier 2+ required</text>
+
+  <!-- Dashed auto-approve bypass: Policy Engine → down to Writer (bypassing CIBA) -->
+  <path d="M 630 277 L 630 335 L 195 335 L 195 390" fill="none" stroke="oklch(0.7 0.18 155)" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arrow-dash)"/>
+  <text x="420" y="328" text-anchor="middle" class="scope" fill="oklch(0.7 0.18 155)">auto-approve (Tier 0/1)</text>
+
+  <!-- Arrow 6 (CIBA → Writer, going down) -->
+  <path d="M 870 267 L 870 335 L 195 335 L 195 390" fill="none" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl" opacity="0"/>
+  <!-- Simpler: CIBA → down → left to Writer row -->
+  <path d="M 870 267 L 870 350 L 175 350 L 175 390" fill="none" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="870" cy="310" r="10" fill="oklch(0.7 0.18 85 / 20%)" stroke="oklch(0.7 0.18 85)" stroke-width="1.2"/>
+  <text x="870" y="314" text-anchor="middle" class="step-num" fill="oklch(0.7 0.18 85)">6</text>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- ROW 3: Writer → Reader Verify → Notifier → Receipt              -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+
+  <!-- Writer Agent -->
+  <rect x="60" y="395" width="200" height="72" rx="12" fill="oklch(0.7 0.18 85 / 12%)" stroke="oklch(0.7 0.18 85)" stroke-width="2"/>
+  <text x="160" y="425" text-anchor="middle" class="label" fill="oklch(0.7 0.18 85)">Writer Agent</text>
+  <text x="160" y="443" text-anchor="middle" class="sublabel ds">Token Vault OBO</text>
+  <text x="160" y="480" text-anchor="middle" class="scope" fill="oklch(0.7 0.18 85)">spreadsheets (read-write)</text>
+
+  <!-- Arrow 7 (Writer → Reader Verify) -->
+  <line x1="260" y1="431" x2="330" y2="431" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="295" cy="431" r="10" fill="oklch(0.6 0.2 264 / 20%)" stroke="oklch(0.6 0.2 264)" stroke-width="1.2"/>
+  <text x="295" y="435" text-anchor="middle" class="step-num" fill="oklch(0.6 0.2 264)">7</text>
+
+  <!-- Reader Verify -->
+  <rect x="340" y="395" width="180" height="72" rx="12" fill="oklch(0.6 0.2 264 / 12%)" stroke="oklch(0.6 0.2 264)" stroke-width="2"/>
+  <text x="430" y="425" text-anchor="middle" class="label" fill="oklch(0.6 0.2 264)">Reader Verify</text>
+  <text x="430" y="443" text-anchor="middle" class="sublabel ds">Read-back comparison</text>
+
+  <!-- Arrow 8 (Reader Verify → Notifier) -->
+  <line x1="520" y1="431" x2="590" y2="431" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="555" cy="431" r="10" fill="oklch(0.7 0.18 155 / 20%)" stroke="oklch(0.7 0.18 155)" stroke-width="1.2"/>
+  <text x="555" y="435" text-anchor="middle" class="step-num" fill="oklch(0.7 0.18 155)">8</text>
+
+  <!-- Notifier Agent -->
+  <rect x="600" y="395" width="170" height="72" rx="12" fill="oklch(0.7 0.18 155 / 12%)" stroke="oklch(0.7 0.18 155)" stroke-width="2"/>
+  <text x="685" y="425" text-anchor="middle" class="label" fill="oklch(0.7 0.18 155)">Notifier Agent</text>
+  <text x="685" y="443" text-anchor="middle" class="sublabel ds">Token Vault OBO</text>
+  <text x="685" y="480" text-anchor="middle" class="scope" fill="oklch(0.7 0.18 155)">gmail.send</text>
+
+  <!-- Arrow 9 (Notifier → Receipt) -->
+  <line x1="770" y1="431" x2="810" y2="431" stroke="oklch(0.6 0 0)" stroke-width="1.5" marker-end="url(#arrow)" class="dl"/>
+  <circle cx="790" cy="431" r="10" fill="oklch(0.72 0.20 185 / 20%)" stroke="oklch(0.72 0.20 185)" stroke-width="1.2"/>
+  <text x="790" y="435" text-anchor="middle" class="step-num" fill="oklch(0.72 0.20 185)">9</text>
+
+  <!-- Execution Receipt -->
+  <rect x="820" y="395" width="120" height="72" rx="12" fill="oklch(0.72 0.20 185 / 12%)" stroke="oklch(0.72 0.20 185)" stroke-width="2"/>
+  <text x="880" y="422" text-anchor="middle" class="label" fill="oklch(0.72 0.20 185)">Receipt</text>
+  <text x="880" y="440" text-anchor="middle" class="sublabel ds">SHA-256 audit</text>
+  <text x="880" y="454" text-anchor="middle" class="sublabel ds">OBO chain</text>
+
+  <!-- Title -->
+  <text x="480" y="520" text-anchor="middle" class="sublabel ds" style="font-size:11px; letter-spacing:0.15em">COMMERCE CHANGESET — AGENT PIPELINE</text>
+</svg>

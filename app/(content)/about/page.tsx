@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ArchitectureDiagram } from "@/components/architecture-diagram";
 
 export const metadata: Metadata = {
   title: "How It Works | Commerce Changeset",
@@ -132,6 +133,11 @@ export default function AboutPage() {
         &mdash; through auditable, authorization-gated workflows. Every action
         flows through Auth0&apos;s identity layer.
       </p>
+
+      {/* Architecture Diagram */}
+      <section className="mt-10">
+        <ArchitectureDiagram />
+      </section>
 
       {/* Agent Pipeline */}
       <section className="mt-14">

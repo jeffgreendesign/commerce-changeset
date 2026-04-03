@@ -19,6 +19,8 @@ Four specialized agents decompose a natural language commerce request into discr
 
 ## Architecture
 
+![Architecture Diagram](public/architecture.svg)
+
 1. User authenticates via Auth0 Universal Login
 2. Natural language request → Orchestrator Agent (no API access, plans only)
 3. Orchestrator delegates to Reader Agent (Token Vault → `spreadsheets.readonly`)
