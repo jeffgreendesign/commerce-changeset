@@ -32,7 +32,7 @@ interface DemoAnnotationContextValue {
 
 // ── Annotation definitions ──────────────────────────────────────────
 
-const ANNOTATIONS: AnnotationDef[] = [
+export const ANNOTATIONS: AnnotationDef[] = [
   {
     id: "loading-token-vault",
     phase: "loading",

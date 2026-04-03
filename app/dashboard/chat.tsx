@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
@@ -30,7 +30,7 @@ import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card"
 import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
 import { useLayout } from "@/components/dashboard/layout-shell";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
-import { useDemoAnnotations } from "@/components/demo/demo-annotation-provider";
+import { useDemoAnnotations, ANNOTATIONS } from "@/components/demo/demo-annotation-provider";
 import { DemoAnnotation } from "@/components/demo/demo-annotation";
 import { DemoInsightBar } from "@/components/demo/demo-insight-bar";
 import { TokenVaultActivity } from "@/components/demo/token-vault-activity";
@@ -210,10 +210,19 @@ export function Chat({ chatId }: ChatProps) {
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
 
-  // Sync phase to demo annotation context
+  // Sync phase to demo annotation context (DemoInsightBar reads ctx.phase)
   useEffect(() => {
     demoAnnotations?.setPhase(phase);
   }, [phase, demoAnnotations]);
+
+  // Compute active annotations locally to avoid one-render lag from context sync
+  const localActiveAnnotations = useMemo(() => {
+    if (!demoAnnotations?.enabled) return [];
+    return ANNOTATIONS.filter((a) => {
+      const phases = Array.isArray(a.phase) ? a.phase : [a.phase];
+      return phases.includes(phase);
+    });
+  }, [phase, demoAnnotations?.enabled]);
 
   // Auto-save messages to localStorage on changes
   useEffect(() => {
@@ -988,15 +997,15 @@ export function Chat({ chatId }: ChatProps) {
               />
             )}
 
-            {/* Token Vault activity — real-time token exchange visibility (demo only) */}
-            {isLastAssistant && isDemo && (
+            {/* Token Vault activity — real-time token exchange visibility (demo only, mutations only) */}
+            {isLastAssistant && isDemo && hasOps && (
               <TokenVaultActivity phase={phase} />
             )}
 
-            {/* Demo annotations — phase-aware tech callouts */}
-            {isLastAssistant && demoAnnotations?.activeAnnotations && demoAnnotations.activeAnnotations.length > 0 && (
+            {/* Demo annotations — phase-aware tech callouts (mutations only) */}
+            {isLastAssistant && hasOps && localActiveAnnotations.length > 0 && (
               <div className="grid gap-2 sm:grid-cols-2">
-                {demoAnnotations.activeAnnotations.map((a) => (
+                {localActiveAnnotations.map((a) => (
                   <DemoAnnotation key={a.id} annotation={a} />
                 ))}
               </div>
