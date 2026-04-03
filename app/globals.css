@@ -185,6 +185,35 @@
   }
 }
 
+@keyframes cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+}
+
+@keyframes cta-pulse-approve {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.596 0.145 163.2 / 0);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px oklch(0.596 0.145 163.2 / 0.35);
+  }
+}
+
+@keyframes cta-shine {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @keyframes connector-flow {
   0% {
     stroke-dashoffset: 20;
@@ -228,6 +257,36 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-cta-pulse {
+  animation: cta-pulse 2s ease-in-out infinite;
+}
+
+.animate-cta-pulse-approve {
+  animation: cta-pulse-approve 2s ease-in-out infinite;
+}
+
+.animate-cta-shine {
+  position: relative;
+  overflow: hidden;
+}
+.animate-cta-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    oklch(1 0 0 / 15%) 45%,
+    oklch(1 0 0 / 25%) 50%,
+    oklch(1 0 0 / 15%) 55%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: cta-shine 3s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .animate-step-enter {
@@ -377,6 +436,9 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer,
   .animate-pulse-glow,
+  .animate-cta-pulse,
+  .animate-cta-pulse-approve,
+  .animate-cta-shine::after,
   .animate-step-enter,
   .animate-shimmer-sweep,
   .animate-message-enter,

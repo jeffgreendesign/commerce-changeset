@@ -88,7 +88,7 @@ export default async function Home() {
 
         <Link
           href="/demo"
-          className="mt-10 inline-flex min-h-[48px] items-center gap-2 rounded-lg bg-accent-teal px-8 py-3.5 text-base font-semibold text-black transition-all hover:brightness-110 active:scale-[0.98]"
+          className="mt-10 inline-flex min-h-[48px] items-center gap-2 rounded-lg bg-accent-teal px-8 py-3.5 text-base font-semibold text-black transition-all hover:brightness-110 active:scale-[0.98] animate-cta-shine"
         >
           Launch Interactive Demo
           <span aria-hidden="true">&rarr;</span>
