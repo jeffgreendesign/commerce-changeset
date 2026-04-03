@@ -11,6 +11,14 @@ interface BlogPost {
 
 const posts: BlogPost[] = [
   {
+    slug: "how-we-use-auth0-for-ai-agents",
+    title: "How We Use Auth0 for AI Agents",
+    description:
+      "Four pillars powering multi-agent commerce: Token Vault OBO, CIBA approval, stress-aware escalation, and auditable receipts.",
+    date: "2026-04-03",
+    readingTime: "6 min read",
+  },
+  {
     slug: "building-trust-surfaces-for-ai-agents",
     title:
       "Building Trust Surfaces for AI Agents: What Token Vault Taught Us About Authorization at the Speed of Autonomy",
