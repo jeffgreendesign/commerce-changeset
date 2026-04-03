@@ -41,7 +41,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 129.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "450",
     "Image URL": "",
   },
   {
@@ -51,7 +51,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 149.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "320",
     "Image URL": "",
   },
   {
@@ -61,7 +61,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 179.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "185",
     "Image URL": "",
   },
   {
@@ -71,7 +71,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 89.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "520",
     "Image URL": "",
   },
   {
@@ -81,7 +81,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 109.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "275",
     "Image URL": "",
   },
   {
@@ -91,7 +91,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 199.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "low_stock",
+    Inventory: "42",
     "Image URL": "",
   },
   {
@@ -101,7 +101,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 79.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "610",
     "Image URL": "",
   },
   {
@@ -111,7 +111,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 139.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "in_stock",
+    Inventory: "390",
     "Image URL": "",
   },
 ];

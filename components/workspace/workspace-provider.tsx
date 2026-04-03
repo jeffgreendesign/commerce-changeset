@@ -43,8 +43,12 @@ const INVENTORY_LABELS: Record<string, string> = {
   pre_order: "Pre-Order",
 };
 
-export function inventoryLabel(flag: string): string {
-  return INVENTORY_LABELS[flag] ?? flag;
+export function inventoryLabel(value: string): string {
+  const label = INVENTORY_LABELS[value];
+  if (label) return label;
+  const num = Number(value);
+  if (!Number.isNaN(num)) return `${num.toLocaleString()} units`;
+  return value;
 }
 
 export type WorkspacePhase =
