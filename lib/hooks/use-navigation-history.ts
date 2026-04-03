@@ -80,6 +80,15 @@ export function useNavigationHistory({
     return () => window.removeEventListener("popstate", onPopState);
   }, [setActiveView, setActiveChatId]);
 
+  /**
+   * Push a new view onto the browser history stack.
+   *
+   * **Important:** `pushView` reads `activeChatId` from a React closure, so
+   * callers that call `setActiveChatId` in the same synchronous batch **must**
+   * pass the new `chatId` explicitly — otherwise the stale closure value is
+   * pushed. For example, `startNewChat` and `loadChat` in `layout-shell.tsx`
+   * both pass the id they just set.
+   */
   const pushView = useCallback(
     (view: ActiveView, chatId?: string) => {
       const resolvedChatId = chatId ?? activeChatId;
