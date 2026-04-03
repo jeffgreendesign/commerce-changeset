@@ -194,7 +194,7 @@ export function LivingSurface() {
       <div className="sticky bottom-4 z-30 flex justify-end pointer-events-none pr-2">
         <Button
           size="lg"
-          className="pointer-events-auto h-14 w-14 rounded-full shadow-lg active:scale-95 transition-transform"
+          className="pointer-events-auto h-14 w-14 rounded-full shadow-lg active:scale-95 transition-transform animate-cta-pulse"
           onClick={() => setFabSheetOpen(true)}
           aria-label={
             selectedIds.size > 0

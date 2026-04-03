@@ -259,7 +259,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: 0 0 12px 4px color-mix(in oklch, var(--primary) 30%, transparent);
+  box-shadow: 0 0 14px 6px color-mix(in oklch, var(--primary) 50%, transparent);
   opacity: 0;
   animation: fade-glow 2s ease-in-out infinite;
   pointer-events: none;
@@ -277,6 +277,28 @@
   opacity: 0;
   animation: fade-glow 2s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* Risk dot pulse — staggered per dot */
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+.animate-dot-pulse {
+  animation: dot-pulse 1.8s ease-in-out infinite;
+}
+.animate-dot-pulse:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.animate-dot-pulse:nth-child(3) {
+  animation-delay: 0.3s;
 }
 
 .animate-cta-shine {
@@ -450,6 +472,7 @@
   .animate-pulse-glow,
   .animate-cta-pulse::after,
   .animate-cta-pulse-approve::after,
+  .animate-dot-pulse,
   .animate-step-enter,
   .animate-shimmer-sweep,
   .animate-message-enter,
