@@ -14,6 +14,10 @@ const agents = [
     description:
       "Pulls product data, pricing, and launch schedules from Google Sheets via Token Vault OBO. Read-only — cannot modify any data.",
     tools: "get_products, get_pricing, get_launch_schedule, get_launch_windows",
+    scope: "spreadsheets.readonly",
+    scopeLabel: "Read-only",
+    scopeColor:
+      "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
   },
   {
     name: "Orchestrator",
@@ -22,6 +26,10 @@ const agents = [
     description:
       "Decomposes natural language into discrete operations. Evaluates each against the policy engine, generates diffs, and assembles the changeset with rollback instructions.",
     tools: "gather_state, analyze_request, build_changeset",
+    scope: "none",
+    scopeLabel: "No API access — plans only",
+    scopeColor:
+      "bg-muted text-muted-foreground border-border",
   },
   {
     name: "Writer",
@@ -31,6 +39,10 @@ const agents = [
       "Executes approved operations against Google Sheets. Deterministic — no LLM involved. Loops over approved ops and calls the matching write tool.",
     tools:
       "update_price, set_promo_status, update_inventory_flag, bulk_price_change, create_product",
+    scope: "spreadsheets",
+    scopeLabel: "Read-write",
+    scopeColor:
+      "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   },
   {
     name: "Notifier",
@@ -39,6 +51,10 @@ const agents = [
     description:
       "Sends execution summaries and detailed audit receipts via Gmail using Token Vault OBO. Deterministic — templates the email from changeset data.",
     tools: "send_launch_notification",
+    scope: "gmail.send",
+    scopeLabel: "Send-only",
+    scopeColor:
+      "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
   },
 ];
 
@@ -139,10 +155,23 @@ export default function AboutPage() {
               <p className="mt-2 font-mono text-xs text-muted-foreground">
                 {agent.tools}
               </p>
+              <span
+                className={`mt-2 inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${agent.scopeColor}`}
+              >
+                {agent.scopeLabel}
+              </span>
             </div>
           ))}
         </div>
       </section>
+
+      {/* Token Vault Flow */}
+      <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
+        <strong className="text-foreground">Token Vault Flow:</strong> User
+        connects Google once via Auth0 Connected Accounts. Auth0 stores the
+        refresh token in Token Vault. Each agent exchanges for a scoped access
+        token at execution time. Tokens never reach the frontend.
+      </p>
 
       {/* Token Vault OBO */}
       <section className="mt-14">
