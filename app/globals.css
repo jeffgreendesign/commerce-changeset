@@ -126,7 +126,7 @@
   --tv-accent: oklch(0.59 0.18 264);
   --tv-divide: oklch(0.28 0.08 264 / 40%);
   --glow-cyan: oklch(0.65 0.18 185);
-  --glow-warm: var(--glow-warm);
+  --glow-warm: oklch(0.65 0.22 25);
   --shine-white: oklch(1 0 0);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -357,9 +357,6 @@
 }
 :is(.dark) .animate-mic-active-ring {
   filter: blur(10px);
-  animation:
-    gradient-rotate 3s linear infinite,
-    mic-ring-pulse 2s ease-in-out infinite;
 }
 
 /* ── Risk dot glow — staggered per dot ─────────────────────────────── */
