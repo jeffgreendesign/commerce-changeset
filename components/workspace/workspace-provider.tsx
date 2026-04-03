@@ -29,10 +29,28 @@ export interface Product {
   sku: string;
   price: number;
   promoPrice: number | null;
-  inventory: number;
+  inventory: string;
   promoStatus: "active" | "inactive";
   category: string;
   imageUrl?: string | null;
+}
+
+const INVENTORY_LABELS: Record<string, string> = {
+  in_stock: "In Stock",
+  low_stock: "Low Stock",
+  out_of_stock: "Out of Stock",
+  discontinued: "Discontinued",
+  pre_order: "Pre-Order",
+};
+
+export function inventoryLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  const label = INVENTORY_LABELS[trimmed];
+  if (label) return label;
+  const num = Number(trimmed);
+  if (!Number.isNaN(num)) return `${num.toLocaleString()} units`;
+  return value;
 }
 
 export type WorkspacePhase =
@@ -130,7 +148,7 @@ function parseProductsFromToolResults(
     .map((row, i) => {
       const priceStr = row["Base Price"] ?? row["Price"] ?? "0";
       const promoPriceStr = row["Promo Price"] ?? "";
-      const inventoryStr = row["Inventory"] ?? row["Stock"] ?? "0";
+      const inventoryStr = row["Inventory"] || row["Stock"] || "in_stock";
       const promoStr = (row["Promo Active"] ?? row["On Sale"] ?? "").toLowerCase();
       const sku = row["SKU"] ?? row["ID"] ?? "";
       const parsedPromoPrice = parseFloat(promoPriceStr.replace(/[^0-9.]/g, ""));
@@ -141,7 +159,7 @@ function parseProductsFromToolResults(
         sku,
         price: parseFloat(priceStr.replace(/[^0-9.]/g, "")) || 0,
         promoPrice: Number.isNaN(parsedPromoPrice) ? null : parsedPromoPrice,
-        inventory: parseInt(inventoryStr.replace(/[^0-9]/g, ""), 10) || 0,
+        inventory: inventoryStr.toLowerCase().trim(),
         promoStatus:
           promoStr === "true" || promoStr === "yes" || promoStr === "active" || promoStr === "on"
             ? ("active" as const)
@@ -235,7 +253,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
     const sku = safeCell("sku");
     const priceStr = safeCell("price") || "0";
     const promoPriceStr = safeCell("promoPrice");
-    const inventoryStr = safeCell("inventory") || "0";
+    const inventoryStr = safeCell("inventory") || "in_stock";
     const promoStr = safeCell("promo").toLowerCase();
     const category = (safeCell("category") || "uncategorized").toLowerCase();
     const imageUrl = safeCell("imageUrl");
@@ -244,7 +262,7 @@ function parseProductsFromMarkdown(text: string): Product[] {
 
     const price = parseFloat(priceStr.replace(/[^0-9.]/g, "")) || 0;
     const parsedPromoPrice = parseFloat(promoPriceStr.replace(/[^0-9.]/g, ""));
-    const inventory = parseInt(inventoryStr.replace(/[^0-9]/g, ""), 10) || 0;
+    const inventory = inventoryStr.toLowerCase().trim();
     const promoStatus: "active" | "inactive" =
       promoStr.includes("active") || promoStr.includes("yes") || promoStr.includes("on")
         ? "active"
@@ -310,6 +328,7 @@ function productsToRecords(products: Product[]): Record<string, string>[] {
     "Base Price": String(p.price),
     "Promo Price": p.promoPrice != null ? String(p.promoPrice) : "",
     "Promo Active": p.promoStatus === "active" ? "TRUE" : "FALSE",
+    Inventory: p.inventory,
   }));
 }
 
@@ -381,11 +400,7 @@ function applyDiffsToProducts(
           }
         }
       } else if (field.includes("inventory") || field.includes("stock")) {
-        const val =
-          typeof d.after === "number"
-            ? d.after
-            : parseInt(String(d.after).replace(/[^0-9]/g, ""), 10);
-        if (!Number.isNaN(val)) updated.inventory = val;
+        updated.inventory = String(d.after).toLowerCase().trim();
       } else if (field.includes("promo") || field.includes("status")) {
         // "Promo Active" / "Promo Status" — NOT "Promo Price" (handled above via else-if)
         const val = String(d.after).toLowerCase();

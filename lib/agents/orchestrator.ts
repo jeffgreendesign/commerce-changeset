@@ -65,7 +65,7 @@ Allowed writer actions (use EXACTLY these names):
 - "set_promo_status" — modifies the Promo Active flag for a single SKU
 - "update_inventory_flag" — modifies the Inventory flag for a single SKU
 - "bulk_price_change" — batch price update across multiple SKUs (use when same discount applies to 2+ products)
-- "create_product" — creates a new product row in the Products sheet with all fields (SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory)
+- "create_product" — creates a new product row in the Products sheet with all fields (SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory, Image URL)
 Do not invent other action names. Every write operation must use one of these actions.
 
 Diff semantics (CRITICAL):
@@ -75,7 +75,7 @@ Diff semantics (CRITICAL):
 - For update_price: the field is "Promo Price". "before" is the current Promo Price from the sheet (may be blank). "after" is the newly calculated discounted price.
 - For set_promo_status: the field is "Promo Active". "before" is the current value (e.g., "FALSE"). "after" is the desired value (e.g., "TRUE").
 - For update_inventory_flag: the field is "Inventory". "before" is the current value from the sheet (one of: "in_stock", "low_stock", "out_of_stock", "discontinued", "pre_order"). "after" is the desired flag value (must be one of the same five values). These are text flags, NOT numeric quantities. If the user requests a numeric inventory count, map it deterministically: 0 → "out_of_stock", 1–10 → "low_stock", >10 → "in_stock". Only use "pre_order" or "discontinued" when the user explicitly requests those statuses.
-- For create_product: create one diff entry per field. "before" MUST be "" (empty string) for ALL fields since the product does not exist yet. "after" is the desired value. Required fields: SKU (must follow STR-NNN format, e.g., STR-010), Name, Category, Base Price (must be > 0). Optional fields default to: Promo Price = "", Promo Active = "FALSE", Inventory = "in_stock". Always include all 7 fields in the diff array.
+- For create_product: create one diff entry per field. "before" MUST be "" (empty string) for ALL fields since the product does not exist yet. "after" is the desired value. Required fields: SKU (must follow STR-NNN format, e.g., STR-010), Name, Category, Base Price (must be > 0). Optional fields default to: Promo Price = "", Promo Active = "FALSE", Inventory = "in_stock", Image URL = "". Always include all 8 fields in the diff array.
 
 Rules:
 - Setting a discount or launching a promo ALWAYS requires BOTH:
@@ -137,7 +137,8 @@ Create product — "Add a new product STR-010 Ultra Racer, Running category, bas
       { "field": "Base Price", "before": "", "after": 149.99 },
       { "field": "Promo Price", "before": "", "after": "" },
       { "field": "Promo Active", "before": "", "after": "FALSE" },
-      { "field": "Inventory", "before": "", "after": "in_stock" }
+      { "field": "Inventory", "before": "", "after": "in_stock" },
+      { "field": "Image URL", "before": "", "after": "" }
     ],
     "operationType": "write", "affectedRecords": 1 }
 ]
