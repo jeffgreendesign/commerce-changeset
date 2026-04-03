@@ -31,9 +31,11 @@ import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-car
 import { useLayout } from "@/components/dashboard/layout-shell";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { useDemoAnnotations, ANNOTATIONS } from "@/components/demo/demo-annotation-provider";
-import { DemoAnnotation } from "@/components/demo/demo-annotation";
-import { DemoInsightBar } from "@/components/demo/demo-insight-bar";
-import { TokenVaultActivity } from "@/components/demo/token-vault-activity";
+import dynamic from "next/dynamic";
+
+const DemoAnnotation = dynamic(() => import("@/components/demo/demo-annotation").then(m => ({ default: m.DemoAnnotation })), { ssr: false });
+const DemoInsightBar = dynamic(() => import("@/components/demo/demo-insight-bar").then(m => ({ default: m.DemoInsightBar })), { ssr: false });
+const TokenVaultActivity = dynamic(() => import("@/components/demo/token-vault-activity").then(m => ({ default: m.TokenVaultActivity })), { ssr: false });
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
@@ -1036,6 +1038,13 @@ export function Chat({ chatId }: ChatProps) {
               </>
             )}
             {isDemo && <TokenVaultActivity phase={phase} />}
+            {isDemo && localActiveAnnotations.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {localActiveAnnotations.map((a) => (
+                  <DemoAnnotation key={a.id} annotation={a} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
