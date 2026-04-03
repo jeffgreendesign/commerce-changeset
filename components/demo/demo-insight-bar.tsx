@@ -23,8 +23,8 @@ export function DemoInsightBar() {
   const message = PHASE_MESSAGES[ctx.phase] ?? PHASE_MESSAGES.idle;
 
   return (
-    <div className="animate-step-enter border-t border-indigo-100 bg-indigo-50/80 px-4 py-1.5 dark:border-indigo-900/50 dark:bg-indigo-950/30">
-      <p className="text-center text-[11px] text-indigo-600 dark:text-indigo-400">
+    <div className="animate-step-enter border-t border-tv-border-subtle bg-tv-bg px-4 py-1.5">
+      <p className="text-center text-[11px] text-tv-text">
         {message}
       </p>
     </div>

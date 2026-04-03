@@ -9,6 +9,7 @@ import type {
   GeminiLiveConnectionState,
   SidecarStatus,
 } from "@/lib/voice/types";
+import type { PipelinePhase } from "@/lib/pipeline-phase";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ interface VoiceControlsProps {
   /** Render as mobile voice dock (expanded layout). */
   mobile?: boolean;
   /** Current pipeline phase (for Token Vault overlay in demo). */
-  phase?: "idle" | "loading" | "draft" | "executing" | "rolling_back" | "complete" | "error";
+  phase?: PipelinePhase;
   /** Whether demo mode is active. */
   isDemo?: boolean;
 }
@@ -91,9 +92,7 @@ function getStressChipColor(state?: EmotionalState): string {
 
 // ── Token Vault status for voice mode (demo only) ───────────────────
 
-type Phase = "idle" | "loading" | "draft" | "executing" | "rolling_back" | "complete" | "error";
-
-function getTokenVaultMessage(phase?: Phase): string | null {
+function getTokenVaultMessage(phase?: PipelinePhase): string | null {
   switch (phase) {
     case "loading":
       return "Reader exchanging OBO token...";
@@ -109,12 +108,12 @@ function getTokenVaultMessage(phase?: Phase): string | null {
   }
 }
 
-function VoiceTokenVaultStatus({ phase }: { phase?: Phase }) {
+function VoiceTokenVaultStatus({ phase }: { phase?: PipelinePhase }) {
   const message = getTokenVaultMessage(phase);
   if (!message) return null;
 
   return (
-    <div className="animate-step-enter inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/90 px-3 py-1 text-[11px] font-medium text-indigo-600 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
+    <div className="animate-step-enter inline-flex items-center gap-1.5 rounded-full border border-tv-border bg-tv-bg px-3 py-1 text-[11px] font-medium text-tv-text">
       <LockKeyholeIcon className="size-3 shrink-0" />
       Token Vault: {message}
     </div>
@@ -296,7 +295,7 @@ function MobileVoiceDock({
   onToggle: () => void;
   isConnecting: boolean;
   isTransitioning: boolean;
-  phase?: Phase;
+  phase?: PipelinePhase;
   isDemo?: boolean;
 }) {
   return (

@@ -39,6 +39,7 @@ import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
+import type { PipelinePhase as Phase } from "@/lib/pipeline-phase";
 import {
   loadSession,
   buildChatSession,
@@ -60,15 +61,6 @@ interface Message {
   /** Repetition signal if the orchestrator detected a repetitive workflow. */
   repetitionSignal?: RepetitionSignal;
 }
-
-type Phase =
-  | "idle"
-  | "loading"
-  | "draft"
-  | "executing"
-  | "rolling_back"
-  | "complete"
-  | "error";
 
 interface OrchestratorResponse {
   changeSet: ChangeSet;
@@ -1142,7 +1134,7 @@ export function Chat({ chatId }: ChatProps) {
       )}
 
       {/* Demo insight bar — phase-aware one-liner above input */}
-      <DemoInsightBar />
+      {isDemo && <DemoInsightBar />}
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
