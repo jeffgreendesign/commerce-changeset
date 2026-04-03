@@ -68,20 +68,23 @@ export async function POST(request: Request) {
       },
     };
 
-    return NextResponse.json({
-      changeSet: {
-        ...cs,
-        status: "completed",
-        approval: {
-          approvedBy: "auth0|demo-user-001",
-          approvedAt: new Date().toISOString(),
-          cibaTransactionId: `ciba_demo_${crypto.randomUUID().slice(0, 8)}`,
-          scopesGranted: ["openid", "commerce:write"],
-          authorizationDetails: [],
+    return NextResponse.json(
+      {
+        changeSet: {
+          ...cs,
+          status: "completed",
+          approval: {
+            approvedBy: "auth0|demo-user-001",
+            approvedAt: new Date().toISOString(),
+            cibaTransactionId: `ciba_demo_${crypto.randomUUID().slice(0, 8)}`,
+            scopesGranted: ["openid", "commerce:write"],
+            authorizationDetails: [],
+          },
+          execution: executionResult,
         },
-        execution: executionResult,
       },
-    });
+      { headers: { "x-demo-session": "1" } },
+    );
   }
 
   // ── Production mode ───────────────────────────────────────────────
