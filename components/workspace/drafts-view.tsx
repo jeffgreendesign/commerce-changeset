@@ -144,7 +144,7 @@ export function DraftsView() {
               <Button
                 variant="default"
                 size="sm"
-                className="min-h-[36px] gap-1"
+                className={cn("min-h-[36px] gap-1", !isExecuting && "animate-cta-pulse")}
                 onClick={() => executeChangeset()}
                 disabled={isExecuting}
               >

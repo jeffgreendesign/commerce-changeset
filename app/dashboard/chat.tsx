@@ -1066,7 +1066,7 @@ export function Chat({ chatId }: ChatProps) {
               </span>
               <span className="text-muted-foreground sm:hidden"> ready</span>
             </div>
-            <Button onClick={handleExecute} className="min-h-[44px] w-full sm:w-auto">
+            <Button onClick={handleExecute} className="min-h-[44px] w-full sm:w-auto animate-cta-pulse">
               Execute Change Set
               <kbd className="ml-1.5 hidden rounded bg-primary-foreground/20 px-1 py-0.5 text-[10px] font-mono sm:inline">
                 {"\u2318\u21B5"}

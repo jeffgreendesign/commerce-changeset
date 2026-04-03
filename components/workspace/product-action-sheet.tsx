@@ -79,7 +79,7 @@ export function ProductActionSheet({
                   {Array.from({ length: risk.dots }, (_, i) => (
                     <span
                       key={i}
-                      className={cn("size-1.5 rounded-full", risk.color)}
+                      className={cn("size-1.5 rounded-full animate-dot-pulse", risk.color)}
                     />
                   ))}
                 </div>

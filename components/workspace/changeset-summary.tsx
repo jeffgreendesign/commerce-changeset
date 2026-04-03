@@ -131,7 +131,7 @@ export function ChangesetSummary({
           <Button
             variant="default"
             size="sm"
-            className="min-h-[36px] gap-1"
+            className={cn("min-h-[36px] gap-1", !executing && "animate-cta-pulse")}
             onClick={onExecute}
             disabled={executing}
           >

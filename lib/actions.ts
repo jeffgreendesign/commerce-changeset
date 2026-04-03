@@ -58,9 +58,9 @@ export interface RiskMeta {
 }
 
 export const RISK_META: Record<RiskLevel, RiskMeta> = {
-  safe: { dots: 1, color: "bg-emerald-500", label: "Safe" },
-  moderate: { dots: 2, color: "bg-amber-500", label: "Moderate" },
-  elevated: { dots: 3, color: "bg-red-500", label: "Elevated" },
+  safe: { dots: 1, color: "bg-emerald-500 text-emerald-500", label: "Safe" },
+  moderate: { dots: 2, color: "bg-amber-500 text-amber-500", label: "Moderate" },
+  elevated: { dots: 3, color: "bg-red-500 text-red-500", label: "Elevated" },
 };
 
 export const CATEGORY_META: Record<
