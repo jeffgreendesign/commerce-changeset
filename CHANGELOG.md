@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Narrow Reader Agent OAuth scope from `spreadsheets` to `spreadsheets.readonly` (per-agent scope isolation)
+
+### Content
+
+- Add OAuth scope badges to About page (Reader read-only, Writer read-write, Notifier send-only)
+- Update blog post: move per-agent scope isolation from future work to accomplishment
+
+### Docs
+
+- Restructure README for Devpost submission format (problem statement, architecture, Auth0 integration narrative)
+
 ### Fixes
 
 - Fix missing voice and visual feedback after changeset execution via voice approval (PR `#29`)
