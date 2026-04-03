@@ -14,14 +14,12 @@ import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { runProactiveChecks } from "@/lib/voice/proactive-insights";
+import { loadTimeline, saveTimeline, type TimelineEntry } from "@/lib/timeline-history";
 
 // ── Types ────────────────────────────────────────────────────────────
 
-/** A completed (or in-progress) changeset snapshot for the session timeline. */
-export interface TimelineEntry {
-  changeset: ChangeSet;
-  completedAt: string;
-}
+// TimelineEntry is imported from @/lib/timeline-history and re-exported
+export type { TimelineEntry } from "@/lib/timeline-history";
 
 export interface Product {
   id: string;
@@ -427,8 +425,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
 
-  // ── Timeline history (survives view switches) ─────────────────────
-  const [changesetHistory, setChangesetHistory] = useState<TimelineEntry[]>([]);
+  // ── Timeline history (survives view switches + page refreshes) ────
+  const [changesetHistory, setChangesetHistory] = useState<TimelineEntry[]>(() => loadTimeline());
   const [prevPhaseForHistory, setPrevPhaseForHistory] = useState<WorkspacePhase>(phase);
 
   // Capture completed changesets into session history using the
@@ -459,6 +457,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       ]);
     }
   }
+
+  // Persist timeline to localStorage whenever it changes
+  useEffect(() => {
+    saveTimeline(changesetHistory);
+  }, [changesetHistory]);
 
   const wsTemperature = temperatureFromPhase(phase);
 
@@ -798,6 +801,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cs.execution?.results,
     );
     setProducts((prev) => applyDiffsToProducts(prev, opsToApply));
+    // Capture into timeline history so chat-executed changesets appear
+    setChangesetHistory((prev) => [
+      ...prev,
+      { changeset: cs, completedAt: new Date().toISOString() },
+    ]);
   }, []);
 
   const ctx = useMemo<WorkspaceContextValue>(
