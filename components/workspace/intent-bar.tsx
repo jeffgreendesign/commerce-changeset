@@ -2,20 +2,27 @@
 
 import { useState, useCallback, useMemo, useRef } from "react";
 import {
-  ArrowRightIcon,
   LoaderIcon,
   CheckCircleIcon,
-  MicIcon,
-  MicOffIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { VoiceControls } from "@/components/dashboard/voice-controls";
-import { useWorkspace } from "./workspace-provider";
+import { useIsMobile } from "@/lib/hooks/use-is-mobile";
+import { useLayout } from "@/components/dashboard/layout-shell";
+import { useWorkspace, type WorkspacePhase } from "./workspace-provider";
 import type {
   EmotionalState,
   GeminiLiveConnectionState,
   SidecarStatus,
 } from "@/lib/voice/types";
+import type { PipelinePhase } from "@/lib/pipeline-phase";
+
+/** Map workspace phase to pipeline phase so VoiceControls demo affect works. */
+function toPipelinePhase(wp: WorkspacePhase): PipelinePhase {
+  if (wp === "preview") return "draft";
+  return wp;
+}
 
 // Chips prefill the input with a template — user must complete the detail
 const SINGLE_CHIPS = [
@@ -67,8 +74,11 @@ export function IntentBar({
     draftChangeset,
     executionError,
   } = useWorkspace();
+  const { isDemo } = useLayout();
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
+  const pipelinePhase = toPipelinePhase(phase);
 
   const selectedProducts = useMemo(
     () => products.filter((p) => selectedIds.has(p.id)),
@@ -76,13 +86,13 @@ export function IntentBar({
   );
 
   const placeholder = useMemo(() => {
-    if (voiceActive || voiceConnecting) return "Listening...";
+    if (voiceActive || voiceConnecting) return "Listening... or type here";
     if (draftChangeset && (phase === "preview" || phase === "executing")) {
       return "Review changeset above";
     }
     if (phase === "complete") return "Changes applied";
     if (selectedProducts.length === 0)
-      return "What would you like to change?";
+      return "Describe a commerce change...";
     if (selectedProducts.length === 1)
       return `${selectedProducts[0].name} — what to change?`;
     return `${selectedProducts.length} products — what to change?`;
@@ -94,24 +104,22 @@ export function IntentBar({
     return MULTI_CHIPS;
   }, [selectedProducts.length]);
 
-  const handleSubmit = useCallback(
-    (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || phase === "executing" || phase === "preview") return;
-      setInput("");
-      submitIntent(trimmed);
-    },
-    [phase, submitIntent],
-  );
+  const handleSubmit = useCallback(() => {
+    const trimmed = input.trim();
+    if (!trimmed || phase === "executing" || phase === "preview") return;
+    setInput("");
+    submitIntent(trimmed);
+  }, [input, phase, submitIntent]);
 
   const isBusy = phase === "executing" || phase === "preview";
   const hasDraft = !!draftChangeset && phase === "preview";
+  const showMobileVoiceDock = isMobile && (voiceActive || voiceConnecting);
 
   return (
-    <div className="intent-bar border-t pb-safe">
+    <div>
       {/* Busy indicator */}
       {phase === "executing" && (
-        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-muted-foreground sm:px-6 lg:px-8">
           <LoaderIcon className="size-3 animate-spin" />
           <span>Executing changes...</span>
         </div>
@@ -119,7 +127,7 @@ export function IntentBar({
 
       {/* Completion indicator */}
       {phase === "complete" && (
-        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-emerald-600 dark:text-emerald-400 sm:px-6 lg:px-8">
           <CheckCircleIcon className="size-3" />
           <span>Changes applied successfully</span>
         </div>
@@ -127,7 +135,7 @@ export function IntentBar({
 
       {/* Error indicator */}
       {phase === "error" && (
-        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-destructive">
+        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-destructive sm:px-6 lg:px-8">
           <span>{executionError ?? "Something went wrong."}</span>
           <button
             type="button"
@@ -139,29 +147,9 @@ export function IntentBar({
         </div>
       )}
 
-      {/* Voice controls — expanded dock when voice is active */}
-      {(voiceActive || voiceConnecting) && (
-        <div className="px-3 pt-2">
-          <VoiceControls
-            isActive={voiceActive}
-            emotionalState={emotionalState}
-            stressLevel={stressLevel}
-            inputLevel={inputLevel}
-            connectionState={connectionState}
-            isSpeaking={isSpeaking}
-            sidecarStatus={sidecarStatus}
-            disabled={isBusy}
-            onActivate={onVoiceActivate}
-            onDeactivate={onVoiceDeactivate}
-            volume={volume}
-            onVolumeChange={onVolumeChange}
-          />
-        </div>
-      )}
-
       {/* Selection-based suggestion chips — prefill input, don't auto-submit */}
       {!hasDraft && chips.length > 0 && !isBusy && phase !== "complete" && !voiceActive && !voiceConnecting && (
-        <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
+        <div className="flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none sm:px-6 lg:px-8">
           {chips.map((chip) => (
             <button
               key={chip.label}
@@ -179,59 +167,72 @@ export function IntentBar({
         </div>
       )}
 
-      {/* Input row */}
-      <div className="flex items-center gap-2 px-3 py-2 md:px-4">
-        {/* Voice button — activates/deactivates Gemini Live voice */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="min-h-[44px] min-w-[44px] shrink-0 text-muted-foreground"
-          aria-label={voiceActive ? "Stop voice" : "Start voice"}
-          onClick={voiceActive ? onVoiceDeactivate : onVoiceActivate}
-          disabled={isBusy || phase === "complete" || voiceConnecting}
-        >
-          {voiceConnecting ? (
-            <LoaderIcon className="size-5 animate-spin" />
-          ) : voiceActive ? (
-            <MicOffIcon className="size-5 text-destructive" />
-          ) : (
-            <MicIcon className="size-5" />
-          )}
-        </Button>
-
-        {/* Text input */}
-        <input
-          ref={inputRef}
-          type="text"
-          className="flex-1 bg-transparent text-base placeholder:text-muted-foreground focus:outline-none md:text-sm"
-          placeholder={placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSubmit(input);
-            }
-          }}
-          disabled={isBusy || phase === "complete" || voiceActive || voiceConnecting}
+      {/* Mobile voice dock — immersive bottom panel */}
+      {showMobileVoiceDock && (
+        <VoiceControls
+          isActive={voiceActive}
+          emotionalState={emotionalState}
+          stressLevel={stressLevel}
+          inputLevel={inputLevel}
+          connectionState={connectionState}
+          isSpeaking={isSpeaking}
+          sidecarStatus={sidecarStatus}
+          disabled={isBusy}
+          volume={volume}
+          onVolumeChange={onVolumeChange}
+          onActivate={onVoiceActivate}
+          onDeactivate={onVoiceDeactivate}
+          mobile
+          phase={pipelinePhase}
+          isDemo={isDemo}
         />
+      )}
 
-        {/* Go button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="min-h-[44px] min-w-[44px] shrink-0"
-          aria-label="Submit"
-          disabled={isBusy || phase === "complete" || !input.trim() || voiceActive || voiceConnecting}
-          onClick={() => handleSubmit(input)}
-        >
-          {isBusy ? (
-            <LoaderIcon className="size-5 animate-spin" />
-          ) : (
-            <ArrowRightIcon className="size-5" />
-          )}
-        </Button>
-      </div>
+      {/* Input bar — hidden when mobile voice dock is active */}
+      {!showMobileVoiceDock && (
+        <div className="glass-elevated input-glow border-t px-4 py-4 pb-safe sm:px-6 lg:px-8">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            className="mx-auto max-w-4xl flex gap-2 sm:gap-3"
+          >
+            <Input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={placeholder}
+              disabled={isBusy || phase === "complete"}
+              className="flex-1"
+            />
+            <VoiceControls
+              isActive={voiceActive}
+              emotionalState={emotionalState}
+              stressLevel={stressLevel}
+              inputLevel={inputLevel}
+              connectionState={connectionState}
+              isSpeaking={isSpeaking}
+              sidecarStatus={sidecarStatus}
+              disabled={isBusy}
+              volume={volume}
+              onVolumeChange={onVolumeChange}
+              onActivate={onVoiceActivate}
+              onDeactivate={onVoiceDeactivate}
+              phase={pipelinePhase}
+              isDemo={isDemo}
+            />
+            <Button
+              type="submit"
+              disabled={!input.trim() || isBusy}
+              className="min-h-[44px] min-w-[44px]"
+            >
+              <span className="hidden sm:inline">Send</span>
+              <span className="sm:hidden">Go</span>
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

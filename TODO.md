@@ -40,6 +40,29 @@ Extracted from [`docs/living-workspace-design-spec.md`](docs/living-workspace-de
 - [x] Keep `app/dashboard/chat.tsx` accessible via Context Spine icon
 - [x] Chat serves as "transcript" mode for complex reasoning
 
+## Persistent Voice Agent
+
+Goal: Keep the voice agent session alive across view navigation so users can continue a voice conversation while switching between Chat, Workspace, Actions, etc. The voice agent should also be able to navigate the app programmatically when executing commands.
+
+### Production
+
+- [ ] Create `VoiceProvider` context wrapping `DashboardClient` — single `useGeminiLive` instance shared by all views
+- [ ] Move `useGeminiLive` call from `chat.tsx` and `workspace.tsx` into `VoiceProvider`
+- [ ] Route tool calls based on `activeView` — workspace tools when in workspace, orchestrator tools when in chat
+- [ ] Add `navigate_to_view` tool to Gemini tool declarations so the voice agent can switch views (e.g. "show me the workspace", "open drafts")
+- [ ] Implement `navigate_to_view` handler in `VoiceProvider` that calls `setActiveView()` from `LayoutShell` context
+- [ ] Remove auto-disconnect in `workspace.tsx` (lines 155-162) — voice should persist across view changes
+- [ ] Ensure audio context and media stream survive React component unmount/remount cycles
+- [ ] Add voice state indicator to `LayoutShell` header so users know voice is active regardless of current view
+- [ ] Handle edge case: switching views mid-tool-call (queue or reject conflicting tools)
+
+### Demo
+
+- [ ] Persist demo affect simulation across view switches (currently resets to "calm" on remount)
+- [ ] Show Token Vault status in voice indicator even when not on the originating view
+- [ ] Demo script: voice agent navigates from Chat → Workspace → back while maintaining conversation context
+- [ ] Ensure `isDemo` flag propagates through `VoiceProvider` so demo overrides apply globally
+
 ## Verification
 
 Owner: _unassigned_ | Last verified: _never_

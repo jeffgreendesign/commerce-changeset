@@ -290,7 +290,6 @@
 .animate-mic-prismatic::after {
   content: "";
   position: absolute;
-  inset: -3px;
   border-radius: inherit;
   background: conic-gradient(
     from var(--gradient-angle),
@@ -305,6 +304,12 @@
   z-index: -1;
   animation: gradient-rotate 3s linear infinite;
   pointer-events: none;
+}
+.animate-cta-pulse::after {
+  inset: -3px;
+}
+.animate-mic-prismatic::after {
+  inset: 0;
 }
 :is(.dark) :is(.animate-cta-pulse, .animate-mic-prismatic)::after {
   opacity: 0.7;
@@ -1031,13 +1036,6 @@
 }
 
 /* ── Intent Bar ───────────────────────────────────────────────────── */
-
-.intent-bar {
-  --intent-bg: color-mix(in oklch, var(--background) 85%, transparent 15%);
-  -webkit-backdrop-filter: blur(24px) saturate(2);
-  backdrop-filter: blur(24px) saturate(2);
-  background: var(--intent-bg);
-}
 
 .intent-suggestion {
   font-size: 0.75rem;
