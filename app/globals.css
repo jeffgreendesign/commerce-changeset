@@ -74,6 +74,7 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --accent-teal: oklch(0.72 0.20 185);
+  --approve-glow: oklch(0.596 0.145 163.2);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -87,6 +88,7 @@
 
 .dark {
   --accent-teal: oklch(0.75 0.20 185);
+  --approve-glow: oklch(0.65 0.17 163.2);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -185,23 +187,13 @@
   }
 }
 
-@keyframes cta-pulse {
+@keyframes fade-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 0%, transparent);
+    opacity: 0;
   }
   50% {
-    box-shadow: 0 0 12px 4px color-mix(in oklch, var(--primary) 30%, transparent);
-  }
-}
-
-@keyframes cta-pulse-approve {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 oklch(0.596 0.145 163.2 / 0);
-  }
-  50% {
-    box-shadow: 0 0 12px 4px oklch(0.596 0.145 163.2 / 0.35);
+    opacity: 1;
   }
 }
 
@@ -260,11 +252,31 @@
 }
 
 .animate-cta-pulse {
-  animation: cta-pulse 2s ease-in-out infinite;
+  position: relative;
+}
+.animate-cta-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 12px 4px color-mix(in oklch, var(--primary) 30%, transparent);
+  opacity: 0;
+  animation: fade-glow 2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .animate-cta-pulse-approve {
-  animation: cta-pulse-approve 2s ease-in-out infinite;
+  position: relative;
+}
+.animate-cta-pulse-approve::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 12px 4px color-mix(in oklch, var(--approve-glow) 35%, transparent);
+  opacity: 0;
+  animation: fade-glow 2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .animate-cta-shine {
@@ -436,9 +448,8 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer,
   .animate-pulse-glow,
-  .animate-cta-pulse,
-  .animate-cta-pulse-approve,
-  .animate-cta-shine::after,
+  .animate-cta-pulse::after,
+  .animate-cta-pulse-approve::after,
   .animate-step-enter,
   .animate-shimmer-sweep,
   .animate-message-enter,
@@ -446,6 +457,10 @@
   .animate-slide-down-fade,
   .animate-category-enter {
     animation: none;
+  }
+  .animate-cta-shine::after {
+    animation: none;
+    background: none;
   }
   .agent-card-glow::before {
     animation: none;
