@@ -329,6 +329,63 @@
   pointer-events: none;
 }
 
+/* ── Mic prismatic glow (inactive — hero CTA level) ─────────────────── */
+.animate-mic-prismatic {
+  position: relative;
+  isolation: isolate;
+}
+.animate-mic-prismatic::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--glow-indigo) 0%,
+    var(--glow-teal) 25%,
+    var(--glow-indigo) 50%,
+    var(--glow-magenta) 75%,
+    var(--glow-indigo) 100%
+  );
+  filter: blur(6px);
+  opacity: 0.4;
+  z-index: -1;
+  animation: gradient-rotate 3s linear infinite;
+  pointer-events: none;
+}
+:is(.dark) .animate-mic-prismatic::after {
+  opacity: 0.7;
+}
+
+/* ── Mic active ring (warm prismatic pulse) ──────────────────────────── */
+@keyframes mic-ring-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
+.animate-mic-active-ring {
+  position: absolute;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    oklch(0.65 0.2 25) 0%,
+    var(--glow-magenta) 30%,
+    var(--glow-indigo) 55%,
+    var(--glow-teal) 75%,
+    oklch(0.65 0.2 25) 100%
+  );
+  filter: blur(8px);
+  z-index: -1;
+  pointer-events: none;
+  animation:
+    gradient-rotate 3s linear infinite,
+    mic-ring-pulse 2s ease-in-out infinite;
+}
+:is(.dark) .animate-mic-active-ring {
+  filter: blur(10px);
+  animation:
+    gradient-rotate 3s linear infinite,
+    mic-ring-pulse 2s ease-in-out infinite;
+}
+
 /* ── Risk dot glow — staggered per dot ─────────────────────────────── */
 @keyframes dot-glow {
   0%,
@@ -531,7 +588,12 @@
     animation: none;
   }
   .animate-cta-pulse::after,
-  .animate-cta-pulse-approve::after {
+  .animate-cta-pulse-approve::after,
+  .animate-mic-prismatic::after {
+    animation: none;
+    opacity: 0.4;
+  }
+  .animate-mic-active-ring {
     animation: none;
     opacity: 0.4;
   }
