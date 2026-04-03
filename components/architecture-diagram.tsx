@@ -99,6 +99,12 @@ export function ArchitectureDiagram() {
         .ciba-pulse {
           animation: ciba-pulse 2s ease-in-out infinite;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .flow-arrow,
+          .ciba-pulse {
+            animation: none;
+          }
+        }
       `}</style>
       <defs>
         <marker id="a-arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
@@ -199,6 +205,7 @@ export function ArchitectureDiagram() {
       <StepBadge cx={790} cy={431} n={9} color={C.receipt} />
 
       <Node x={820} y={395} w={120} h={72} fill={C.receiptFill} stroke={C.receipt} label="Receipt" sublabel="SHA-256 audit hash" />
+      <StepBadge cx={940} cy={405} n={10} color={C.receipt} />
       <text x={880} y={454} textAnchor="middle" className="text-[9.5px] fill-muted-foreground">OBO chain</text>
 
       {/* Title */}

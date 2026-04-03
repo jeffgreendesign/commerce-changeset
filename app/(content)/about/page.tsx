@@ -135,8 +135,10 @@ export default function AboutPage() {
       </p>
 
       {/* Architecture Diagram */}
-      <section className="mt-10">
-        <ArchitectureDiagram />
+      <section className="mt-10 overflow-x-auto">
+        <div className="min-w-[800px]">
+          <ArchitectureDiagram />
+        </div>
       </section>
 
       {/* Agent Pipeline */}

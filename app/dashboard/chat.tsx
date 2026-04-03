@@ -461,7 +461,7 @@ export function Chat({ chatId }: ChatProps) {
       setCibaApproved(true);
 
       // Brief pause so demo users see the approved state before completion
-      if (res.headers.get("x-demo-session") === "1") {
+      if (isDemo) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
