@@ -91,6 +91,7 @@ export function ProductTile({
   phase,
   proactiveIssues,
 }: ProductTileProps) {
+  const tileRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLongPress = useRef(false);
   const pressing = useRef(false);
@@ -106,6 +107,15 @@ export function ProductTile({
   // Clean up timer on unmount to prevent ghost callbacks
   useEffect(() => clearLongPress, [clearLongPress]);
 
+  /** Blur the tile and forward to onLongPress — mirrors onClick's bookkeeping. */
+  const activateLongPress = useCallback(
+    (p: Product) => {
+      tileRef.current?.blur();
+      onLongPress?.(p);
+    },
+    [onLongPress],
+  );
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!onLongPress) return;
@@ -114,12 +124,12 @@ export function ProductTile({
       longPressTimer.current = setTimeout(() => {
         didLongPress.current = true;
         pressing.current = false;
-        onLongPress(product);
+        activateLongPress(product);
       }, LONG_PRESS_MS);
       // Capture pointer so we get pointerup even if finger slides off
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [onLongPress, product],
+    [onLongPress, activateLongPress, product],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -135,9 +145,9 @@ export function ProductTile({
       if (!onLongPress) return;
       e.preventDefault();
       clearLongPress();
-      onLongPress(product);
+      activateLongPress(product);
     },
-    [onLongPress, product, clearLongPress],
+    [onLongPress, activateLongPress, product, clearLongPress],
   );
   const showDiff =
     !!operation &&
@@ -183,6 +193,7 @@ export function ProductTile({
 
   return (
     <div
+      ref={tileRef}
       className={cn(
         "product-tile cursor-pointer px-4 py-4 min-h-[44px]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
@@ -220,12 +231,12 @@ export function ProductTile({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          (e.currentTarget as HTMLElement).blur();
-          // Shift+Enter opens the action sheet
-          if (e.shiftKey && onLongPress) {
-            onLongPress(product);
+          // Shift+Enter opens the action sheet (but not Shift+Space)
+          if (e.key === "Enter" && e.shiftKey && onLongPress) {
+            activateLongPress(product);
             return;
           }
+          (e.currentTarget as HTMLElement).blur();
           onClick({ metaKey: e.metaKey, ctrlKey: e.ctrlKey });
         }
       }}
