@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { TIER_CONFIG } from "@/lib/risk-tier-config";
 import type { OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
-import { useWorkspace } from "./workspace-provider";
+import { useWorkspace, inventoryLabel } from "./workspace-provider";
 
 // ── Inspector content ──────────────────────────────────────────────
 
@@ -252,8 +252,8 @@ function InspectorContent({
                 Inventory
               </p>
             </div>
-            <p className="text-sm font-semibold tabular-nums">
-              {selectedProduct.inventory.toLocaleString()} units
+            <p className="text-sm font-semibold">
+              {inventoryLabel(selectedProduct.inventory)}
             </p>
           </div>
 

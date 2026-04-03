@@ -24,7 +24,7 @@ export interface WriterAgentResult {
 
 // ── Column mapping ───────────────────────────────────────────────────
 // Products sheet columns: A=SKU, B=Name, C=Category, D=Base Price,
-// E=Promo Price, F=Promo Active, G=Inventory
+// E=Promo Price, F=Promo Active, G=Inventory, H=Image URL
 
 const ACTION_COLUMN: Record<string, string> = {
   update_price: "E",
@@ -161,6 +161,16 @@ function validatePromoStatus(value: string): void {
   }
 }
 
+/** Validate image URL is empty or syntactically valid. */
+function validateImageUrl(value: string): void {
+  if (value === "") return;
+  try {
+    new URL(value);
+  } catch {
+    throw new Error(`Invalid Image URL: "${value}". Must be empty or a valid URL.`);
+  }
+}
+
 /** Validate inventory flag is a known status. */
 const VALID_INVENTORY_FLAGS = ["in_stock", "low_stock", "out_of_stock", "discontinued", "pre_order"];
 function validateInventoryFlag(value: string): void {
@@ -184,7 +194,7 @@ function escapeSheetValue(value: string): string {
 }
 
 const ALLOWED_PRODUCT_FIELDS = new Set([
-  "SKU", "Name", "Category", "Base Price", "Promo Price", "Promo Active", "Inventory",
+  "SKU", "Name", "Category", "Base Price", "Promo Price", "Promo Active", "Inventory", "Image URL",
 ]);
 
 // ── Operation dispatch ───────────────────────────────────────────────
@@ -210,6 +220,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       // Normalize blank optionals to defaults (empty string is not nullish, so ?? doesn't catch it)
       const promoActive = String(fieldMap["Promo Active"] ?? "FALSE") || "FALSE";
       const inventory = String(fieldMap["Inventory"] ?? "in_stock") || "in_stock";
+      const imageUrl = String(fieldMap["Image URL"] ?? "");
 
       // Guardrails
       if (!sku || !name || !category || !basePrice) {
@@ -223,6 +234,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       if (promoPrice !== "") validatePrice(promoPrice, "Promo Price");
       validatePromoStatus(promoActive);
       validateInventoryFlag(inventory);
+      validateImageUrl(imageUrl);
 
       // Duplicate check (live, not cached).
       // Note: this check-then-append is not atomic (TOCTOU). In practice the race
@@ -234,7 +246,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
       }
 
       // Sanitize free-text fields against formula injection (USER_ENTERED mode)
-      await appendSheet("Products!A:G", [
+      await appendSheet("Products!A:H", [
         escapeSheetValue(sku),
         escapeSheetValue(name),
         escapeSheetValue(category),
@@ -242,6 +254,7 @@ async function executeOperation(op: Operation): Promise<OperationResult> {
         escapeSheetValue(promoPrice),
         escapeSheetValue(promoActive),
         escapeSheetValue(inventory),
+        escapeSheetValue(imageUrl),
       ]);
       console.log(`[writer] ✓ create_product ${sku} "${name}" appended in ${Math.round(performance.now() - start)}ms`);
       return { operationId: op.id, status: "success", duration: performance.now() - start };

@@ -454,6 +454,11 @@ export function Chat({ chatId }: ChatProps) {
         throw new Error(data.error.message);
       }
 
+      // Brief pause so demo users see the executing state before completion
+      if (res.headers.get("x-demo-session") === "1") {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
       applyExecutedChangeset(data.changeSet);
       setMessages((prev) => [
         ...prev,
