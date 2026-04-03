@@ -30,6 +30,10 @@ import { BulkSuggestionCard } from "@/components/dashboard/bulk-suggestion-card"
 import { ProactiveIssuesCard } from "@/components/dashboard/proactive-issues-card";
 import { useLayout } from "@/components/dashboard/layout-shell";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { useDemoAnnotations } from "@/components/demo/demo-annotation-provider";
+import { DemoAnnotation } from "@/components/demo/demo-annotation";
+import { DemoInsightBar } from "@/components/demo/demo-insight-bar";
+import { TokenVaultActivity } from "@/components/demo/token-vault-activity";
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { ChangeSet } from "@/lib/changeset/types";
@@ -163,6 +167,7 @@ interface ChatProps {
 export function Chat({ chatId }: ChatProps) {
   const { applyExecutedChangeset } = useWorkspace();
   const { isDemo } = useLayout();
+  const demoAnnotations = useDemoAnnotations();
   // Load persisted session once so all initializers can use it
   const [restoredSession] = useState(() => loadSession(chatId));
 
@@ -212,6 +217,11 @@ export function Chat({ chatId }: ChatProps) {
   const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
+
+  // Sync phase to demo annotation context
+  useEffect(() => {
+    demoAnnotations?.setPhase(phase);
+  }, [phase, demoAnnotations]);
 
   // Auto-save messages to localStorage on changes
   useEffect(() => {
@@ -985,6 +995,20 @@ export function Chat({ chatId }: ChatProps) {
                 results={msg.changeSet?.execution?.results}
               />
             )}
+
+            {/* Token Vault activity — real-time token exchange visibility (demo only) */}
+            {isLastAssistant && isDemo && (
+              <TokenVaultActivity phase={phase} />
+            )}
+
+            {/* Demo annotations — phase-aware tech callouts */}
+            {isLastAssistant && demoAnnotations?.activeAnnotations && demoAnnotations.activeAnnotations.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {demoAnnotations.activeAnnotations.map((a) => (
+                  <DemoAnnotation key={a.id} annotation={a} />
+                ))}
+              </div>
+            )}
           </div>
           );
         })}
@@ -1015,6 +1039,7 @@ export function Chat({ chatId }: ChatProps) {
                 <ChangeSetSkeleton />
               </>
             )}
+            {isDemo && <TokenVaultActivity phase={phase} />}
           </div>
         )}
 
@@ -1111,8 +1136,13 @@ export function Chat({ chatId }: ChatProps) {
           onActivate={handleVoiceActivate}
           onDeactivate={handleVoiceDeactivate}
           mobile
+          phase={phase}
+          isDemo={isDemo}
         />
       )}
+
+      {/* Demo insight bar — phase-aware one-liner above input */}
+      <DemoInsightBar />
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
@@ -1144,6 +1174,8 @@ export function Chat({ chatId }: ChatProps) {
               onVolumeChange={geminiLive.setVolume}
               onActivate={handleVoiceActivate}
               onDeactivate={handleVoiceDeactivate}
+              phase={phase}
+              isDemo={isDemo}
             />
             <Button
               type="submit"
