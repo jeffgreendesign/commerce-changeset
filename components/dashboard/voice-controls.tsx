@@ -567,7 +567,7 @@ export function VoiceControls({
         onClick={handleToggle}
         disabled={disabled || isTransitioning || isConnecting}
         className={cn(
-          "relative min-h-[44px] min-w-[44px]",
+          "relative min-h-[44px] min-w-[44px] overflow-hidden",
           isActive &&
             "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
           !isActive && !isConnecting && "animate-mic-prismatic",

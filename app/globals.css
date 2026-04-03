@@ -286,9 +286,6 @@
   position: relative;
   isolation: isolate;
 }
-.animate-mic-prismatic {
-  overflow: hidden;
-}
 .animate-cta-pulse::after,
 .animate-mic-prismatic::after {
   content: "";
