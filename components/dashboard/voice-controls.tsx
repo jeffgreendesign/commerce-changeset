@@ -368,7 +368,7 @@ function MobileVoiceDock({
 
       {/* Volume slider */}
       {isActive && onVolumeChange && (
-        <div className="flex w-full max-w-[240px] items-center gap-2">
+        <div className="flex w-full max-w-60 items-center gap-2">
           <Volume2Icon className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             type="range"
@@ -418,6 +418,7 @@ export function VoiceControls({
   const effectiveSidecarStatus: SidecarStatus | undefined = isDemo
     ? { connected: true, receiving: true }
     : sidecarStatus;
+  const effectiveEmotionalState = isDemo ? (emotionalState ?? "calm" as const) : emotionalState;
 
   const handleToggle = useCallback(() => {
     if (disabled || isTransitioning || isConnecting) return;
@@ -448,7 +449,7 @@ export function VoiceControls({
     return (
       <MobileVoiceDock
         isActive={isActive}
-        emotionalState={emotionalState}
+        emotionalState={effectiveEmotionalState}
         stressLevel={stressLevel}
         inputLevel={inputLevel}
         connectionState={connectionState}
@@ -482,7 +483,7 @@ export function VoiceControls({
             className={cn("size-3.5", getStressColor(stressLevel))}
           />
           <span className="text-[10px] text-muted-foreground">
-            {getStressLabel(emotionalState)}
+            {getStressLabel(effectiveEmotionalState)}
           </span>
         </div>
       )}

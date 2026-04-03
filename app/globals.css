@@ -278,12 +278,14 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-/* ── CTA iridescent glow ──────────────────────────────────────────── */
-.animate-cta-pulse {
+/* ── CTA iridescent glow (shared by execute button + mic) ────────── */
+.animate-cta-pulse,
+.animate-mic-prismatic {
   position: relative;
   isolation: isolate;
 }
-.animate-cta-pulse::after {
+.animate-cta-pulse::after,
+.animate-mic-prismatic::after {
   content: "";
   position: absolute;
   inset: -3px;
@@ -302,7 +304,7 @@
   animation: gradient-rotate 3s linear infinite;
   pointer-events: none;
 }
-:is(.dark) .animate-cta-pulse::after {
+:is(.dark) :is(.animate-cta-pulse, .animate-mic-prismatic)::after {
   opacity: 0.7;
 }
 
@@ -327,34 +329,6 @@
   z-index: -1;
   animation: gradient-rotate 3s linear infinite;
   pointer-events: none;
-}
-
-/* ── Mic prismatic glow (inactive — hero CTA level) ─────────────────── */
-.animate-mic-prismatic {
-  position: relative;
-  isolation: isolate;
-}
-.animate-mic-prismatic::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--gradient-angle),
-    var(--glow-indigo) 0%,
-    var(--glow-teal) 25%,
-    var(--glow-indigo) 50%,
-    var(--glow-magenta) 75%,
-    var(--glow-indigo) 100%
-  );
-  filter: blur(6px);
-  opacity: 0.4;
-  z-index: -1;
-  animation: gradient-rotate 3s linear infinite;
-  pointer-events: none;
-}
-:is(.dark) .animate-mic-prismatic::after {
-  opacity: 0.7;
 }
 
 /* ── Mic active ring (warm prismatic pulse) ──────────────────────────── */
