@@ -567,7 +567,8 @@
     animation: none;
     opacity: 0.4;
   }
-  .animate-mic-active-ring {
+  .animate-mic-active-ring,
+  :is(.dark) .animate-mic-active-ring {
     animation: none;
     opacity: 0.4;
   }
