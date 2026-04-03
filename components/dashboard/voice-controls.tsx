@@ -299,7 +299,7 @@ function MobileVoiceDock({
   isDemo?: boolean;
 }) {
   return (
-    <div className="glass relative flex flex-col items-center gap-3 border-t px-6 py-4 pb-safe animate-voice-dock-enter">
+    <div className="glass relative flex flex-col items-center justify-center gap-4 border-t px-6 py-6 pb-safe animate-voice-dock-enter">
       <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} mobile />
 
       {/* Emotional state chip */}
@@ -319,7 +319,7 @@ function MobileVoiceDock({
       {isDemo && <VoiceTokenVaultStatus phase={phase} />}
 
       {/* Visualizer + mic button */}
-      <div className="flex items-center gap-4">
+      <div className="flex w-full items-center justify-center gap-6">
         <AudioVisualizer
           isActive={isActive}
           inputLevel={inputLevel}
@@ -334,25 +334,25 @@ function MobileVoiceDock({
           onClick={onToggle}
           disabled={disabled || isTransitioning || isConnecting}
           className={cn(
-            "relative h-16 w-16 rounded-full",
+            "relative h-20 w-20 rounded-full",
             isActive &&
               "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
+            !isActive && !isConnecting && "animate-mic-prismatic",
             isConnecting && "opacity-70"
           )}
           aria-label={isActive ? "Stop voice input" : "Start voice input"}
         >
           {isConnecting ? (
-            <Loader2Icon className="size-6 animate-spin" />
+            <Loader2Icon className="size-7 animate-spin" />
           ) : isActive ? (
-            <MicOffIcon className="size-6" />
+            <MicOffIcon className="size-7" />
           ) : (
-            <MicIcon className="size-6" />
+            <MicIcon className="size-7" />
           )}
 
           {isActive && (
             <span
-              className="absolute -inset-1 rounded-full border-2 border-red-400/50 animate-ping dark:border-red-500/40"
-              style={{ animationDuration: "2s" }}
+              className="animate-mic-active-ring -inset-1.5 rounded-full"
             />
           )}
         </Button>
@@ -368,7 +368,7 @@ function MobileVoiceDock({
 
       {/* Volume slider */}
       {isActive && onVolumeChange && (
-        <div className="flex w-full max-w-[200px] items-center gap-2">
+        <div className="flex w-full max-w-60 items-center gap-2">
           <Volume2Icon className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             type="range"
@@ -414,6 +414,12 @@ export function VoiceControls({
 
   const isConnecting = connectionState === "connecting";
 
+  // In demo mode, simulate sidecar connected so affect UI renders
+  const effectiveSidecarStatus: SidecarStatus | undefined = isDemo
+    ? { connected: true, receiving: true }
+    : sidecarStatus;
+  const effectiveEmotionalState = isDemo ? (emotionalState ?? "calm" as const) : emotionalState;
+
   const handleToggle = useCallback(() => {
     if (disabled || isTransitioning || isConnecting) return;
 
@@ -443,12 +449,12 @@ export function VoiceControls({
     return (
       <MobileVoiceDock
         isActive={isActive}
-        emotionalState={emotionalState}
+        emotionalState={effectiveEmotionalState}
         stressLevel={stressLevel}
         inputLevel={inputLevel}
         connectionState={connectionState}
         isSpeaking={isSpeaking}
-        sidecarStatus={sidecarStatus}
+        sidecarStatus={effectiveSidecarStatus}
         disabled={disabled}
         volume={volume}
         onVolumeChange={onVolumeChange}
@@ -465,19 +471,19 @@ export function VoiceControls({
   return (
     <div className="flex items-center gap-2">
       {/* Connection state indicator */}
-      <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} />
+      <ConnectionIndicator state={connectionState} sidecarStatus={effectiveSidecarStatus} />
 
       {/* Token Vault status (demo only, inline) */}
       {isDemo && isActive && <VoiceTokenVaultStatus phase={phase} />}
 
       {/* Stress/emotional state indicator — hidden on mobile to save space */}
-      {isActive && stressLevel !== undefined && sidecarStatus?.receiving && (
+      {isActive && stressLevel !== undefined && effectiveSidecarStatus?.receiving && (
         <div className="hidden items-center gap-1.5 sm:flex">
           <ActivityIcon
             className={cn("size-3.5", getStressColor(stressLevel))}
           />
           <span className="text-[10px] text-muted-foreground">
-            {getStressLabel(emotionalState)}
+            {getStressLabel(effectiveEmotionalState)}
           </span>
         </div>
       )}
@@ -518,6 +524,7 @@ export function VoiceControls({
           "relative min-h-[44px] min-w-[44px]",
           isActive &&
             "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
+          !isActive && !isConnecting && "animate-mic-prismatic",
           isConnecting && "opacity-70"
         )}
         aria-label={isActive ? "Stop voice input" : "Start voice input"}
@@ -530,11 +537,10 @@ export function VoiceControls({
           <MicIcon className="size-4" />
         )}
 
-        {/* Pulsing ring when active */}
+        {/* Prismatic active ring */}
         {isActive && (
           <span
-            className="absolute -inset-0.5 rounded-lg border-2 border-red-400/50 animate-ping dark:border-red-500/40"
-            style={{ animationDuration: "2s" }}
+            className="animate-mic-active-ring -inset-1 rounded-lg"
           />
         )}
       </Button>
