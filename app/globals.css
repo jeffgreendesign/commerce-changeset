@@ -187,16 +187,6 @@
   }
 }
 
-@keyframes fade-glow {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 @keyframes cta-shine {
   0% {
     background-position: 200% 0;
@@ -251,48 +241,71 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* ── CTA iridescent glow ──────────────────────────────────────────── */
 .animate-cta-pulse {
   position: relative;
+  isolation: isolate;
 }
 .animate-cta-pulse::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -3px;
   border-radius: inherit;
-  box-shadow: 0 0 14px 6px color-mix(in oklch, var(--primary) 50%, transparent);
-  opacity: 0;
-  animation: fade-glow 2s ease-in-out infinite;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    oklch(0.7 0.15 264) 0%,
+    oklch(0.7 0.15 145) 25%,
+    oklch(0.7 0.15 264) 50%,
+    oklch(0.7 0.15 330) 75%,
+    oklch(0.7 0.15 264) 100%
+  );
+  filter: blur(6px);
+  opacity: 0.4;
+  z-index: -1;
+  animation: gradient-rotate 3s linear infinite;
   pointer-events: none;
+}
+:is(.dark) .animate-cta-pulse::after {
+  opacity: 0.7;
 }
 
 .animate-cta-pulse-approve {
   position: relative;
+  isolation: isolate;
 }
 .animate-cta-pulse-approve::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -2px;
   border-radius: inherit;
-  box-shadow: 0 0 12px 4px color-mix(in oklch, var(--approve-glow) 35%, transparent);
-  opacity: 0;
-  animation: fade-glow 2s ease-in-out infinite;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--approve-glow) 0%,
+    oklch(0.7 0.15 145) 33%,
+    var(--approve-glow) 66%,
+    oklch(0.7 0.15 185) 100%
+  );
+  filter: blur(5px);
+  opacity: 0.6;
+  z-index: -1;
+  animation: gradient-rotate 3s linear infinite;
   pointer-events: none;
 }
 
-/* Risk dot pulse — staggered per dot */
-@keyframes dot-pulse {
+/* ── Risk dot glow — staggered per dot ─────────────────────────────── */
+@keyframes dot-glow {
   0%,
   100% {
-    opacity: 0.5;
-    transform: scale(0.85);
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.7;
   }
   50% {
+    box-shadow: 0 0 4px 1.5px currentColor;
     opacity: 1;
-    transform: scale(1.15);
   }
 }
 .animate-dot-pulse {
-  animation: dot-pulse 1.8s ease-in-out infinite;
+  animation: dot-glow 1.8s ease-in-out infinite;
 }
 .animate-dot-pulse:nth-child(2) {
   animation-delay: 0.15s;
@@ -301,14 +314,16 @@
   animation-delay: 0.3s;
 }
 
+/* ── CTA shine sweep ───────────────────────────────────────────────── */
 .animate-cta-shine {
   position: relative;
   overflow: hidden;
 }
-.animate-cta-shine::after {
+.animate-cta-shine::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: linear-gradient(
     120deg,
     transparent 30%,
@@ -470,9 +485,6 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer,
   .animate-pulse-glow,
-  .animate-cta-pulse::after,
-  .animate-cta-pulse-approve::after,
-  .animate-dot-pulse,
   .animate-step-enter,
   .animate-shimmer-sweep,
   .animate-message-enter,
@@ -481,7 +493,17 @@
   .animate-category-enter {
     animation: none;
   }
-  .animate-cta-shine::after {
+  .animate-cta-pulse::after,
+  .animate-cta-pulse-approve::after {
+    animation: none;
+    opacity: 0.4;
+  }
+  .animate-dot-pulse {
+    animation: none;
+    opacity: 1;
+    box-shadow: none;
+  }
+  .animate-cta-shine::before {
     animation: none;
     background: none;
   }
