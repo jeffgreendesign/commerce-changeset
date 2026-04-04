@@ -12,7 +12,16 @@ const VerifyBody = z.object({ code: z.string().optional() });
  * constant-time comparison, then sets an HttpOnly session cookie on success.
  */
 export async function POST(request: Request) {
-  const raw: unknown = await request.json();
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request", message: "Malformed JSON in request body" },
+      { status: 400 },
+    );
+  }
+
   const parsed = VerifyBody.safeParse(raw);
 
   if (!parsed.success) {
@@ -33,12 +42,15 @@ export async function POST(request: Request) {
 
   const code = parsed.data.code ?? "";
 
-  // Constant-time comparison to prevent timing attacks
-  const codeBuffer = Buffer.from(code);
-  const expectedBuffer = Buffer.from(expected);
-  const valid =
-    codeBuffer.length === expectedBuffer.length &&
-    crypto.timingSafeEqual(codeBuffer, expectedBuffer);
+  // HMAC-based constant-time comparison — digests are always 32 bytes,
+  // eliminating length leakage from short-circuit on mismatched lengths.
+  const key = crypto.randomBytes(32);
+  const codeHmac = crypto.createHmac("sha256", key).update(code).digest();
+  const expectedHmac = crypto
+    .createHmac("sha256", key)
+    .update(expected)
+    .digest();
+  const valid = crypto.timingSafeEqual(codeHmac, expectedHmac);
 
   if (!valid) {
     return NextResponse.json(
