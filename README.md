@@ -1,10 +1,19 @@
 # Commerce Changeset
 
-> Multi-agent commerce operations — pricing, promotions, inventory, product creation — through auditable, authorization-gated AI workflows. Built for the Auth0 "Authorized to Act" hackathon.
+[![CI](https://github.com/jeffgreendesign/commerce-changeset/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffgreendesign/commerce-changeset/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Auth0](https://img.shields.io/badge/Auth0-Token_Vault_+_CIBA-EB5424?logo=auth0&logoColor=white)](https://auth0.com/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
-## The Problem
+Multi-agent commerce operations — pricing, promotions, inventory, product creation — through auditable, authorization-gated AI workflows. Built for the Auth0 **"Authorized to Act"** hackathon.
 
-Commerce operations involve real money. When AI agents can modify pricing, toggle promotions, create products, and send notifications on behalf of users, the authorization model cannot be an afterthought. Most agentic AI demos treat auth as a checkbox — we built a system where every agent action flows through explicit permission boundaries, risk-gated approval, and cryptographic audit trails.
+**[Live Demo](https://commerce-changeset.vercel.app)** · **[Blog Post](https://commerce-changeset.vercel.app/blog/building-trust-surfaces-for-ai-agents)**
+
+---
+
+Commerce operations involve real money. When AI agents can modify pricing, toggle promotions, create products, and send notifications on behalf of users, the authorization model can't be an afterthought. Most agentic AI demos treat auth as a checkbox — we built a system where every agent action flows through explicit permission boundaries, risk-gated approval, and cryptographic audit trails.
 
 ## What It Does
 
@@ -53,6 +62,12 @@ Four specialized agents decompose a natural language commerce request into discr
 | stressed-user-write-escalation | Stress level >0.7 | Tier 3 | CIBA escalated |
 | fatigued-session-write-escalation | Session >60 min | Tier 3 | CIBA escalated |
 
+## Screenshots
+
+<!-- Screenshots coming soon — landing page, dashboard, CIBA approval, execution receipt, about page -->
+
+*Coming soon: landing page, demo dashboard with changeset view, CIBA approval flow, execution receipt with audit hash, about page with agent permissions.*
+
 ## Auth0 Integration
 
 ### Token Vault & OBO Delegation
@@ -67,9 +82,16 @@ All write operations trigger a CIBA request to Auth0 Guardian. The user receives
 
 A declarative, auditable policy engine evaluates every operation against 7 rules before execution. The engine considers operation type, affected record count, price change magnitude, and voice-derived stress/fatigue signals. This is the novel contribution — authorization that adapts to cognitive state, not just permission grants.
 
-## How We Built It
+## Built With
 
-**Tech stack:** Next.js 16 (App Router), React 19, TypeScript (strict mode), Tailwind CSS v4, Vercel AI SDK, @auth0/ai-vercel, @auth0/nextjs-auth0 v4, json-rules-engine, Anthropic Claude Sonnet 4.6, Gemini Live API
+- [Next.js 16](https://nextjs.org/) (App Router) + [React 19](https://react.dev/)
+- [TypeScript](https://www.typescriptlang.org/) (strict mode)
+- [Tailwind CSS v4](https://tailwindcss.com/) + [Base UI](https://base-ui.com/) + [shadcn/ui](https://ui.shadcn.com/)
+- [Auth0](https://auth0.com/) — `@auth0/nextjs-auth0` v4, Token Vault, CIBA + Guardian
+- [Vercel AI SDK](https://sdk.vercel.ai/) + `@auth0/ai-vercel`
+- [Anthropic Claude Sonnet](https://www.anthropic.com/) — agent LLM
+- [Gemini Live API](https://ai.google.dev/) — real-time voice input
+- [json-rules-engine](https://github.com/CacheControl/json-rules-engine) — policy evaluation
 
 ## Challenges
 
@@ -85,7 +107,7 @@ Token Vault's async context requirement cost two days — the "No AI context fou
 
 ## What We Learned
 
-See our [blog post: Building Trust Surfaces for AI Agents](/blog/building-trust-surfaces-for-ai-agents) for the full writeup covering Token Vault integration patterns, CIBA pain points, and the stress-aware authorization model.
+See our [blog post: Building Trust Surfaces for AI Agents](https://commerce-changeset.vercel.app/blog/building-trust-surfaces-for-ai-agents) for the full writeup covering Token Vault integration patterns, CIBA pain points, and the stress-aware authorization model.
 
 ## What's Next
 
@@ -94,14 +116,10 @@ See our [blog post: Building Trust Surfaces for AI Agents](/blog/building-trust-
 - Context boundary enforcement (Writer sees only approved operations, not full catalog)
 - Ambient trust visualization (active delegations shown inline in agent workflow)
 
-## Bonus Blog Post
-
-📝 [Building Trust Surfaces for AI Agents: What Token Vault Taught Us About Authorization at the Speed of Autonomy](/blog/building-trust-surfaces-for-ai-agents)
-
 <details>
 <summary><strong>Developer Setup</strong></summary>
 
-## Getting Started
+### Getting Started
 
 1. Install dependencies:
 
@@ -123,7 +141,7 @@ See our [blog post: Building Trust Surfaces for AI Agents](/blog/building-trust-
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Environment Variables
+### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
@@ -140,7 +158,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `AUTH0_CIBA_AUDIENCE` | (Optional) API audience for CIBA + RAR requests |
 | `ENABLE_SPIKE` | Set to `true` to enable spike routes in production |
 
-## Scripts
+### Scripts
 
 | Command | Description |
 |---------|-------------|
@@ -152,76 +170,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run gates` | Run all quality gates (lint + typecheck + build) |
 | `npm run verify` | Alias for `gates` |
 
-## Project Structure
-
-```
-app/
-  layout.tsx              — Root layout (Geist fonts, metadata, global styles)
-  page.tsx                — Home page (server component, Auth0 session check)
-  globals.css             — Tailwind v4 theme config (@theme inline, oklch colors)
-  api/auth/[auth0]/
-    route.ts              — Auth0 route handler (login, logout, callback)
-  api/spike/token-vault/
-    route.ts              — Token Vault → Google Sheets spike (GET, env-gated)
-  api/spike/connect-google/
-    route.ts              — Google Connected Accounts linking spike (GET, env-gated)
-  api/spike/ciba/
-    route.ts              — CIBA + Guardian push notification approval spike (GET, env-gated)
-  api/reader/
-    route.ts              — Reader Agent POST route (authenticated, production)
-  api/orchestrator/
-    route.ts              — Orchestrator Agent POST route (authenticated, production)
-    execute/
-      route.ts            — Execute route: CIBA approval + writer execution + receipt (POST, authenticated)
-    rollback/
-      route.ts            — Rollback route: build reversal changeset from executed original (POST, authenticated)
-  dashboard/
-    page.tsx              — Dashboard (server component, auth gate, user session)
-    chat.tsx              — Chat interface (client component, fetch-based state machine)
-components/ui/
-  button.tsx              — shadcn Button wrapping Base UI ButtonPrimitive + CVA
-  card.tsx                — shadcn Card (header, title, content, footer)
-  badge.tsx               — shadcn Badge (variants: default, secondary, destructive, outline)
-  collapsible.tsx         — shadcn Collapsible wrapping Base UI CollapsiblePrimitive
-  separator.tsx           — shadcn Separator
-  input.tsx               — shadcn Input
-  table.tsx               — shadcn Table for markdown table rendering in chat
-components/changeset/
-  agent-badge.tsx         — Color-coded agent indicator badges (Reader/Writer/Notifier)
-  changeset-view.tsx      — Composite view: header, risk summary, operations, rollback, receipt
-  operation-card.tsx      — Single operation: action, target, risk badge, diff, result, checks
-  risk-badge.tsx          — Color-coded risk tier badge (green/blue/amber/red)
-  risk-summary.tsx        — Aggregate risk: ops by tier, CIBA badge, approval counts
-  diff-view.tsx           — Field-level before/after diff table
-  execution-receipt.tsx   — Receipt: OBO chain, delegations, verification, audit hash
-  rollback-section.tsx    — Collapsible rollback instructions per operation
-config/
-  version-floors.json     — Minimum dependency versions for CVE protection
-lib/
-  auth0.ts                — Auth0Client singleton (server-only, offline_access + Connected Accounts)
-  utils.ts                — cn() utility (clsx + tailwind-merge)
-  policy/
-    types.ts              — Risk tier, PolicyFact, PolicyDecision types
-    engine.ts             — json-rules-engine rules + evaluatePolicy()
-  changeset/
-    types.ts              — ChangeSet, Operation, RiskSummary, ExecutionReceipt types
-    builder.ts            — buildChangeSet(): policy evaluation + diff + rollback assembly
-    approval.ts           — CIBA approval: dynamic binding messages, RAR authorization details
-    executor.ts           — Execution pipeline: approve → write → verify → notify → receipt
-    rollback-builder.ts   — buildRollbackChangeSet(): invert diffs, recompute risk, build reversal draft
-  agents/
-    reader.ts             — Reader Agent: 4 read-only Google Sheets tools + generateText runner
-    orchestrator.ts       — Orchestrator Agent: 3-tool workflow (gather → analyze → build)
-    writer.ts             — Writer Agent: update_price, set_promo_status, update_inventory_flag, bulk_price_change via Google Sheets write API
-    notifier.ts           — Notifier Agent: send_launch_notification via Gmail API + Token Vault OBO
-proxy.ts                  — Auth0 proxy intercepting all non-static routes
-scripts/
-  security-check.sh       — Pre-commit security scanning
-  version-floor-check.sh  — Dependency version enforcement
-public/                   — Static assets (SVGs)
-```
-
-## Peer Dependencies
+### Peer Dependencies
 
 This project uses Next.js 16.2.1 and React 19.2.4 alongside `@auth0/nextjs-auth0@^4.16.0`. If you encounter peer dependency conflicts during `npm install`, use:
 
