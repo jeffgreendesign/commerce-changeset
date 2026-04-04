@@ -581,7 +581,7 @@ export function VoiceControls({
             step={0.05}
             value={volume ?? 1}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            className="h-1 w-16 accent-primary"
+            className="h-1 w-16 text-base accent-primary"
             aria-label="Output volume"
           />
         </div>

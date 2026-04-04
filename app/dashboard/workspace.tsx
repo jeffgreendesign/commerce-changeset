@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { z } from "zod";
 import { useWorkspace, type ChatActivityPhase, type WorkspacePhase } from "@/components/workspace/workspace-provider";
 import { LivingSurface } from "@/components/workspace/living-surface";
 import { IntentBar } from "@/components/workspace/intent-bar";
@@ -58,9 +59,10 @@ export function Workspace() {
         case "execute_changeset": {
           const cs = draftChangesetRef.current;
           if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
-          const requestedId = typeof args.changesetId === "string" ? args.changesetId : undefined;
-          if (requestedId && requestedId !== cs.id) {
-            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${requestedId}` };
+          const idParse = z.string().min(1).safeParse(args.changesetId);
+          if (!idParse.success) return { error: "Invalid or missing changesetId" };
+          if (idParse.data !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${idParse.data}` };
           }
           const result = await executeChangeset(cs);
           return result;
@@ -68,9 +70,10 @@ export function Workspace() {
         case "voice_approve": {
           const cs = draftChangesetRef.current;
           if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
-          const approveId = typeof args.changesetId === "string" ? args.changesetId : undefined;
-          if (approveId && approveId !== cs.id) {
-            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${approveId}` };
+          const idParse = z.string().min(1).safeParse(args.changesetId);
+          if (!idParse.success) return { error: "Invalid or missing changesetId" };
+          if (idParse.data !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${idParse.data}` };
           }
           const result = await executeChangeset(cs);
           return { ...result, status: result.success ? "approved_and_executed" : result.status };
