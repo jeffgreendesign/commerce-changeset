@@ -110,7 +110,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     Category: "Training",
     "Base Price": 139.99,
     "Promo Price": "",
-    "Promo Active": "TRUE",
+    "Promo Active": "TRUE", // Intentional: active promo without price triggers inconsistency detection demo
     Inventory: "pre_order",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-008-l9QUnbTELdsjfiXNO8KhX0en7V0Hs6.jpeg",
   },
