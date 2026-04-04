@@ -51,7 +51,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 149.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "280",
+    Inventory: "out_of_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-002-0BCoCn9gzDl9tBRLtZi1k49nbcTb12.jpeg",
   },
   {
@@ -110,8 +110,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     Category: "Training",
     "Base Price": 139.99,
     "Promo Price": "",
-    "Promo Active": "FALSE",
-    Inventory: "150",
+    "Promo Active": "TRUE", // Intentional: active promo without price triggers inconsistency detection demo
+    Inventory: "pre_order",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-008-l9QUnbTELdsjfiXNO8KhX0en7V0Hs6.jpeg",
   },
   {
@@ -154,6 +154,16 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     Inventory: "800",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-012-jOh10A5zNm6BKHblXXCVqMIFhqYCdJ.jpeg",
   },
+  {
+    SKU: "STR-013",
+    Name: "Velocity Racer",
+    Category: "Running",
+    "Base Price": 219.99,
+    "Promo Price": "",
+    "Promo Active": "FALSE",
+    Inventory: "60",
+    "Image URL": "",
+  },
 ];
 
 // ── Mock launch schedule ────────────────────────────────────────────
@@ -186,6 +196,24 @@ export const MOCK_LAUNCHES: MockLaunch[] = [
     Status: "Planned",
     SKUs: "STR-005,STR-008",
     "Discount %": 15,
+  },
+  {
+    "Launch ID": "L003",
+    Name: "Back to School 2026",
+    "Start Date": "2026-04-20",
+    "End Date": "2026-05-10",
+    Status: "Draft",
+    SKUs: "STR-004,STR-007,STR-009",
+    "Discount %": 25,
+  },
+  {
+    "Launch ID": "L004",
+    Name: "Winter Clearance 2025",
+    "Start Date": "2025-12-01",
+    "End Date": "2025-12-31",
+    Status: "Completed",
+    SKUs: "STR-004,STR-011",
+    "Discount %": 30,
   },
 ];
 
