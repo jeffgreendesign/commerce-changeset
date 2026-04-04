@@ -13,7 +13,7 @@ import { useLayout } from "@/components/dashboard/layout-shell";
 import { useVoice, type ViewToolHandler } from "@/components/dashboard/voice-provider";
 
 export function Workspace() {
-  const { activeView } = useLayout();
+  const { activeView, isDemo } = useLayout();
   const {
     draftChangeset,
     phase,
@@ -146,8 +146,8 @@ export function Workspace() {
             voiceConnecting={voice.voiceConnecting}
             onVoiceActivate={voice.handleVoiceActivate}
             onVoiceDeactivate={voice.handleVoiceDeactivate}
-            emotionalState={voice.emotionalState}
-            stressLevel={voice.stressLevel}
+            emotionalState={isDemo ? voice.demoEmotionalState : voice.emotionalState}
+            stressLevel={isDemo ? voice.demoStressLevel : voice.stressLevel}
             inputLevel={voice.inputLevel}
             connectionState={voice.connectionState}
             isSpeaking={voice.isSpeaking}
