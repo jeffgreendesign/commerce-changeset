@@ -15,6 +15,7 @@ import type {
   ExecutionReceipt,
   AgentDelegation,
 } from "@/lib/changeset/types";
+import type { ProactiveIssue } from "@/lib/voice/types";
 
 // ── Scenario interface ──────────────────────────────────────────────
 
@@ -501,6 +502,275 @@ function buildScenario4(): DemoScenario {
   };
 }
 
+// ── Scenario 5: Inventory management ───────────────────────────────
+
+function buildScenario5(): DemoScenario {
+  const csId = makeId();
+  const op1Id = makeId();
+
+  const policyWrite: PolicyDecision = {
+    decision: "ciba-required",
+    tier: RiskTier.WRITE,
+    reason: "Single-record write requires step-up approval",
+    ruleName: "write-single-record",
+    scopeRequested: "commerce:write",
+  };
+
+  const changeSet: ChangeSet = {
+    id: csId,
+    requestedBy: "auth0|demo-user-001",
+    originalPrompt: "Restock Trail Blazer and mark it as in stock",
+    createdAt: now(),
+    status: "draft",
+    operations: [
+      {
+        id: op1Id,
+        agent: "writer",
+        action: "update_inventory_flag",
+        target: "STR-002 Trail Blazer",
+        tier: RiskTier.WRITE,
+        policyExplanation: policyWrite,
+        diff: [{ field: "Inventory", before: "out_of_stock", after: "in_stock" }],
+        rollback: {
+          action: "update_inventory_flag",
+          params: { sku: "STR-002", value: "out_of_stock" },
+        },
+      },
+    ],
+    riskSummary: {
+      maxTier: RiskTier.WRITE,
+      operationsByTier: { 0: 0, 1: 0, 2: 1, 3: 0 },
+      requiresCIBA: true,
+      autonomousOps: 0,
+      approvalRequiredOps: 1,
+    },
+  };
+
+  const checks: VerificationCheck[] = [
+    { operationId: op1Id, field: "Inventory", expected: "in_stock", actual: "in_stock", status: "pass" },
+  ];
+
+  const results: OperationResult[] = [
+    { operationId: op1Id, status: "success", duration: 410 },
+  ];
+
+  return {
+    id: "scenario-5",
+    name: "Inventory management",
+    keywords: ["inventory", "stock", "restock", "out of stock", "pre_order", "mark as", "trail blazer", "str-002"],
+    changeSet,
+    reasoning:
+      "Trail Blazer (STR-002) is currently out of stock. Updating inventory status to in_stock to reflect restocked inventory.",
+    readerText:
+      "Trail Blazer (STR-002): Base Price $149.99, no active promo, currently out of stock.",
+    executionResult: {
+      executedAt: now(),
+      results,
+      receipt: makeReceipt(csId, [{ id: op1Id, action: "update_inventory_flag" }], checks),
+    },
+  };
+}
+
+// ── Scenario 6: Deep discount with proactive warnings ──────────────
+
+function buildScenario6(): DemoScenario {
+  const csId = makeId();
+  const op1Id = makeId();
+  const op2Id = makeId();
+
+  const policyBulk: PolicyDecision = {
+    decision: "ciba-escalated",
+    tier: RiskTier.BULK,
+    reason: "Price change exceeds 25% threshold — escalated to BULK tier",
+    ruleName: "write-large-price-change",
+    scopeRequested: "commerce:write",
+  };
+
+  const proactiveIssues: ProactiveIssue[] = [
+    {
+      severity: "error",
+      operationId: "STR-013 Velocity Racer",
+      description:
+        "STR-013 promo price ($22.00) leaves only 10.0% margin — below the 15% floor. Minimum safe price: $33.00",
+      suggestedFix: {
+        action: "update_price",
+        target: "STR-013 Velocity Racer",
+        field: "Promo Price",
+        currentValue: 22.0,
+        suggestedValue: 33.0,
+      },
+    },
+    {
+      severity: "warning",
+      operationId: "STR-013 Velocity Racer",
+      description:
+        "STR-013 has a 90% discount — unusually large. Verify this is intentional.",
+    },
+  ];
+
+  const changeSet: ChangeSet = {
+    id: csId,
+    requestedBy: "auth0|demo-user-001",
+    originalPrompt: "Apply 90% clearance discount to Velocity Racer",
+    createdAt: now(),
+    status: "draft",
+    operations: [
+      {
+        id: op1Id,
+        agent: "writer",
+        action: "set_promo_status",
+        target: "STR-013 Velocity Racer",
+        tier: RiskTier.BULK,
+        policyExplanation: policyBulk,
+        diff: [{ field: "Promo Active", before: "FALSE", after: "TRUE" }],
+        rollback: {
+          action: "set_promo_status",
+          params: { sku: "STR-013", value: "FALSE" },
+        },
+      },
+      {
+        id: op2Id,
+        agent: "writer",
+        action: "update_price",
+        target: "STR-013 Velocity Racer",
+        tier: RiskTier.BULK,
+        policyExplanation: policyBulk,
+        diff: [{ field: "Promo Price", before: "", after: 22.0 }],
+        rollback: {
+          action: "update_price",
+          params: { sku: "STR-013", field: "Promo Price", value: "" },
+        },
+      },
+    ],
+    riskSummary: {
+      maxTier: RiskTier.BULK,
+      operationsByTier: { 0: 0, 1: 0, 2: 0, 3: 2 },
+      requiresCIBA: true,
+      autonomousOps: 0,
+      approvalRequiredOps: 2,
+    },
+    proactiveIssues,
+  };
+
+  const checks: VerificationCheck[] = [
+    { operationId: op1Id, field: "Promo Active", expected: "TRUE", actual: "TRUE", status: "pass" },
+    { operationId: op2Id, field: "Promo Price", expected: 22.0, actual: 22.0, status: "pass" },
+  ];
+
+  const results: OperationResult[] = [
+    { operationId: op1Id, status: "success", duration: 440 },
+    { operationId: op2Id, status: "success", duration: 390 },
+  ];
+
+  return {
+    id: "scenario-6",
+    name: "Deep discount with proactive warnings",
+    keywords: ["clearance", "steep discount", "90%", "velocity", "str-013", "aggressive", "velocity racer"],
+    changeSet,
+    reasoning:
+      "Applying 90% clearance to Velocity Racer (STR-013) sets promo price to $22.00 on a $219.99 base. This breaches the 15% margin floor and triggers a large-discount warning. The policy escalates to BULK tier due to the >25% price change.",
+    readerText:
+      "Velocity Racer (STR-013): Base Price $219.99, no active promo. Inventory: 60 units.",
+    executionResult: {
+      executedAt: now(),
+      results,
+      receipt: makeReceipt(csId, [{ id: op1Id, action: "set_promo_status" }, { id: op2Id, action: "update_price" }], checks),
+    },
+  };
+}
+
+// ── Scenario 7: Launch scheduling ──────────────────────────────────
+
+function buildScenario7(): DemoScenario {
+  const csId = makeId();
+
+  const policyRead: PolicyDecision = {
+    decision: "auto-approve",
+    tier: RiskTier.READ,
+    reason: "Read operation — auto-approved",
+    ruleName: "read-auto-approve",
+    scopeRequested: "commerce:read",
+  };
+
+  const changeSet: ChangeSet = {
+    id: csId,
+    requestedBy: "auth0|demo-user-001",
+    originalPrompt: "Schedule a summer launch for all training gear",
+    createdAt: now(),
+    status: "draft",
+    operations: [
+      {
+        id: makeId(),
+        agent: "reader",
+        action: "get_launch_schedule",
+        target: "Launch Schedule",
+        tier: RiskTier.READ,
+        policyExplanation: policyRead,
+        diff: [],
+        rollback: { action: "none", params: {} },
+      },
+      {
+        id: makeId(),
+        agent: "reader",
+        action: "get_launch_windows",
+        target: "Launch Schedule",
+        tier: RiskTier.READ,
+        policyExplanation: policyRead,
+        diff: [],
+        rollback: { action: "none", params: {} },
+      },
+    ],
+    riskSummary: {
+      maxTier: RiskTier.READ,
+      operationsByTier: { 0: 2, 1: 0, 2: 0, 3: 0 },
+      requiresCIBA: false,
+      autonomousOps: 2,
+      approvalRequiredOps: 0,
+    },
+  };
+
+  return {
+    id: "scenario-7",
+    name: "Launch scheduling",
+    keywords: ["launch", "schedule", "campaign", "summer", "notification", "notify", "window"],
+    changeSet,
+    reasoning:
+      "Checking the launch schedule and finding available windows for a summer training gear campaign. Existing launches occupy Apr 10–May 15, with a draft overlapping Apr 20–May 10. The first conflict-free window starts after May 15.",
+    readerText:
+      "| Launch ID | Name | Start Date | End Date | Status | SKUs | Discount % |\n" +
+      "|-----------|------|-----------|----------|--------|------|------------|\n" +
+      "| L001 | Spring Sale 2026 | 2026-04-10 | 2026-04-30 | Upcoming | STR-001,STR-002,STR-003 | 20 |\n" +
+      "| L002 | Training Days | 2026-05-01 | 2026-05-15 | Planned | STR-005,STR-008 | 15 |\n" +
+      "| L003 | Back to School 2026 | 2026-04-20 | 2026-05-10 | Draft | STR-004,STR-007,STR-009 | 25 |\n" +
+      "| L004 | Winter Clearance 2025 | 2025-12-01 | 2025-12-31 | Completed | STR-004,STR-011 | 30 |\n\n" +
+      "**Available window:** May 16 – Jun 30 is conflict-free for training gear (STR-005, STR-008). Recommended: 2-week campaign starting May 16.",
+    executionResult: {
+      executedAt: now(),
+      results: [],
+      receipt: {
+        changeSetId: csId,
+        executedBy: "demo@stride-athletics.com",
+        executedAt: now(),
+        oboChain: { user: "auth0|demo-user-001", delegatedTo: ["reader"] },
+        agentDelegations: [
+          {
+            agent: "reader",
+            actingOnBehalfOf: "auth0|demo-user-001",
+            toolsGranted: ["get_launch_schedule", "get_launch_windows"],
+            contextReceived: "launch scheduling query",
+            tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
+            operationsPerformed: ["get_launch_schedule", "get_launch_windows"],
+            duration: 620,
+          },
+        ],
+        verification: { checksRun: 0, checksPassed: 0, results: [] },
+        rollbackInstructions: "No writes performed — nothing to roll back.",
+        auditHash: `sha256:${crypto.randomUUID().replace(/-/g, "")}`,
+      },
+    },
+  };
+}
+
 // ── Exported scenarios ──────────────────────────────────────────────
 
 export const DEMO_SCENARIOS: DemoScenario[] = [
@@ -508,6 +778,9 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
   buildScenario2(),
   buildScenario3(),
   buildScenario4(),
+  buildScenario5(),
+  buildScenario6(),
+  buildScenario7(),
 ];
 
 /** Suggested prompts shown as chips in the demo UI. */
@@ -516,4 +789,7 @@ export const DEMO_SUGGESTIONS = [
   "Reduce all running shoes by 15%",
   "What's the current price of STR-001?",
   "Roll back the last changeset",
+  "Restock Trail Blazer and mark it in stock",
+  "Apply 90% clearance to Velocity Racer",
+  "Schedule a summer launch for training gear",
 ];
