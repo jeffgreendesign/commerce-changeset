@@ -1103,7 +1103,10 @@ export function Chat({ chatId }: ChatProps) {
         </div>
       )}
 
-      {/* Mobile voice dock — immersive bottom panel */}
+      {/* Demo insight bar — phase-aware one-liner above input/voice dock */}
+      {isDemo && <DemoInsightBar phase={phase} />}
+
+      {/* Mobile voice dock — immersive bottom panel (must be last element) */}
       {showMobileVoiceDock && (
         <VoiceControls
           isActive={voiceActive}
@@ -1123,9 +1126,6 @@ export function Chat({ chatId }: ChatProps) {
           isDemo={isDemo}
         />
       )}
-
-      {/* Demo insight bar — phase-aware one-liner above input */}
-      {isDemo && <DemoInsightBar phase={phase} />}
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
