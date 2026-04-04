@@ -29,10 +29,10 @@ export function VoiceIndicator() {
   const displayEmotionalState = isDemo ? demoEmotionalState : emotionalState;
 
   const emotionColor: Record<string, string> = {
-    calm: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-    stressed: "bg-red-500/20 text-red-600 dark:text-red-400",
-    rushed: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
-    uncertain: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+    calm: "bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/40",
+    stressed: "bg-red-500/30 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/40",
+    rushed: "bg-amber-500/30 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/40",
+    uncertain: "bg-blue-500/30 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/40",
   };
 
   return (
@@ -40,9 +40,9 @@ export function VoiceIndicator() {
       type="button"
       onClick={() => void handleVoiceDeactivate()}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors",
         voiceConnecting
-          ? "bg-muted text-muted-foreground"
+          ? "border-muted-foreground/20 bg-muted text-muted-foreground"
           : emotionColor[displayEmotionalState] ?? emotionColor.calm,
       )}
       aria-label={voiceConnecting ? "Connecting voice" : "Disconnect voice"}

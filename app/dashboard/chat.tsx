@@ -68,7 +68,7 @@ interface Message {
 }
 
 interface OrchestratorResponse {
-  changeSet: ChangeSet;
+  changeSet: ChangeSet | null;
   reasoning: string;
   /** Formatted product/schedule data from the Reader Agent (read-only queries). */
   readerText?: string;
@@ -295,7 +295,7 @@ export function Chat({ chatId }: ChatProps) {
           });
           if (!res.ok) throw new Error("Orchestrator request failed");
           const data: OrchestratorResponse = await res.json();
-          if (data.changeSet.operations.length > 0) {
+          if (data.changeSet && data.changeSet.operations.length > 0) {
             setDraftChangeSet(data.changeSet);
             draftChangeSetRef.current = data.changeSet;
             setDraftReasoning(data.reasoning);
@@ -304,7 +304,7 @@ export function Chat({ chatId }: ChatProps) {
               {
                 role: "assistant",
                 content: data.reasoning,
-                changeSet: data.changeSet,
+                changeSet: data.changeSet ?? undefined,
                 reasoning: data.reasoning,
                 repetitionSignal: data.repetitionSignal,
               },
@@ -323,8 +323,8 @@ export function Chat({ chatId }: ChatProps) {
           }
           return {
             success: true,
-            changesetId: data.changeSet.id,
-            operationCount: data.changeSet.operations.length,
+            changesetId: data.changeSet?.id ?? "",
+            operationCount: data.changeSet?.operations.length ?? 0,
             reasoning: data.reasoning,
           };
         }
@@ -724,7 +724,7 @@ export function Chat({ chatId }: ChatProps) {
 
         const data: OrchestratorResponse = await res.json();
 
-        if (data.changeSet.operations.length === 0) {
+        if (!data.changeSet || data.changeSet.operations.length === 0) {
           setMessages((prev) => [
             ...prev,
             {
@@ -745,7 +745,7 @@ export function Chat({ chatId }: ChatProps) {
             {
               role: "assistant",
               content: data.reasoning,
-              changeSet: data.changeSet,
+              changeSet: data.changeSet ?? undefined,
               reasoning: data.reasoning,
               repetitionSignal: data.repetitionSignal,
             },
