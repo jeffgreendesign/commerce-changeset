@@ -2,9 +2,15 @@ import { auth0 } from "./lib/auth0";
 import { NextResponse } from "next/server";
 
 export async function proxy(request: Request) {
-  // Skip Auth0 middleware for /demo routes — demo mode uses cookie-based mock auth
+  // Skip Auth0 middleware for /demo and /judges routes — both use cookie-based mock auth
   const url = new URL(request.url);
-  if (url.pathname === "/demo" || url.pathname.startsWith("/demo/")) {
+  if (
+    url.pathname === "/demo" ||
+    url.pathname.startsWith("/demo/") ||
+    url.pathname === "/judges" ||
+    url.pathname.startsWith("/judges/") ||
+    url.pathname.startsWith("/api/judges/")
+  ) {
     return NextResponse.next();
   }
 

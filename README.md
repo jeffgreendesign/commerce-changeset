@@ -157,6 +157,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude model access |
 | `AUTH0_CIBA_AUDIENCE` | (Optional) API audience for CIBA + RAR requests |
 | `ENABLE_SPIKE` | Set to `true` to enable spike routes in production |
+| `JUDGE_ACCESS_CODE` | (Optional) Shared access code for judge login at `/judges`. Generate with `openssl rand -hex 16` |
 
 ### Scripts
 
