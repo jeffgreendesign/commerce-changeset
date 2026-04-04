@@ -7,7 +7,7 @@
 
 import { cookies } from "next/headers";
 import { DEMO_COOKIE_NAME } from "./config";
-import { JUDGE_COOKIE_NAME } from "@/lib/judges/config";
+import { isJudgeSession } from "@/lib/judges/config.server";
 
 /**
  * Check if the current request has a demo or judge session cookie.
@@ -18,5 +18,5 @@ import { JUDGE_COOKIE_NAME } from "@/lib/judges/config";
  */
 export async function isDemoSession(): Promise<boolean> {
   const cookieStore = await cookies();
-  return cookieStore.has(DEMO_COOKIE_NAME) || cookieStore.has(JUDGE_COOKIE_NAME);
+  return cookieStore.has(DEMO_COOKIE_NAME) || (await isJudgeSession());
 }

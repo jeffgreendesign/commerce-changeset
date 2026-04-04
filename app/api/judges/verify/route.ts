@@ -59,8 +59,16 @@ export async function POST(request: Request) {
     );
   }
 
+  // Sign a token: "expiry.hmac" — isJudgeSession() validates both signature and expiry.
+  const expiry = Math.floor(Date.now() / 1000) + 14400;
+  const signature = crypto
+    .createHmac("sha256", expected)
+    .update(String(expiry))
+    .digest("hex");
+  const token = `${expiry}.${signature}`;
+
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(JUDGE_COOKIE_NAME, "true", {
+  response.cookies.set(JUDGE_COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
     path: "/",
