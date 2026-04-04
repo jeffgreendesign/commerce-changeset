@@ -15,6 +15,10 @@ import type {
   EmotionalState,
   SpeechPace,
 } from "./types";
+import { ACTIVE_VIEWS } from "@/lib/navigation-types";
+
+/** Comma-separated view list derived from the canonical ACTIVE_VIEWS constant. */
+const NAVIGABLE_VIEWS = ACTIVE_VIEWS.join(", ");
 
 // ── Model constants ─────────────────────────────────────────────────
 
@@ -45,7 +49,7 @@ Your role:
 Navigation:
 - You can navigate the user to different views using the navigate_to_view tool.
 - When the user says things like "show me the workspace", "open drafts", "go to chat", or "show timeline", call navigate_to_view with the appropriate view name.
-- Available views: chat, workspace, drafts, timeline, activity, actions, history.
+- Available views: ${NAVIGABLE_VIEWS}.
 
 IMPORTANT — Tool call behavior:
 - ALWAYS verbally acknowledge the user's request BEFORE calling any tool. For example: "Got it, let me work on that for you." or "Sure, updating that now — one moment."
@@ -304,7 +308,7 @@ export function buildToolDeclarations(): Record<string, unknown>[] {
               view: {
                 type: "STRING",
                 description:
-                  "Target view: chat, workspace, drafts, timeline, activity, actions, history",
+                  `Target view: ${NAVIGABLE_VIEWS}`,
               },
             },
             required: ["view"],

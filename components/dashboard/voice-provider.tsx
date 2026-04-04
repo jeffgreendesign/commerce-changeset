@@ -156,6 +156,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   // Transcript callbacks (registered by chat view)
   const transcriptCallbacksRef = useRef<TranscriptCallbacks | null>(null);
 
+  // Stable session ID — generated on activate, used on deactivate
+  const voiceSessionIdRef = useRef<string | null>(null);
+
   // Demo affect state (persists across view switches)
   const [demoEmotionalState, setDemoEmotionalState] =
     useState<EmotionalState>("calm");
@@ -252,13 +255,22 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const handleVoiceActivate = useCallback(async () => {
     voiceStartTimeRef.current = Date.now();
-    fetch("/api/voice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "init" }),
-    }).catch(() => {
+    const sessionId = crypto.randomUUID();
+    voiceSessionIdRef.current = sessionId;
+    try {
+      const res = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "init", sessionId }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { sessionId?: string };
+        // Use server-assigned ID if provided
+        if (data.sessionId) voiceSessionIdRef.current = data.sessionId;
+      }
+    } catch {
       // Non-critical — pattern detection failure shouldn't block voice
-    });
+    }
     await geminiLive.connect();
   }, [geminiLive]);
 
@@ -266,13 +278,15 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     geminiLive.disconnect();
     const durationMinutes =
       (Date.now() - voiceStartTimeRef.current) / 60000;
+    const sessionId = voiceSessionIdRef.current;
+    voiceSessionIdRef.current = null;
     try {
       await fetch("/api/voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "end_session",
-          sessionId: crypto.randomUUID(),
+          sessionId: sessionId ?? crypto.randomUUID(),
           sessionDurationMinutes: durationMinutes,
           operationCount: 0,
           operationTypes: [],

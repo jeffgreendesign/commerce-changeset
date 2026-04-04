@@ -24,6 +24,7 @@ export function Workspace() {
     chatActivityChangeset,
   } = useWorkspace();
   const voice = useVoice();
+  const { registerToolHandler, unregisterToolHandler } = voice;
 
   // Ref for draftChangeset so tool handlers can read fresh state.
   // Updated via effect (React 19 forbids ref writes during render).
@@ -50,18 +51,27 @@ export function Workspace() {
           draftChangesetRef.current = cs;
           return {
             success: true,
+            changesetId: cs.id,
             message: "Changeset created and displayed for review. The user can see the operations on screen. Ask the user if they want to execute or modify.",
           };
         }
         case "execute_changeset": {
           const cs = draftChangesetRef.current;
           if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
+          const requestedId = typeof args.changesetId === "string" ? args.changesetId : undefined;
+          if (requestedId && requestedId !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${requestedId}` };
+          }
           const result = await executeChangeset(cs);
           return result;
         }
         case "voice_approve": {
           const cs = draftChangesetRef.current;
           if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
+          const approveId = typeof args.changesetId === "string" ? args.changesetId : undefined;
+          if (approveId && approveId !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${approveId}` };
+          }
           const result = await executeChangeset(cs);
           return { ...result, status: result.success ? "approved_and_executed" : result.status };
         }
@@ -74,9 +84,9 @@ export function Workspace() {
 
   // Register workspace tool handler with VoiceProvider when this view mounts
   useEffect(() => {
-    voice.registerToolHandler(workspaceToolHandler);
-    return () => voice.unregisterToolHandler(workspaceToolHandler);
-  }, [voice, workspaceToolHandler]);
+    registerToolHandler(workspaceToolHandler);
+    return () => unregisterToolHandler(workspaceToolHandler);
+  }, [registerToolHandler, unregisterToolHandler, workspaceToolHandler]);
 
   // When the workspace itself is idle, fall back to chat-reported activity
   // so the Activity panel reflects Chat, Voice, and Quick Action interactions.

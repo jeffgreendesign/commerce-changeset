@@ -45,6 +45,8 @@ export function VoiceIndicator() {
           ? "bg-muted text-muted-foreground"
           : emotionColor[displayEmotionalState] ?? emotionColor.calm,
       )}
+      aria-label={voiceConnecting ? "Connecting voice" : "Disconnect voice"}
+      aria-busy={voiceConnecting}
       title={voiceActive ? "Voice active — click to disconnect" : "Connecting..."}
     >
       {voiceConnecting ? (

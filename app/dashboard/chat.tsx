@@ -63,6 +63,8 @@ interface Message {
   rollbackDraftId?: string;
   /** Repetition signal if the orchestrator detected a repetitive workflow. */
   repetitionSignal?: RepetitionSignal;
+  /** True while the message is still being transcribed (interim transcript). */
+  interim?: boolean;
 }
 
 interface OrchestratorResponse {
@@ -197,6 +199,12 @@ export function Chat({ chatId }: ChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const errorCountRef = useRef(0);
   const voice = useVoice();
+  const {
+    registerToolHandler,
+    unregisterToolHandler,
+    registerTranscriptCallbacks,
+    unregisterTranscriptCallbacks,
+  } = voice;
   const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
@@ -315,6 +323,7 @@ export function Chat({ chatId }: ChatProps) {
           }
           return {
             success: true,
+            changesetId: data.changeSet.id,
             operationCount: data.changeSet.operations.length,
             reasoning: data.reasoning,
           };
@@ -322,6 +331,10 @@ export function Chat({ chatId }: ChatProps) {
         case "execute_changeset": {
           const cs = draftChangeSetRef.current;
           if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
+          const requestedId = typeof args.changesetId === "string" ? args.changesetId : undefined;
+          if (requestedId && requestedId !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${requestedId}` };
+          }
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
@@ -348,6 +361,10 @@ export function Chat({ chatId }: ChatProps) {
         case "voice_approve": {
           const cs = draftChangeSetRef.current;
           if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
+          const approveId = typeof args.changesetId === "string" ? args.changesetId : undefined;
+          if (approveId && approveId !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${approveId}` };
+          }
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
@@ -378,24 +395,66 @@ export function Chat({ chatId }: ChatProps) {
     [applyExecutedChangeset],
   );
 
-  // Register chat tool handler + transcript callbacks with VoiceProvider
+  // Register chat tool handler + transcript callbacks with VoiceProvider.
+  // Destructured registration functions are stable (useCallback with []),
+  // so these effects only re-run when the handler/callbacks actually change.
   useEffect(() => {
-    voice.registerToolHandler(chatToolHandler);
-    return () => voice.unregisterToolHandler(chatToolHandler);
-  }, [voice, chatToolHandler]);
+    registerToolHandler(chatToolHandler);
+    return () => unregisterToolHandler(chatToolHandler);
+  }, [registerToolHandler, unregisterToolHandler, chatToolHandler]);
 
   useEffect(() => {
-    voice.registerTranscriptCallbacks({
-      onUserTranscript: (text: string) => {
-        setMessages((prev) => [...prev, { role: "user" as const, content: text }]);
+    registerTranscriptCallbacks({
+      onUserTranscript: (text: string, finished: boolean) => {
+        setMessages((prev) => {
+          if (!finished) {
+            // Interim: update last in-progress user message or create one
+            const last = prev[prev.length - 1];
+            if (last?.role === "user" && last.interim) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: text };
+              return updated;
+            }
+            return [...prev, { role: "user" as const, content: text, interim: true }];
+          }
+          // Final: replace interim message or push finalized
+          const last = prev[prev.length - 1];
+          if (last?.role === "user" && last.interim) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: "user", content: text };
+            return updated;
+          }
+          return [...prev, { role: "user" as const, content: text }];
+        });
         scrollToBottom();
       },
-      onModelTranscript: (text: string) => {
+      onModelTranscript: (text: string, finished: boolean) => {
         setMessages((prev) => {
+          if (!finished) {
+            // Interim: update last in-progress assistant message or create one
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant" && last.interim) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: text };
+              return updated;
+            }
+            if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: text, interim: true };
+              return updated;
+            }
+            return [...prev, { role: "assistant" as const, content: text, interim: true }];
+          }
+          // Final: finalize the interim message
           const last = prev[prev.length - 1];
+          if (last?.role === "assistant" && last.interim) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: "assistant", content: text };
+            return updated;
+          }
           if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
             const updated = [...prev];
-            updated[updated.length - 1] = { ...last, content: last.content + text };
+            updated[updated.length - 1] = { ...last, content: text };
             return updated;
           }
           return [...prev, { role: "assistant" as const, content: text }];
@@ -403,8 +462,8 @@ export function Chat({ chatId }: ChatProps) {
         scrollToBottom();
       },
     });
-    return () => voice.unregisterTranscriptCallbacks();
-  }, [voice, scrollToBottom]);
+    return () => unregisterTranscriptCallbacks();
+  }, [registerTranscriptCallbacks, unregisterTranscriptCallbacks, scrollToBottom]);
 
   const voiceActive = voice.voiceActive;
 
