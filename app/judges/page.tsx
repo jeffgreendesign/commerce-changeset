@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { JUDGE_COOKIE_NAME } from "@/lib/judges/config";
 
 /**
  * Judge access gate — validates a shared access code, then redirects
@@ -27,14 +26,19 @@ export default function JudgesLoginPage() {
       });
 
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Invalid access code");
+        let message = `Error ${res.status}: ${res.statusText}`;
+        try {
+          const data = (await res.json()) as { error?: string };
+          if (data.error) message = data.error;
+        } catch {
+          // Response wasn't JSON — fall through with status-based message
+        }
+        setError(message);
         setLoading(false);
         return;
       }
 
-      // Set judge session cookie (client-side, 4 hour expiry)
-      document.cookie = `${JUDGE_COOKIE_NAME}=true; path=/; max-age=14400; SameSite=Lax`;
+      // Cookie is set server-side via Set-Cookie header (HttpOnly + Secure)
       router.push("/judges/dashboard");
     } catch {
       setError("Something went wrong. Please try again.");

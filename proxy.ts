@@ -8,7 +8,8 @@ export async function proxy(request: Request) {
     url.pathname === "/demo" ||
     url.pathname.startsWith("/demo/") ||
     url.pathname === "/judges" ||
-    url.pathname.startsWith("/judges/")
+    url.pathname.startsWith("/judges/") ||
+    url.pathname.startsWith("/api/judges/")
   ) {
     return NextResponse.next();
   }
