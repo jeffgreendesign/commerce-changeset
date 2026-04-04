@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { useWorkspace, type ChatActivityPhase, type WorkspacePhase } from "@/components/workspace/workspace-provider";
 import { LivingSurface } from "@/components/workspace/living-surface";
 import { IntentBar } from "@/components/workspace/intent-bar";
@@ -11,7 +10,7 @@ import { InspectorPanel } from "@/components/workspace/inspector-panel";
 import { TimelineView } from "@/components/workspace/timeline-view";
 import { AgentActivity } from "@/components/dashboard/agent-activity";
 import { useLayout } from "@/components/dashboard/layout-shell";
-import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
+import { useVoice, type ViewToolHandler } from "@/components/dashboard/voice-provider";
 
 export function Workspace() {
   const { activeView } = useLayout();
@@ -24,9 +23,7 @@ export function Workspace() {
     chatActivityPhase,
     chatActivityChangeset,
   } = useWorkspace();
-
-  const voiceStartTimeRef = useRef(0);
-  const teardownRef = useRef<() => Promise<void>>(async () => { /* placeholder until handleVoiceDeactivate is assigned */ });
+  const voice = useVoice();
 
   // Ref for draftChangeset so tool handlers can read fresh state.
   // Updated via effect (React 19 forbids ref writes during render).
@@ -35,12 +32,9 @@ export function Workspace() {
     draftChangesetRef.current = draftChangeset;
   }, [draftChangeset]);
 
-  // ── Voice tool handling ────────────────────────────────────────────
-  // Mirrors chat.tsx's handleGeminiToolCall but uses workspace state.
-  // Each tool calls the relevant API directly — no intermediate guards
-  // that would block cross-phase tool chains (submit → execute).
+  // ── Workspace tool handler (registered with VoiceProvider) ─────────
 
-  const handleVoiceToolCall = useCallback(
+  const workspaceToolHandler: ViewToolHandler = useCallback(
     async (name: string, args: Record<string, unknown>) => {
       switch (name) {
         case "submit_commerce_change": {
@@ -48,14 +42,11 @@ export function Workspace() {
           if (phase === "executing" || phase === "preview") {
             return { error: "A changeset is already in progress" };
           }
-          // submitIntent already injects selected-product context internally
           const cs = await submitIntent(args.request);
           if (!cs) {
             draftChangesetRef.current = null;
             return { success: false, error: "Failed to create changeset — try a more specific request" };
           }
-          // Store synchronously so execute_changeset can read it immediately
-          // even before React state commits.
           draftChangesetRef.current = cs;
           return {
             success: true,
@@ -67,21 +58,6 @@ export function Workspace() {
           if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
           const result = await executeChangeset(cs);
           return result;
-        }
-        case "query_product_data": {
-          if (typeof args.query !== "string") return { error: "Missing query" };
-          try {
-            const res = await fetch("/api/reader", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: args.query }),
-            });
-            if (!res.ok) return { error: "Reader query failed" };
-            const data = (await res.json()) as { text?: string };
-            return { success: true, data: data.text ?? data };
-          } catch {
-            return { error: "Reader query failed" };
-          }
         }
         case "voice_approve": {
           const cs = draftChangesetRef.current;
@@ -96,70 +72,11 @@ export function Workspace() {
     [phase, submitIntent, executeChangeset],
   );
 
-  // User speech is processed by the Gemini model which invokes tools.
-  // No direct transcript → submission path (that conflicts with tool calls).
-  const geminiLive = useGeminiLive({
-    onToolCall: handleVoiceToolCall,
-    onError: (msg: string) => toast.error(`Voice error: ${msg}`),
-  });
-
-  const voiceActive =
-    geminiLive.connectionState === "connected" ||
-    geminiLive.connectionState === "reconnecting";
-  const voiceConnecting = geminiLive.connectionState === "connecting";
-
-  const handleVoiceActivate = useCallback(async () => {
-    voiceStartTimeRef.current = Date.now();
-    fetch("/api/voice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "init" }),
-    }).catch(() => {
-      // Non-critical — pattern detection failure shouldn't block voice
-    });
-    await geminiLive.connect();
-  }, [geminiLive]);
-
-  const handleVoiceDeactivate = useCallback(async () => {
-    geminiLive.disconnect();
-    const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
-    try {
-      await fetch("/api/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "end_session",
-          sessionId: crypto.randomUUID(),
-          sessionDurationMinutes: durationMinutes,
-          operationCount: draftChangeset?.operations.length ?? 0,
-          operationTypes:
-            draftChangeset?.operations.map((o) => o.action) ?? [],
-          errorCount: 0,
-          avgStressLevel: geminiLive.stressLevel,
-          avgSpeechPace: geminiLive.voiceMetrics.pace,
-          peakStressLevel: geminiLive.peakStressLevel,
-          emotionalStateTransitions: geminiLive.emotionalStateTransitions,
-          toolCallSummary: geminiLive.toolCallOutcomes,
-          model: geminiLive.sidecarStatus.connected
-            ? "3.1-primary+2.5-sidecar"
-            : "3.1-primary-only",
-        }),
-      });
-    } catch {
-      // Non-critical
-    }
-  }, [geminiLive, draftChangeset]);
-
-  // Auto-disconnect voice (with full teardown) when navigating to a
-  // workspace sub-view where IntentBar controls aren't rendered
+  // Register workspace tool handler with VoiceProvider when this view mounts
   useEffect(() => {
-    teardownRef.current = handleVoiceDeactivate;
-  }, [handleVoiceDeactivate]);
-  useEffect(() => {
-    if (activeView !== "workspace" && voiceActive) {
-      void teardownRef.current();
-    }
-  }, [activeView, voiceActive]);
+    voice.registerToolHandler(workspaceToolHandler);
+    return () => voice.unregisterToolHandler(workspaceToolHandler);
+  }, [voice, workspaceToolHandler]);
 
   // When the workspace itself is idle, fall back to chat-reported activity
   // so the Activity panel reflects Chat, Voice, and Quick Action interactions.
@@ -215,18 +132,18 @@ export function Workspace() {
             />
           )}
           <IntentBar
-            voiceActive={voiceActive}
-            voiceConnecting={voiceConnecting}
-            onVoiceActivate={handleVoiceActivate}
-            onVoiceDeactivate={handleVoiceDeactivate}
-            emotionalState={geminiLive.emotionalState}
-            stressLevel={geminiLive.stressLevel}
-            inputLevel={geminiLive.inputLevel}
-            connectionState={geminiLive.connectionState}
-            isSpeaking={geminiLive.isSpeaking}
-            sidecarStatus={geminiLive.sidecarStatus}
-            volume={geminiLive.volume}
-            onVolumeChange={geminiLive.setVolume}
+            voiceActive={voice.voiceActive}
+            voiceConnecting={voice.voiceConnecting}
+            onVoiceActivate={voice.handleVoiceActivate}
+            onVoiceDeactivate={voice.handleVoiceDeactivate}
+            emotionalState={voice.emotionalState}
+            stressLevel={voice.stressLevel}
+            inputLevel={voice.inputLevel}
+            connectionState={voice.connectionState}
+            isSpeaking={voice.isSpeaking}
+            sidecarStatus={voice.sidecarStatus}
+            volume={voice.volume}
+            onVolumeChange={voice.setVolume}
           />
         </div>
       )}
