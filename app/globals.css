@@ -309,10 +309,10 @@
   inset: -3px;
 }
 .animate-mic-prismatic::after {
-  inset: 0;
+  inset: -2px;
 }
 :is(.dark) :is(.animate-cta-pulse, .animate-mic-prismatic)::after {
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .animate-cta-pulse-approve {
@@ -361,7 +361,7 @@
     mic-ring-pulse 2s ease-in-out infinite;
 }
 :is(.dark) .animate-mic-active-ring {
-  filter: blur(10px);
+  filter: blur(6px);
 }
 
 /* ── Risk dot glow — staggered per dot ─────────────────────────────── */

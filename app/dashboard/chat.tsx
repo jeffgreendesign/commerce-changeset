@@ -38,7 +38,7 @@ const DemoInsightBar = dynamic(() => import("@/components/demo/demo-insight-bar"
 const TokenVaultActivity = dynamic(() => import("@/components/demo/token-vault-activity").then(m => ({ default: m.TokenVaultActivity })), { ssr: false });
 import { useKeyboardShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "@/lib/hooks/use-is-mobile";
-import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
+import { useVoice, type ViewToolHandler } from "@/components/dashboard/voice-provider";
 import type { ChangeSet } from "@/lib/changeset/types";
 import type { ExecuteChangeSetResult } from "@/lib/changeset/executor";
 import type { EmotionalState, RepetitionSignal, ProactiveIssue } from "@/lib/voice/types";
@@ -63,10 +63,12 @@ interface Message {
   rollbackDraftId?: string;
   /** Repetition signal if the orchestrator detected a repetitive workflow. */
   repetitionSignal?: RepetitionSignal;
+  /** True while the message is still being transcribed (interim transcript). */
+  interim?: boolean;
 }
 
 interface OrchestratorResponse {
-  changeSet: ChangeSet;
+  changeSet: ChangeSet | null;
   reasoning: string;
   /** Formatted product/schedule data from the Reader Agent (read-only queries). */
   readerText?: string;
@@ -195,8 +197,14 @@ export function Chat({ chatId }: ChatProps) {
   const [showScrollPill, setShowScrollPill] = useState(false);
   const [patternDismissed, setPatternDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const voiceStartTimeRef = useRef<number>(0);
   const errorCountRef = useRef(0);
+  const voice = useVoice();
+  const {
+    registerToolHandler,
+    unregisterToolHandler,
+    registerTranscriptCallbacks,
+    unregisterTranscriptCallbacks,
+  } = voice;
   const sessionTitleRef = useRef<string | undefined>(restoredSession?.title);
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
@@ -274,9 +282,9 @@ export function Chat({ chatId }: ChatProps) {
     return () => el.removeEventListener("scroll", handler);
   }, [messages.length]);
 
-  // ── Gemini Live voice (dual-model sidecar) ─────────────────────────
+  // ── Chat tool handler (registered with VoiceProvider) ──────────────
 
-  const handleGeminiToolCall = useCallback(
+  const chatToolHandler: ViewToolHandler = useCallback(
     async (name: string, args: Record<string, unknown>) => {
       switch (name) {
         case "submit_commerce_change": {
@@ -287,7 +295,7 @@ export function Chat({ chatId }: ChatProps) {
           });
           if (!res.ok) throw new Error("Orchestrator request failed");
           const data: OrchestratorResponse = await res.json();
-          if (data.changeSet.operations.length > 0) {
+          if (data.changeSet && data.changeSet.operations.length > 0) {
             setDraftChangeSet(data.changeSet);
             draftChangeSetRef.current = data.changeSet;
             setDraftReasoning(data.reasoning);
@@ -296,7 +304,7 @@ export function Chat({ chatId }: ChatProps) {
               {
                 role: "assistant",
                 content: data.reasoning,
-                changeSet: data.changeSet,
+                changeSet: data.changeSet ?? undefined,
                 reasoning: data.reasoning,
                 repetitionSignal: data.repetitionSignal,
               },
@@ -315,13 +323,18 @@ export function Chat({ chatId }: ChatProps) {
           }
           return {
             success: true,
-            operationCount: data.changeSet.operations.length,
+            changesetId: data.changeSet?.id ?? "",
+            operationCount: data.changeSet?.operations.length ?? 0,
             reasoning: data.reasoning,
           };
         }
         case "execute_changeset": {
           const cs = draftChangeSetRef.current;
           if (!cs) return { error: "No draft changeset to execute. Call submit_commerce_change first." };
+          const requestedId = typeof args.changesetId === "string" ? args.changesetId : undefined;
+          if (requestedId && requestedId !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${requestedId}` };
+          }
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
@@ -345,31 +358,13 @@ export function Chat({ chatId }: ChatProps) {
           showExecutionFeedback(data.changeSet);
           return { success: true, status: data.changeSet.status };
         }
-        case "query_product_data": {
-          setPhase("loading");
-          try {
-            const res = await fetch("/api/reader", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: args.query }),
-            });
-            if (!res.ok) throw new Error("Reader request failed");
-            const data = (await res.json()) as { text: string };
-            setMessages((prev) => [
-              ...prev,
-              { role: "assistant", content: "Here\u2019s what I found:", readResult: data.text },
-            ]);
-            setPhase("idle");
-            return { data: data.text };
-          } catch (err) {
-            setPhase("error");
-            throw err;
-          }
-        }
         case "voice_approve": {
-          // Voice approval — trigger execution with CIBA
           const cs = draftChangeSetRef.current;
           if (!cs) return { error: "No changeset to approve. Call submit_commerce_change first." };
+          const approveId = typeof args.changesetId === "string" ? args.changesetId : undefined;
+          if (approveId && approveId !== cs.id) {
+            return { error: `Changeset ID mismatch: expected ${cs.id}, got ${approveId}` };
+          }
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
@@ -397,50 +392,80 @@ export function Chat({ chatId }: ChatProps) {
           return { error: `Unknown tool: ${name}` };
       }
     },
-    [applyExecutedChangeset]
+    [applyExecutedChangeset],
   );
 
-  const handleUserTranscript = useCallback(
-    (text: string, _finished: boolean) => {
-      console.log("[chat] Adding user transcript to messages:", text);
-      setMessages((prev) => {
-        const next = [...prev, { role: "user" as const, content: text }];
-        console.log("[chat] Messages count:", next.length);
-        return next;
-      });
-      scrollToBottom();
-    },
-    [scrollToBottom]
-  );
+  // Register chat tool handler + transcript callbacks with VoiceProvider.
+  // Destructured registration functions are stable (useCallback with []),
+  // so these effects only re-run when the handler/callbacks actually change.
+  useEffect(() => {
+    registerToolHandler(chatToolHandler);
+    return () => unregisterToolHandler(chatToolHandler);
+  }, [registerToolHandler, unregisterToolHandler, chatToolHandler]);
 
-  const handleModelTranscript = useCallback(
-    (text: string, _finished: boolean) => {
-      console.log("[chat] Adding model transcript to messages:", text);
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            ...last,
-            content: last.content + text,
-          };
-          return updated;
-        }
-        return [...prev, { role: "assistant" as const, content: text }];
-      });
-      scrollToBottom();
-    },
-    [scrollToBottom]
-  );
+  useEffect(() => {
+    registerTranscriptCallbacks({
+      onUserTranscript: (text: string, finished: boolean) => {
+        setMessages((prev) => {
+          if (!finished) {
+            // Interim: update last in-progress user message or create one
+            const last = prev[prev.length - 1];
+            if (last?.role === "user" && last.interim) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: text };
+              return updated;
+            }
+            return [...prev, { role: "user" as const, content: text, interim: true }];
+          }
+          // Final: replace interim message or push finalized
+          const last = prev[prev.length - 1];
+          if (last?.role === "user" && last.interim) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: "user", content: text };
+            return updated;
+          }
+          return [...prev, { role: "user" as const, content: text }];
+        });
+        scrollToBottom();
+      },
+      onModelTranscript: (text: string, finished: boolean) => {
+        setMessages((prev) => {
+          if (!finished) {
+            // Interim: update last in-progress assistant message or create one
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant" && last.interim) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: text };
+              return updated;
+            }
+            if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: text, interim: true };
+              return updated;
+            }
+            return [...prev, { role: "assistant" as const, content: text, interim: true }];
+          }
+          // Final: finalize the interim message
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant" && last.interim) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: "assistant", content: text };
+            return updated;
+          }
+          if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...last, content: text };
+            return updated;
+          }
+          return [...prev, { role: "assistant" as const, content: text }];
+        });
+        scrollToBottom();
+      },
+    });
+    return () => unregisterTranscriptCallbacks();
+  }, [registerTranscriptCallbacks, unregisterTranscriptCallbacks, scrollToBottom]);
 
-  const geminiLive = useGeminiLive({
-    onToolCall: handleGeminiToolCall,
-    onUserTranscript: handleUserTranscript,
-    onModelTranscript: handleModelTranscript,
-    onError: (msg) => toast.error(`Voice error: ${msg}`),
-  });
-
-  const voiceActive = geminiLive.connectionState === "connected";
+  const voiceActive = voice.voiceActive;
 
   const handleSubmit = () => {
     submitMessage(input.trim());
@@ -648,74 +673,18 @@ export function Chat({ chatId }: ChatProps) {
 
   const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
 
-  // ── Voice mode handlers ────────────────────────────────────────────
-
   const handleVoiceActivate = useCallback(async () => {
-    voiceStartTimeRef.current = Date.now();
-
-    // Init server-side session logging + pattern detection
-    try {
-      const res = await fetch("/api/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "init" }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.sessionPattern) {
-          setSessionPattern(data.sessionPattern.description);
-          toast.info(data.sessionPattern.description, { duration: 8000 });
-        }
-      }
-    } catch {
-      // Non-critical — pattern detection failure shouldn't block voice
-    }
-
-    // Connect to Gemini Live (mic + dual WebSocket)
-    await geminiLive.connect();
-    haptic(50); // Short pulse on connection
+    await voice.handleVoiceActivate();
+    haptic(50);
     setPatternDismissed(false);
-  }, [geminiLive]);
+  }, [voice]);
 
   const handleVoiceDeactivate = useCallback(async () => {
-    geminiLive.disconnect();
-
-    // Log session to server (for Sheets persistence + pattern analysis)
-    const durationMinutes = (Date.now() - voiceStartTimeRef.current) / 60000;
-    try {
-      await fetch("/api/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "end_session",
-          sessionId: crypto.randomUUID(),
-          sessionDurationMinutes: durationMinutes,
-          operationCount: messages.reduce(
-            (acc, m) => acc + (m.changeSet?.operations.length ?? 0),
-            0
-          ),
-          operationTypes: messages.flatMap(
-            (m) => m.changeSet?.operations.map((o) => o.action) ?? []
-          ),
-          errorCount: errorCountRef.current,
-          avgStressLevel: geminiLive.stressLevel,
-          avgSpeechPace: geminiLive.voiceMetrics.pace,
-          peakStressLevel: geminiLive.peakStressLevel,
-          emotionalStateTransitions: geminiLive.emotionalStateTransitions,
-          toolCallSummary: geminiLive.toolCallOutcomes,
-          model: geminiLive.sidecarStatus.connected
-            ? "3.1-primary+2.5-sidecar"
-            : "3.1-primary-only",
-        }),
-      });
-    } catch {
-      // Non-critical
-    }
-
+    await voice.handleVoiceDeactivate();
     setSessionPattern(null);
     errorCountRef.current = 0;
     toast.info("Voice mode deactivated");
-  }, [geminiLive, messages]);
+  }, [voice]);
 
   // Shared submit helper used by both form submit and command palette
   const submitMessage = useCallback(
@@ -734,7 +703,7 @@ export function Chat({ chatId }: ChatProps) {
       try {
         // When voice is active, send typed text to Gemini for tool-call routing
         if (voiceActive) {
-          geminiLive.sendText(prompt);
+          voice.sendText(prompt);
           setPhase("loading");
           // Gemini will handle the response via tool calls + transcripts
           return;
@@ -755,7 +724,7 @@ export function Chat({ chatId }: ChatProps) {
 
         const data: OrchestratorResponse = await res.json();
 
-        if (data.changeSet.operations.length === 0) {
+        if (!data.changeSet || data.changeSet.operations.length === 0) {
           setMessages((prev) => [
             ...prev,
             {
@@ -776,7 +745,7 @@ export function Chat({ chatId }: ChatProps) {
             {
               role: "assistant",
               content: data.reasoning,
-              changeSet: data.changeSet,
+              changeSet: data.changeSet ?? undefined,
               reasoning: data.reasoning,
               repetitionSignal: data.repetitionSignal,
             },
@@ -797,7 +766,7 @@ export function Chat({ chatId }: ChatProps) {
         scrollToBottom();
       }
     },
-    [isBusy, scrollToBottom, voiceActive, geminiLive],
+    [isBusy, scrollToBottom, voiceActive, voice],
   );
 
   const handleApplyFix = useCallback(
@@ -822,7 +791,7 @@ export function Chat({ chatId }: ChatProps) {
 
   // Consume pending prompt from Quick Actions panel.
   // Use a ref for submitMessage so the effect doesn't re-run when its identity
-  // changes (geminiLive returns a new object each render, making submitMessage
+  // changes (voice context returns a new object each render, making submitMessage
   // unstable). Without this, the cleanup would cancel the timer before it fires.
   const submitMessageRef = useRef(submitMessage);
   submitMessageRef.current = submitMessage;
@@ -846,7 +815,7 @@ export function Chat({ chatId }: ChatProps) {
     },
   });
 
-  const showMobileVoiceDock = isMobile && (voiceActive || geminiLive.connectionState === "connecting");
+  const showMobileVoiceDock = isMobile && (voiceActive || voice.voiceConnecting);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -1134,19 +1103,22 @@ export function Chat({ chatId }: ChatProps) {
         </div>
       )}
 
-      {/* Mobile voice dock — immersive bottom panel */}
+      {/* Demo insight bar — phase-aware one-liner above input/voice dock */}
+      {isDemo && <DemoInsightBar phase={phase} />}
+
+      {/* Mobile voice dock — immersive bottom panel (must be last element) */}
       {showMobileVoiceDock && (
         <VoiceControls
           isActive={voiceActive}
-          emotionalState={geminiLive.emotionalState}
-          stressLevel={geminiLive.stressLevel}
-          inputLevel={geminiLive.inputLevel}
-          connectionState={geminiLive.connectionState}
-          isSpeaking={geminiLive.isSpeaking}
-          sidecarStatus={geminiLive.sidecarStatus}
+          emotionalState={voice.emotionalState}
+          stressLevel={voice.stressLevel}
+          inputLevel={voice.inputLevel}
+          connectionState={voice.connectionState}
+          isSpeaking={voice.isSpeaking}
+          sidecarStatus={voice.sidecarStatus}
           disabled={isBusy}
-          volume={geminiLive.volume}
-          onVolumeChange={geminiLive.setVolume}
+          volume={voice.volume}
+          onVolumeChange={voice.setVolume}
           onActivate={handleVoiceActivate}
           onDeactivate={handleVoiceDeactivate}
           mobile
@@ -1154,9 +1126,6 @@ export function Chat({ chatId }: ChatProps) {
           isDemo={isDemo}
         />
       )}
-
-      {/* Demo insight bar — phase-aware one-liner above input */}
-      {isDemo && <DemoInsightBar phase={phase} />}
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
@@ -1177,15 +1146,15 @@ export function Chat({ chatId }: ChatProps) {
             />
             <VoiceControls
               isActive={voiceActive}
-              emotionalState={geminiLive.emotionalState}
-              stressLevel={geminiLive.stressLevel}
-              inputLevel={geminiLive.inputLevel}
-              connectionState={geminiLive.connectionState}
-              isSpeaking={geminiLive.isSpeaking}
-              sidecarStatus={geminiLive.sidecarStatus}
+              emotionalState={voice.emotionalState}
+              stressLevel={voice.stressLevel}
+              inputLevel={voice.inputLevel}
+              connectionState={voice.connectionState}
+              isSpeaking={voice.isSpeaking}
+              sidecarStatus={voice.sidecarStatus}
               disabled={isBusy}
-              volume={geminiLive.volume}
-              onVolumeChange={geminiLive.setVolume}
+              volume={voice.volume}
+              onVolumeChange={voice.setVolume}
               onActivate={handleVoiceActivate}
               onDeactivate={handleVoiceDeactivate}
               phase={phase}

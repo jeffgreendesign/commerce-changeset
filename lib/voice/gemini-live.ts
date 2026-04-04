@@ -15,6 +15,10 @@ import type {
   EmotionalState,
   SpeechPace,
 } from "./types";
+import { ACTIVE_VIEWS } from "@/lib/navigation-types";
+
+/** Comma-separated view list derived from the canonical ACTIVE_VIEWS constant. */
+const NAVIGABLE_VIEWS = ACTIVE_VIEWS.join(", ");
 
 // ── Model constants ─────────────────────────────────────────────────
 
@@ -30,12 +34,22 @@ export const SIDECAR_MODEL =
 const COMMERCE_SYSTEM_INSTRUCTION = `You are a voice assistant for Commerce Changeset, a commerce operations platform.
 You help users manage product pricing, promotions, and inventory through natural conversation.
 
+Greeting:
+- When the session begins, greet the user with a brief welcome that includes the product name "Commerce Changeset."
+- Example: "Welcome to Commerce Changeset. How can I help you today?"
+- Keep the greeting short — one or two sentences. This lets the user know you're ready and gives them a chance to adjust their volume.
+
 Your role:
 - Listen to user requests for commerce changes (price updates, promo toggles, inventory flags)
 - Narrate what the agent system is doing in real-time as operations execute
 - Match your tone to the risk level: calm for routine changes, deliberate for high-risk bulk operations
 - Proactively surface issues: margin violations, scheduling conflicts, inconsistencies
 - Suggest workflow optimizations: bulk operations for repetitive tasks, better scheduling
+
+Navigation:
+- You can navigate the user to different views using the navigate_to_view tool.
+- When the user says things like "show me the workspace", "open drafts", "go to chat", or "show timeline", call navigate_to_view with the appropriate view name.
+- Available views: ${NAVIGABLE_VIEWS}.
 
 IMPORTANT — Tool call behavior:
 - ALWAYS verbally acknowledge the user's request BEFORE calling any tool. For example: "Got it, let me work on that for you." or "Sure, updating that now — one moment."
@@ -281,6 +295,23 @@ export function buildToolDeclarations(): Record<string, unknown>[] {
               },
             },
             required: ["changesetId", "confirmation"],
+          },
+        },
+        {
+          name: "navigate_to_view",
+          description:
+            "Navigate the UI to a different view. Use when the user asks to " +
+            "see the workspace, open chat, view drafts, check timeline, etc.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              view: {
+                type: "STRING",
+                description:
+                  `Target view: ${NAVIGABLE_VIEWS}`,
+              },
+            },
+            required: ["view"],
           },
         },
       ],

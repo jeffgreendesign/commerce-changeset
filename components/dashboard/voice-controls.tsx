@@ -249,6 +249,9 @@ function ConnectionIndicator({
     );
   }
 
+  // On mobile, the affect chip already shows emotion detection status
+  if (mobile && state === "connected") return null;
+
   return (
     <div className="flex items-center gap-1.5">
       {state === "connecting" && (
@@ -337,7 +340,7 @@ function MobileVoiceDock({
   isDemo?: boolean;
 }) {
   return (
-    <div className="glass relative flex flex-col gap-2 border-t px-4 py-3 pb-safe animate-voice-dock-enter">
+    <div className="glass-elevated relative z-10 flex flex-col gap-2 border-t px-4 py-3 pb-safe animate-voice-dock-enter">
       <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} mobile />
 
       {/* Compact layout: affect | visualizer | mic | visualizer | volume */}
@@ -380,8 +383,8 @@ function MobileVoiceDock({
           className={cn(
             "relative h-14 w-14 shrink-0 rounded-full",
             isActive &&
-              "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
-            !isActive && !isConnecting && "animate-mic-prismatic",
+              "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 ring-2 ring-red-500/50",
+            !isActive && !isConnecting && "animate-mic-prismatic border border-border/50",
             isConnecting && "opacity-70"
           )}
           aria-label={isActive ? "Stop voice input" : "Start voice input"}
@@ -434,7 +437,7 @@ function MobileVoiceDock({
 
       {/* Volume slider — separate row on small phones */}
       {isActive && onVolumeChange && (
-        <div className="flex w-full items-center justify-center gap-1.5 sm:hidden">
+        <div className="flex w-full items-center justify-center gap-1.5 pb-1 sm:hidden">
           <Volume2Icon className="size-3 text-muted-foreground" />
           <input
             type="range"
@@ -578,7 +581,7 @@ export function VoiceControls({
             step={0.05}
             value={volume ?? 1}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            className="h-1 w-16 accent-primary"
+            className="h-1 w-16 text-base accent-primary"
             aria-label="Output volume"
           />
         </div>
@@ -594,8 +597,8 @@ export function VoiceControls({
         className={cn(
           "relative min-h-[44px] min-w-[44px] overflow-hidden",
           isActive &&
-            "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
-          !isActive && !isConnecting && "animate-mic-prismatic",
+            "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 ring-2 ring-red-500/50",
+          !isActive && !isConnecting && "animate-mic-prismatic border border-border/50",
           isConnecting && "opacity-70"
         )}
         aria-label={isActive ? "Stop voice input" : "Start voice input"}

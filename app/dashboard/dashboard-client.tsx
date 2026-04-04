@@ -13,6 +13,8 @@ import { ChatHistoryPanel } from "@/components/dashboard/chat-history-panel";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
 import { DemoAnnotationProvider } from "@/components/demo/demo-annotation-provider";
 import { DemoAnnotationToggle } from "@/components/demo/demo-annotation-toggle";
+import { VoiceProvider } from "@/components/dashboard/voice-provider";
+import { VoiceIndicator } from "@/components/dashboard/voice-indicator";
 
 // ── Inner content that has access to layout context ──────────────────
 
@@ -35,6 +37,7 @@ function DashboardContent({ userName }: { userName: string }) {
             </h1>
           </div>
           <div className="flex items-center gap-1 text-sm sm:gap-2">
+            <VoiceIndicator />
             {/* New Chat button — mobile accessible */}
             <Button
               variant="ghost"
@@ -101,7 +104,9 @@ function DashboardContent({ userName }: { userName: string }) {
 export function DashboardClient({ userName, isDemo = false }: { userName: string; isDemo?: boolean }) {
   const content = (
     <WorkspaceProvider>
-      <DashboardContent userName={userName} />
+      <VoiceProvider>
+        <DashboardContent userName={userName} />
+      </VoiceProvider>
     </WorkspaceProvider>
   );
 

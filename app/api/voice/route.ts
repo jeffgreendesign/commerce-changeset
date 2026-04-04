@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
+import { isDemoSession } from "@/lib/demo/config.server";
 import { setAIContext } from "@auth0/ai-vercel";
 import { Auth0AI, getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
@@ -143,8 +144,9 @@ async function getGoogleAccessToken(
 }
 
 export async function POST(request: Request) {
-  const session = await auth0.getSession();
-  if (!session) {
+  const isDemo = await isDemoSession();
+  const session = isDemo ? null : await auth0.getSession();
+  if (!isDemo && !session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -157,7 +159,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const userId = session.user.sub;
+  const userId = session?.user.sub ?? "demo-user";
 
   // ── Init: Create session config + load historical patterns ─────────
   if (parsed.data.action === "init") {
@@ -170,7 +172,7 @@ export async function POST(request: Request) {
 
     // Load historical sessions from Sheets for pattern detection
     let logs = getSessionLogs(userId); // in-memory cache first
-    const refreshToken = session.tokenSet.refreshToken;
+    const refreshToken = session?.tokenSet.refreshToken;
 
     if (refreshToken) {
       try {
@@ -205,7 +207,7 @@ export async function POST(request: Request) {
 
   // ── Submit: Voice-enriched orchestration ───────────────────────────
   if (parsed.data.action === "submit") {
-    const refreshToken = session.tokenSet.refreshToken;
+    const refreshToken = session?.tokenSet.refreshToken;
     if (!refreshToken) {
       return NextResponse.json(
         {
@@ -311,7 +313,7 @@ export async function POST(request: Request) {
     recordSession(extendedLog);
 
     // Persist to Google Sheets (non-critical, best-effort)
-    const refreshToken = session.tokenSet.refreshToken;
+    const refreshToken = session?.tokenSet.refreshToken;
     if (refreshToken) {
       try {
         const accessToken = await getGoogleAccessToken(refreshToken);
