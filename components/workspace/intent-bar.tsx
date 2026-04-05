@@ -231,7 +231,7 @@ export function IntentBar({
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
-        <div className="glass-elevated input-glow border-t px-4 py-4 pb-safe sm:px-6 lg:px-8">
+        <div className="glass-elevated input-glow border-t px-4 pt-4 pb-safe sm:px-6 lg:px-8">
           <form
             onSubmit={(e) => {
               e.preventDefault();

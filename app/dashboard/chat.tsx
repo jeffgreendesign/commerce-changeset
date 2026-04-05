@@ -1271,7 +1271,7 @@ export function Chat({ chatId }: ChatProps) {
 
       {/* Input bar — hidden when mobile voice dock is active */}
       {!showMobileVoiceDock && (
-        <div className="glass-elevated input-glow border-t px-4 py-4 pb-safe sm:px-6 lg:px-8">
+        <div className="glass-elevated input-glow border-t px-4 pt-4 pb-safe sm:px-6 lg:px-8">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1305,7 +1305,7 @@ export function Chat({ chatId }: ChatProps) {
             <Button
               type="submit"
               disabled={!input.trim() || isBusy}
-              className="min-h-[44px] min-w-[44px]"
+              className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9"
             >
               <span className="hidden sm:inline">Send</span>
               <span className="sm:hidden">Go</span>
