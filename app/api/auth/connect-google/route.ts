@@ -31,8 +31,9 @@ export async function GET(request: Request) {
   const issuer = `https://${domain}`;
   const appBaseUrl = resolveAppBaseUrl() ?? new URL(request.url).origin;
 
-  // If already connected, redirect to dashboard
-  if (!step) {
+  // If already connected, redirect to dashboard (skip with ?force=true to re-link)
+  const force = url.searchParams.get("force") === "true";
+  if (!step && !force) {
     try {
       await auth0.getAccessTokenForConnection({ connection: "google-oauth2" });
       return NextResponse.redirect(new URL("/dashboard", appBaseUrl));
