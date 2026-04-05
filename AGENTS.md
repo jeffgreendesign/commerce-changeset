@@ -93,7 +93,7 @@ public/               — Static assets (SVGs)
 
 ## Changelog
 
-- **Every PR that changes code must update `CHANGELOG.md`.** CI enforces this via `.github/workflows/changelog-check.yml`.
+- **Every PR that changes code must update `CHANGELOG.md`.** CI enforces this via `.github/workflows/changelog-check.yml` (GitHub Actions).
 - Add entries under `## [Unreleased]` using the existing categories: Features, Fixes, Content, Refactoring, Style, Chores, Docs, Security.
 - Format: `- Description of what changed (PR \`#N\`)` — include the PR number when available.
 - Docs-only PRs (only `.md` files changed) are automatically exempt.

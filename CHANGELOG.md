@@ -36,8 +36,8 @@ All notable changes to this project will be documented in this file.
 - Fix workspace-provider error parsing for nested apiError shape (PR `#50`)
 - Add distinct CIBA denial handling across executor, UI, and demo (PR `#51`)
 - Fix voice panel UI polish — 5 issues from live mobile testing (PR `#43`)
-- Fix mobile dock overflow, demo affect, voice glow cutoff (PR `#42`)
-- Fix voice UI: prismatic mic glow, centered dock, demo affect (PR `#40`)
+- Fix mobile dock overflow, demo effect, voice glow cutoff (PR `#42`)
+- Fix voice UI: prismatic mic glow, centered dock, demo effect (PR `#40`)
 - Fix demo annotation phase lag, suppress mutation-only UI on read-only paths (PR `#39`)
 - Fix stepper alignment, Zod validation, browser back-button navigation (PR `#37`)
 - Fix timeline hydration mismatch via useSyncExternalStore (PR `#36`)
@@ -49,8 +49,8 @@ All notable changes to this project will be documented in this file.
 
 ### Content
 
-- Add OAuth scope badges to About page (Reader read-only, Writer read-write, Notifier send-only)
-- Update blog post: move per-agent scope isolation from future work to accomplishment
+- Add OAuth scope badges to About page (Reader read-only, Writer read-write, Notifier send-only) (PR `unavailable`)
+- Update blog post: move per-agent scope isolation from future work to accomplishment (PR `unavailable`)
 - Add blog post: "How We Use Auth0 for AI Agents" (PR `#39`)
 
 ### Refactoring
@@ -65,12 +65,12 @@ All notable changes to this project will be documented in this file.
 
 - Add policy engine unit tests with vitest (PR `#47`)
 - Add boundary threshold tests for bulk-write and price-change rules (PR `#49`)
-- Add lint-staged; scope security check to staged files only
+- Add lint-staged; scope security check to staged files only (PR `unavailable`)
 - Sync mock product catalog and data with live Google Sheet (PRs `#33`, `#53`)
 
 ### Docs
 
-- Restructure README for Devpost submission format (problem statement, architecture, Auth0 integration narrative)
+- Restructure README for Devpost submission format (problem statement, architecture, Auth0 integration narrative) (PR `unavailable`)
 - Add "What Is Real vs. Simulated" section to README (PR `#48`)
 - Add screenshot placeholders to README for Devpost submission (PR `#46`)
 - Add Production Portability section to README (PR `#53`)
@@ -78,7 +78,7 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
-- Narrow Reader Agent OAuth scope from `spreadsheets` to `spreadsheets.readonly` (per-agent scope isolation)
+- Narrow Reader Agent OAuth scope from `spreadsheets` to `spreadsheets.readonly` (per-agent scope isolation) (PR `unavailable`)
 - Harden judges login with zod validation, timing-safe compare, HttpOnly cookie (PR `#44`)
 - Replace static judge cookie with HMAC-signed token (PR `#44`)
 - Require non-empty changesetId via zod before execute/approve (PR `#43`)
