@@ -225,7 +225,7 @@ export function IntentBar({
             <Button
               type="submit"
               disabled={!input.trim() || isBusy}
-              className="min-h-[44px] min-w-[44px]"
+              className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9"
             >
               <span className="hidden sm:inline">Send</span>
               <span className="sm:hidden">Go</span>
