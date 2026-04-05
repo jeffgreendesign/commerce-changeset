@@ -171,6 +171,10 @@ export function useGeminiLive(
       gain.connect(playbackContextRef.current.destination);
       gainNodeRef.current = gain;
     }
+    // iOS Safari: ensure playback context is running (may be suspended)
+    if (playbackContextRef.current.state === "suspended") {
+      void playbackContextRef.current.resume();
+    }
     return playbackContextRef.current;
   }, []);
 
@@ -445,6 +449,11 @@ export function useGeminiLive(
       // 3. Set up audio capture at 16kHz (required by Gemini Live API)
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
+      // iOS Safari creates AudioContext in "suspended" state — must resume
+      // inside a user-gesture callback (this runs from a click handler).
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
       if (audioCtx.sampleRate !== 16000) {
         console.warn(
           `[gemini-live] Browser using ${audioCtx.sampleRate}Hz instead of 16000Hz — audio may not work`
