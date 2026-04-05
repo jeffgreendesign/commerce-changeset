@@ -18,6 +18,8 @@ const STATUS_STYLE: Record<string, string> = {
   partial_failure:
     "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   expired: "bg-muted text-muted-foreground",
+  denied:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   rolled_back: "bg-muted text-muted-foreground",
 };
 

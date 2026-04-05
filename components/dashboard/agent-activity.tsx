@@ -11,6 +11,7 @@ type ChatPhase =
   | "executing"
   | "rolling_back"
   | "complete"
+  | "denied"
   | "error";
 
 interface AgentActivityProps {

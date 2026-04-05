@@ -17,6 +17,7 @@ import { requestApproval } from "./approval";
 import type {
   ChangeSet,
   ChangeSetExecution,
+  ChangeSetStatus,
   ExecutorCallbacks,
   ExecutionReceipt,
   Operation,
@@ -235,6 +236,14 @@ async function buildExecutionReceipt(
   return receipt;
 }
 
+// ── Approval code → status mapping ───────────────────────────────────
+
+function mapApprovalCodeToStatus(code: string): ChangeSetStatus {
+  if (code === "expired") return "expired";
+  if (code === "access_denied") return "denied";
+  return "draft";
+}
+
 // ── Executor ─────────────────────────────────────────────────────────
 
 export async function executeChangeSet(
@@ -271,7 +280,7 @@ export async function executeChangeSet(
       return {
         changeSet: {
           ...cs,
-          status: approvalResult.code === "expired" ? "expired" : "draft",
+          status: mapApprovalCodeToStatus(approvalResult.code),
         },
         error: {
           code: approvalResult.code,

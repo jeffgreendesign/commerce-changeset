@@ -60,7 +60,7 @@ interface TokenVaultActivityProps {
 }
 
 export function TokenVaultActivity({ phase }: TokenVaultActivityProps) {
-  if (phase === "idle" || phase === "error") return null;
+  if (phase === "idle" || phase === "error" || phase === "denied") return null;
 
   const visibleEvents = TOKEN_EVENTS.filter((_e, i) => getEventStatus(i, phase) !== "pending");
 

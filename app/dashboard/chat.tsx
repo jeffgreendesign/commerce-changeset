@@ -14,7 +14,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { ArrowDownIcon, XIcon, BrainCircuitIcon, Loader2Icon } from "lucide-react";
+import { ArrowDownIcon, XIcon, BrainCircuitIcon, Loader2Icon, ShieldOffIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChangeSetView } from "@/components/changeset/changeset-view";
 import { ChangeSetSkeleton } from "@/components/changeset/changeset-skeleton";
@@ -155,6 +155,8 @@ export function Chat({ chatId }: ChatProps) {
   const demoAnnotations = useDemoAnnotations();
   // Load persisted session once so all initializers can use it
   const [restoredSession] = useState(() => loadSession(chatId));
+  // Don't restore draft state from a denied session — user should start fresh
+  const restoreDraft = restoredSession?.phase !== "denied";
 
   const [messages, setMessages] = useState<Message[]>(() => {
     if (restoredSession?.messages) {
@@ -177,19 +179,21 @@ export function Chat({ chatId }: ChatProps) {
     if (saved === "draft" || saved === "complete") return saved;
     // Transient phases (loading/executing/rolling_back) → resume as draft
     if (saved === "loading" || saved === "executing" || saved === "rolling_back") return "draft";
+    // Denied → resume as idle (user can start fresh)
+    if (saved === "denied") return "idle";
     return "idle";
   });
   const [error, setError] = useState("");
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(
-    () => restoredSession?.draftChangeSet ?? null,
+    () => restoreDraft ? (restoredSession?.draftChangeSet ?? null) : null,
   );
   // Ref mirrors draftChangeSet for synchronous access in voice tool handlers,
   // bypassing stale closures when Gemini batches submit + execute calls.
   const draftChangeSetRef = useRef<ChangeSet | null>(
-    restoredSession?.draftChangeSet ?? null,
+    restoreDraft ? (restoredSession?.draftChangeSet ?? null) : null,
   );
   const [draftReasoning, setDraftReasoning] = useState(
-    () => restoredSession?.draftReasoning ?? "",
+    () => restoreDraft ? (restoredSession?.draftReasoning ?? "") : "",
   );
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const [cibaApproved, setCibaApproved] = useState(false);
@@ -343,6 +347,11 @@ export function Chat({ chatId }: ChatProps) {
           });
           if (!res.ok) throw new Error("Execution failed");
           const data: ExecuteChangeSetResult = await res.json();
+          if (data.error?.code === "access_denied" || data.changeSet.status === "denied") {
+            setMessages((prev) => [...prev, { role: "assistant", content: "Approval was denied. No changes were made.", changeSet: data.changeSet }]);
+            setPhase("denied");
+            return { success: false, status: "denied", reason: "CIBA approval denied" };
+          }
           applyExecutedChangeset(data.changeSet);
           setMessages((prev) => [
             ...prev,
@@ -373,6 +382,11 @@ export function Chat({ chatId }: ChatProps) {
           });
           if (!res.ok) throw new Error("Approval/execution failed");
           const data: ExecuteChangeSetResult = await res.json();
+          if (data.error?.code === "access_denied" || data.changeSet.status === "denied") {
+            setMessages((prev) => [...prev, { role: "assistant", content: "Approval was denied. No changes were made.", changeSet: data.changeSet }]);
+            setPhase("denied");
+            return { approved: false, status: "denied", reason: "CIBA approval denied" };
+          }
           applyExecutedChangeset(data.changeSet);
           setMessages((prev) => [
             ...prev,
@@ -495,6 +509,22 @@ export function Chat({ chatId }: ChatProps) {
 
       const data: ExecuteChangeSetResult = await res.json();
 
+      // Handle CIBA denial as a distinct outcome (not an error)
+      if (data.error?.code === "access_denied" || data.changeSet.status === "denied") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Approval was denied. No changes were made.",
+            changeSet: data.changeSet,
+          },
+        ]);
+        setPhase("denied");
+        toast.warning("CIBA approval denied — no changes were made");
+        scrollToBottom();
+        return;
+      }
+
       if (data.error) {
         throw new Error(data.error.message);
       }
@@ -594,6 +624,23 @@ export function Chat({ chatId }: ChatProps) {
       }
 
       const execData: ExecuteChangeSetResult = await execRes.json();
+
+      // Handle CIBA denial during rollback
+      if (execData.error?.code === "access_denied" || execData.changeSet.status === "denied") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Approval was denied. No changes were made.",
+            changeSet: execData.changeSet,
+          },
+        ]);
+        setActiveRollbackId(null);
+        setPhase("denied");
+        toast.warning("CIBA approval denied — no changes were made");
+        scrollToBottom();
+        return;
+      }
 
       if (execData.error) {
         throw new Error(execData.error.message);
@@ -1047,6 +1094,38 @@ export function Chat({ chatId }: ChatProps) {
             timeoutSeconds={isDemo ? 10 : 120}
             approved={cibaApproved}
           />
+        )}
+
+        {/* Denial */}
+        {phase === "denied" && (
+          <div className="animate-message-enter rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:rounded-lg dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-400">
+            <div className="flex items-center gap-2">
+              <ShieldOffIcon className="size-4 shrink-0" />
+              <p className="font-semibold">Approval Denied</p>
+            </div>
+            <p className="mt-1">
+              You denied this changeset via push notification. No changes were made.
+              You can modify the request and try again.
+            </p>
+            {draftChangeSet && draftChangeSet.operations.length > 0 && (
+              <div className="mt-2 space-y-1 text-xs text-amber-700 dark:text-amber-400/80">
+                <p className="font-medium">Denied operations:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  {draftChangeSet.operations.filter((op) => op.agent === "writer").map((op) => (
+                    <li key={op.id}>{op.action} &mdash; {op.target}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 min-h-[44px]"
+              onClick={handleReset}
+            >
+              Modify Request
+            </Button>
+          </div>
         )}
 
         {/* Error */}

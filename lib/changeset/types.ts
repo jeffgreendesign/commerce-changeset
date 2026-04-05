@@ -70,6 +70,7 @@ export type ChangeSetStatus =
   | "completed"
   | "partial_failure"
   | "expired"
+  | "denied"
   | "rolled_back";
 
 // ── Approval types (populated after CIBA + RAR approval) ────────────

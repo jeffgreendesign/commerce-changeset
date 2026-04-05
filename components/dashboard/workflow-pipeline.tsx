@@ -47,6 +47,7 @@ type ChatPhase =
   | "executing"
   | "rolling_back"
   | "complete"
+  | "denied"
   | "error";
 
 export function buildPipelineSteps(
@@ -76,6 +77,7 @@ function getStepStatus(
     executing: requiresCIBA ? 4 : 3,
     rolling_back: 5,
     complete: 6,
+    denied: -3,
     error: -2,
   };
 
@@ -91,6 +93,13 @@ function getStepStatus(
 
   const currentPhaseOrder = phaseOrder[phase];
   const thisStepOrder = stepOrder[step];
+
+  if (phase === "denied") {
+    const approveOrder = stepOrder.approve;
+    if (thisStepOrder < approveOrder) return "completed";
+    if (step === "approve") return "failed";
+    return "pending";
+  }
 
   if (phase === "error") {
     const errorStepOrder = phaseOrder.loading;
