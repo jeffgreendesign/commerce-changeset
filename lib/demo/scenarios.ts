@@ -49,7 +49,7 @@ function makeReceipt(
   const writerDelegation: AgentDelegation = {
     agent: "writer",
     actingOnBehalfOf: "auth0|demo-user-001",
-    toolsGranted: ["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change"],
+    toolsGranted: ["update_price", "set_promo_status", "update_inventory_flag", "bulk_price_change", "create_product"],
     contextReceived: "approved change set operations only",
     tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
     operationsPerformed: ops.map((o) => o.action),
@@ -67,7 +67,7 @@ function makeReceipt(
   const notifierDelegation: AgentDelegation = {
     agent: "notifier",
     actingOnBehalfOf: "auth0|demo-user-001",
-    toolsGranted: ["send_launch_notification"],
+    toolsGranted: ["send_launch_notification", "send_execution_receipt"],
     contextReceived: "execution receipt",
     tokenExchangeId: `tv_exch_${crypto.randomUUID().slice(0, 8)}`,
     operationsPerformed: ["send_launch_notification"],

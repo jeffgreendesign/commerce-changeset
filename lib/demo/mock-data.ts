@@ -41,7 +41,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 129.99,
     "Promo Price": "$109.99",
     "Promo Active": "TRUE",
-    Inventory: "450",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-001-vW5xPrRgYLvkbsU4UpmHOYAf8Vvcse.jpeg",
   },
   {
@@ -61,7 +61,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 179.99,
     "Promo Price": "$159.99",
     "Promo Active": "TRUE",
-    Inventory: "120",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-003-yHMRGAB7iu1JJ3HMOjXnkPuvu5ikuw.jpeg",
   },
   {
@@ -71,7 +71,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 89.99,
     "Promo Price": "$74.99",
     "Promo Active": "TRUE",
-    Inventory: "340",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-004-AGyOBkKWHeVgubhO7lgmnsdQjA8s9a.jpeg",
   },
   {
@@ -81,7 +81,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 109.99,
     "Promo Price": "$99.99",
     "Promo Active": "FALSE",
-    Inventory: "200",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-005-US8Qck4jEXOOdH9gTuCUtE0uE1HBfn.jpeg",
   },
   {
@@ -101,7 +101,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 79.99,
     "Promo Price": "$69.99",
     "Promo Active": "TRUE",
-    Inventory: "500",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-007-C55BYP4XvFhZz85iIAnmlBpNe9iMr7.jpeg",
   },
   {
@@ -121,7 +121,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 89.99,
     "Promo Price": "$69.99",
     "Promo Active": "TRUE",
-    Inventory: "75",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-009-XTVZykBFU5QCwbzlob3DJ5DnChcojG.jpeg",
   },
   {
@@ -131,7 +131,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 49.99,
     "Promo Price": "$39.99",
     "Promo Active": "TRUE",
-    Inventory: "220",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-010-CFUxI5VvqTJBdAXwnJOy7M4ovZTTHF.jpeg",
   },
   {
@@ -151,7 +151,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 24.99,
     "Promo Price": "$19.99",
     "Promo Active": "TRUE",
-    Inventory: "800",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-012-jOh10A5zNm6BKHblXXCVqMIFhqYCdJ.jpeg",
   },
   {
@@ -161,7 +161,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Base Price": 219.99,
     "Promo Price": "",
     "Promo Active": "FALSE",
-    Inventory: "60",
+    Inventory: "in_stock",
     "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-013-rnO6eSnuuRm4UG21CBnbxoJP4jakyb.jpg",
   },
 ];
