@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       return apiError(
         GOOGLE_CONNECTION_REQUIRED,
         "Connect your Google account before using this feature. " +
-          "Visit /api/spike/connect-google to link your account.",
+          "Visit /api/auth/connect-google to link your account.",
         403,
       );
     }

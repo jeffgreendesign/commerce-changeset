@@ -1,13 +1,8 @@
 /**
+ * @deprecated Use /api/auth/connect-google instead.
+ *
  * Spike route: Connected Accounts flow for Token Vault.
- *
- * Links the user's Google account via Auth0 Connected Accounts so that
- * Token Vault stores the Google refresh token for federated token exchange.
- *
- * Requires: own Google OAuth credentials (not Auth0 dev keys) on the
- * google-oauth2 connection.
- *
- * NOT production code — throwaway spike.
+ * Gated behind ENABLE_SPIKE=true in production.
  */
 
 import { NextResponse } from "next/server";
