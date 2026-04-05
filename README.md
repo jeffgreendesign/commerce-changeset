@@ -113,7 +113,11 @@ Transparency for reviewers: this table describes what runs against live APIs vs.
 | Verify-after-write read-back | Live — Reader Agent re-reads Sheets post-write |
 | Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values (real voice input not used in demo) |
 | Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
-| Product data (Google Sheet) | Reference dataset — sample commerce catalog, not production inventory |
+| Product data (Google Sheet) | Reference dataset — [sample commerce catalog](https://docs.google.com/spreadsheets/d/1su_DDvgDeA_B9zb-mc4eGl-tXlSUBS0Qd_bh5T3eLxE/edit?usp=sharing), not production inventory |
+
+## Production Portability
+
+Google Sheets serves as the data-plane reference implementation — a real API with real OAuth scopes that demonstrates the full Token Vault OBO delegation chain. Today the Reader and Writer tools call the Google Sheets API directly and select a `google-oauth2` Token Vault connection; there is no data-source abstraction layer yet. The target architecture introduces a data-source adapter interface so the same agent pipeline ports to Shopify Admin GraphQL, any REST/GraphQL ERP, or a PIM system by swapping tool implementations. The policy engine, CIBA approval flow, OBO delegation chain, and audit receipt pipeline are designed to be data-plane independent — adapterizing the Reader/Writer tools and adding pluggable Token Vault connectors are planned next steps.
 
 ## Challenges
 
