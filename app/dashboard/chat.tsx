@@ -67,6 +67,67 @@ interface Message {
   interim?: boolean;
 }
 
+/** Keys that are part of basic transcript state — everything else is structured content. */
+const TRANSCRIPT_KEYS = new Set(["role", "content", "interim"]);
+
+/** True if the message carries structured metadata (changeset, readResult, etc.). */
+function hasStructuredContent(msg: Message): boolean {
+  return Object.keys(msg).some(
+    (k) => !TRANSCRIPT_KEYS.has(k) && msg[k as keyof Message] != null,
+  );
+}
+
+/**
+ * Merge an incremental transcript delta into the message list.
+ *
+ * Gemini Live sends output transcription as small text deltas (a word or
+ * few words at a time). This helper accumulates them into a single chat
+ * bubble and finalizes it when the model's turn is complete.
+ */
+function mergeTranscriptChunk(
+  prev: Message[],
+  textDelta: string,
+  turnComplete: boolean,
+  accRef: React.MutableRefObject<string>,
+): Message[] {
+  const last = prev[prev.length - 1];
+  const isInterim = last?.role === "assistant" && last.interim;
+  const isStructured = last?.role === "assistant" && hasStructuredContent(last);
+
+  // Decide whether to start a new bubble or continue the current one
+  const needsNewBubble =
+    !isInterim && (isStructured || last?.role === "user" || last?.role !== "assistant");
+
+  if (needsNewBubble) {
+    // Reset accumulator and start a fresh bubble
+    accRef.current = textDelta;
+  } else if (isInterim) {
+    // Continue accumulating into existing interim bubble
+    accRef.current += textDelta;
+  } else if (last?.role === "assistant") {
+    // Append to finalized plain-text bubble from a prior turn
+    accRef.current = last.content + textDelta;
+  }
+
+  // Empty accumulator and no existing bubble to finalize — nothing to do
+  if (!accRef.current && !isInterim) return prev;
+
+  const newMsg: Message = {
+    role: "assistant",
+    content: accRef.current,
+    ...(turnComplete ? {} : { interim: true as const }),
+  };
+
+  if (needsNewBubble) {
+    return textDelta ? [...prev, newMsg] : prev;
+  }
+
+  // Update existing bubble in-place
+  const updated = [...prev];
+  updated[updated.length - 1] = newMsg;
+  return updated;
+}
+
 interface OrchestratorResponse {
   changeSet: ChangeSet | null;
   reasoning: string;
@@ -425,85 +486,47 @@ export function Chat({ chatId }: ChatProps) {
     return () => unregisterToolHandler(chatToolHandler);
   }, [registerToolHandler, unregisterToolHandler, chatToolHandler]);
 
+  // User transcript uses its own accumulator (same delta pattern as model)
+  const userTranscriptAccRef = useRef("");
+
   useEffect(() => {
     registerTranscriptCallbacks({
-      onUserTranscript: (text: string, finished: boolean) => {
+      onUserTranscript: (textDelta: string, turnComplete: boolean) => {
         setMessages((prev) => {
-          if (!finished) {
-            // Interim: update last in-progress user message or create one
-            const last = prev[prev.length - 1];
-            if (last?.role === "user" && last.interim) {
-              const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: text };
-              return updated;
-            }
-            return [...prev, { role: "user" as const, content: text, interim: true }];
-          }
-          // Final: replace interim message or push finalized
           const last = prev[prev.length - 1];
-          if (last?.role === "user" && last.interim) {
+          const isInterim = last?.role === "user" && last.interim;
+
+          if (textDelta) userTranscriptAccRef.current += textDelta;
+
+          if (isInterim) {
             const updated = [...prev];
-            updated[updated.length - 1] = { role: "user", content: text };
+            updated[updated.length - 1] = {
+              role: "user",
+              content: userTranscriptAccRef.current,
+              ...(turnComplete ? {} : { interim: true as const }),
+            };
             return updated;
           }
-          return [...prev, { role: "user" as const, content: text }];
+
+          if (!textDelta && !isInterim) return prev;
+
+          // Start new user bubble
+          userTranscriptAccRef.current = textDelta;
+          return [
+            ...prev,
+            {
+              role: "user" as const,
+              content: userTranscriptAccRef.current,
+              ...(turnComplete ? {} : { interim: true as const }),
+            },
+          ];
         });
         scrollToBottom();
       },
-      onModelTranscript: (text: string, finished: boolean) => {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          const isInterim = last?.role === "assistant" && last.interim;
-          const hasStructured = last?.role === "assistant" && (last.changeSet || last.readResult);
-
-          if (!finished) {
-            if (isInterim) {
-              // Same or continuing utterance — combine accumulated prefix with current chunk
-              const combined = modelTranscriptAccRef.current
-                ? modelTranscriptAccRef.current + " " + text
-                : text;
-              const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: combined };
-              return updated;
-            }
-            if (hasStructured || last?.role === "user") {
-              // After changeset/readResult/user message — start a new bubble
-              modelTranscriptAccRef.current = "";
-              return [...prev, { role: "assistant" as const, content: text, interim: true }];
-            }
-            if (last?.role === "assistant") {
-              // Finalized transcript from a prior utterance — append, don't replace
-              modelTranscriptAccRef.current = last.content;
-              const combined = last.content + " " + text;
-              const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: combined, interim: true };
-              return updated;
-            }
-            // No prior assistant message — new bubble
-            modelTranscriptAccRef.current = "";
-            return [...prev, { role: "assistant" as const, content: text, interim: true }];
-          }
-
-          // finished === true — finalize the utterance
-          if (isInterim) {
-            const combined = modelTranscriptAccRef.current
-              ? modelTranscriptAccRef.current + " " + text
-              : text;
-            modelTranscriptAccRef.current = combined;
-            const updated = [...prev];
-            updated[updated.length - 1] = { role: "assistant", content: combined };
-            return updated;
-          }
-          if (last?.role === "assistant" && !hasStructured) {
-            const combined = last.content + " " + text;
-            modelTranscriptAccRef.current = combined;
-            const updated = [...prev];
-            updated[updated.length - 1] = { ...last, content: combined };
-            return updated;
-          }
-          modelTranscriptAccRef.current = text;
-          return [...prev, { role: "assistant" as const, content: text }];
-        });
+      onModelTranscript: (textDelta: string, turnComplete: boolean) => {
+        setMessages((prev) =>
+          mergeTranscriptChunk(prev, textDelta, turnComplete, modelTranscriptAccRef),
+        );
         scrollToBottom();
       },
     });
@@ -774,6 +797,7 @@ export function Chat({ chatId }: ChatProps) {
       setDraftChangeSet(null); draftChangeSetRef.current = null;
       setPhase("loading");
       modelTranscriptAccRef.current = "";
+      userTranscriptAccRef.current = "";
 
       const userMessage: Message = { role: "user", content: prompt };
       setMessages((prev) => [...prev, userMessage]);

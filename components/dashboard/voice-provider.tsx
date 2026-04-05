@@ -44,8 +44,8 @@ export type ViewToolHandler = (
 
 /** Callbacks views can register for transcript events. */
 export interface TranscriptCallbacks {
-  onUserTranscript?: (text: string, finished: boolean) => void;
-  onModelTranscript?: (text: string, finished: boolean) => void;
+  onUserTranscript?: (text: string, turnComplete: boolean) => void;
+  onModelTranscript?: (text: string, turnComplete: boolean) => void;
 }
 
 export interface VoiceContextValue {
