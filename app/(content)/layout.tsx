@@ -13,7 +13,7 @@ export default function ContentLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-dvh flex-col overflow-y-auto bg-[oklch(0.15_0_0)] text-white [--border:oklch(1_0_0/12%)] [--foreground:oklch(0.95_0_0)] [--muted-foreground:oklch(0.65_0_0)]">
+    <div className="dark flex h-dvh flex-col overflow-y-auto bg-[oklch(0.15_0_0)] text-white [--border:oklch(1_0_0/12%)] [--foreground:oklch(0.95_0_0)] [--muted-foreground:oklch(0.65_0_0)]">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[oklch(0.15_0_0/80%)] pt-safe [-webkit-backdrop-filter:blur(12px)_saturate(1.4)] [backdrop-filter:blur(12px)_saturate(1.4)]">
         <div
           className="header-gradient-line absolute inset-x-0 top-0 h-px"
