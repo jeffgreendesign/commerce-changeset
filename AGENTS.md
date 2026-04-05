@@ -91,6 +91,14 @@ public/               — Static assets (SVGs)
 - **PR expectations:** PR descriptions must explain what changed and why. Keep PRs focused on one logical change.
 - **Logging:** Use `console.error` for errors that need attention. Avoid verbose console.log in production code paths.
 
+## Changelog
+
+- **Every PR that changes code must update `CHANGELOG.md`.** CI enforces this via `.github/workflows/changelog-check.yml`.
+- Add entries under `## [Unreleased]` using the existing categories: Features, Fixes, Content, Refactoring, Style, Chores, Docs, Security.
+- Format: `- Description of what changed (PR \`#N\`)` — include the PR number when available.
+- Docs-only PRs (only `.md` files changed) are automatically exempt.
+- If a PR truly doesn't need a changelog entry (CI-only, refactor), add the `skip-changelog` label instead.
+
 ## Auth0 Integration
 
 Auth0 v4 uses a middleware-based pattern (not the legacy `handleAuth()` route handler).

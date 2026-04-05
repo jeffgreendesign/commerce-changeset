@@ -6,18 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Security
+### Features
 
-- Narrow Reader Agent OAuth scope from `spreadsheets` to `spreadsheets.readonly` (per-agent scope isolation)
-
-### Content
-
-- Add OAuth scope badges to About page (Reader read-only, Writer read-write, Notifier send-only)
-- Update blog post: move per-agent scope isolation from future work to accomplishment
-
-### Docs
-
-- Restructure README for Devpost submission format (problem statement, architecture, Auth0 integration narrative)
+- Add demo mode with 4 complete scenarios, mock Auth0 login, Claude Sonnet 4.6 (PR `#30`)
+- Add homepage redesign: demo-focused dark landing with animated pipeline (PR `#31`)
+- Add mobile dashboard CTAs: long-press product actions + FAB for bulk actions (PR `#32`)
+- Add persistent voice agent across view navigation (PR `#43`)
+- Add password-gated judges login for competition access (PR `#44`)
+- Add enriched demo data to exercise all agent tools and proactive checks (PR `#45`)
+- Add Token Vault visibility in demo mode with phase annotations (PR `#39`)
+- Add Agent Activity panel wired to chat interaction traces (PR `#41`)
+- Add timeline panel with persistent history, session-scoped stats, schema validation (PR `#36`)
+- Add CTA button animations: iridescent glow, FAB pulse, risk dot animation (PR `#35`)
+- Add chat-style bottom action bar replacing workspace IntentBar (PR `#42`)
+- Add product image support via Vercel Blob URLs in Google Sheet (PR `#29`)
+- Add architecture diagram (static SVG + React component) (PR `#38`)
+- Add demo step delays for sequential execution feel (PR `#34`)
+- Add Image URL to writer/orchestrator schema (PR `#33`)
 
 ### Fixes
 
@@ -25,6 +30,58 @@ All notable changes to this project will be documented in this file.
 - Add error handling and logging to Gemini Live tool response pipeline to prevent silent failures (PR `#29`)
 - Add toast notifications and haptic feedback to voice-triggered execution paths (PR `#29`)
 - Fix aria-hidden focus conflict when inspector sheet opens on mobile (PR `#29`)
+- Fix price update sync: target matching and cross-view state propagation (PR `#27`)
+- Fix taskbar bottom padding on desktop and mobile (PR `#55`)
+- Fix pipeline line width to span exactly between first and last dots (PR `#54`)
+- Fix workspace-provider error parsing for nested apiError shape (PR `#50`)
+- Add distinct CIBA denial handling across executor, UI, and demo (PR `#51`)
+- Fix voice panel UI polish — 5 issues from live mobile testing (PR `#43`)
+- Fix mobile dock overflow, demo affect, voice glow cutoff (PR `#42`)
+- Fix voice UI: prismatic mic glow, centered dock, demo affect (PR `#40`)
+- Fix demo annotation phase lag, suppress mutation-only UI on read-only paths (PR `#39`)
+- Fix stepper alignment, Zod validation, browser back-button navigation (PR `#37`)
+- Fix timeline hydration mismatch via useSyncExternalStore (PR `#36`)
+- Fix inventory displaying "0 units" instead of status labels (PR `#33`)
+- Fix iOS Safari long-press callout on product tiles (PR `#32`)
+- Fix homepage scroll with h-dvh container (PR `#31`)
+- Fix blank /demo page proxy bypass (PR `#30`)
+- Fix hackathon references to correct name and Devpost link (PR `#57`)
+
+### Content
+
+- Add OAuth scope badges to About page (Reader read-only, Writer read-write, Notifier send-only)
+- Update blog post: move per-agent scope isolation from future work to accomplishment
+- Add blog post: "How We Use Auth0 for AI Agents" (PR `#39`)
+
+### Refactoring
+
+- Add shared `apiError()` helper and standardize API error responses (PR `#50`)
+- Extract `filterSuccessfulOps` helper and fix bulk op diff matching (PR `#27`)
+- Extract `showExecutionFeedback` helper to deduplicate toast/haptic logic (PR `#29`)
+- Code-split demo components and render loading-phase annotations (PR `#39`)
+- Unify sidebar: always-visible Rail across all views (PR `#29`)
+
+### Chores
+
+- Add policy engine unit tests with vitest (PR `#47`)
+- Add boundary threshold tests for bulk-write and price-change rules (PR `#49`)
+- Add lint-staged; scope security check to staged files only
+- Sync mock product catalog and data with live Google Sheet (PRs `#33`, `#53`)
+
+### Docs
+
+- Restructure README for Devpost submission format (problem statement, architecture, Auth0 integration narrative)
+- Add "What Is Real vs. Simulated" section to README (PR `#48`)
+- Add screenshot placeholders to README for Devpost submission (PR `#46`)
+- Add Production Portability section to README (PR `#53`)
+- Update README What's Next with conversation persistence and durable execution (PR `#52`)
+
+### Security
+
+- Narrow Reader Agent OAuth scope from `spreadsheets` to `spreadsheets.readonly` (per-agent scope isolation)
+- Harden judges login with zod validation, timing-safe compare, HttpOnly cookie (PR `#44`)
+- Replace static judge cookie with HMAC-signed token (PR `#44`)
+- Require non-empty changesetId via zod before execute/approve (PR `#43`)
 
 ## [0.2.0] — 2026-03-31
 
