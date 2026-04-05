@@ -59,6 +59,7 @@ function DashboardContent({ userName }: { userName: string }) {
               {userName}
             </span>
             <ThemeToggle />
+            <DemoAnnotationToggle className="hidden sm:inline-flex" />
             <a
               href="/auth/logout"
               className="inline-flex min-h-[44px] items-center px-2 text-muted-foreground underline-offset-4 hover:underline"
@@ -116,7 +117,6 @@ export function DashboardClient({ userName, isDemo = false }: { userName: string
         {isDemo ? (
           <DemoAnnotationProvider>
             {content}
-            <DemoAnnotationToggle />
           </DemoAnnotationProvider>
         ) : (
           content
