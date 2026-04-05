@@ -104,10 +104,10 @@ Transparency for reviewers: this table describes what runs against live APIs vs.
 | Google Sheets read/write | Live — real Google Sheets API calls |
 | Gmail notification send | Live — real Gmail API via Token Vault OBO |
 | CIBA + Guardian push approval | Live — real push notification to Auth0 Guardian app |
-| Policy engine (7 rules, json-rules-engine) | Live — evaluated on every operation |
+| Policy engine (7 rules, json-rules-engine) | Live — evaluated on every operation (real-time rules engine) |
 | SHA-256 audit hash | Live — computed over real delegation chain |
 | Verify-after-write read-back | Live — Reader Agent re-reads Sheets post-write |
-| Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values |
+| Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values (real voice input not used in demo) |
 | Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
 | Product data (Google Sheet) | Reference dataset — sample commerce catalog, not production inventory |
 
