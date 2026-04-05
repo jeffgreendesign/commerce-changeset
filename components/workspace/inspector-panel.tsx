@@ -328,11 +328,14 @@ function InspectorContent({
                       <span className="font-medium">Reason:</span>{" "}
                       {highestTierOp.policyExplanation.reason}
                     </p>
-                    {getEscalationExplanation(highestTierOp.policyExplanation.ruleName) && (
-                      <p className="italic text-muted-foreground/80">
-                        {getEscalationExplanation(highestTierOp.policyExplanation.ruleName)}
-                      </p>
-                    )}
+                    {(() => {
+                      const escalationNote = getEscalationExplanation(highestTierOp.policyExplanation.ruleName);
+                      return escalationNote ? (
+                        <p className="italic text-muted-foreground/80">
+                          {escalationNote}
+                        </p>
+                      ) : null;
+                    })()}
                   </div>
                 )}
               </div>

@@ -294,11 +294,14 @@ export default function AboutPage() {
         </p>
         <p className="mt-3 leading-relaxed text-muted-foreground">
           When no voice context exists, the system falls back to standard policy
-          evaluation with no behavioral penalty. Voice-derived signals are
-          ephemeral session metadata: no audio recordings are stored, no
-          biometric profiles are built, and no data leaves the session boundary.
-          The sidecar model emits a scalar stress estimate and discards the
-          audio stream.
+          evaluation with no behavioral penalty. Raw audio is never stored and
+          no biometric profiles are built &mdash; the sidecar model emits a
+          scalar stress estimate and discards the audio stream. Aggregated
+          session metadata (stress averages, session duration, timing) is
+          persisted for longitudinal pattern detection &mdash; for example,
+          surfacing that certain days or times of day tend to be more stressful.
+          This persistence is used only for secure, aggregated analysis and the
+          user can opt out of session history at any time.
         </p>
         <p className="mt-3 leading-relaxed text-muted-foreground">
           The user can disable voice-aware escalation at any time without
