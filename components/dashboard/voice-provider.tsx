@@ -21,6 +21,7 @@ import {
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { UseGeminiLiveReturn } from "@/lib/hooks/use-gemini-live";
 import { useLayout } from "@/components/dashboard/layout-shell";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { ACTIVE_VIEWS, type ActiveView } from "@/lib/navigation-types";
 import type { PipelinePhase } from "@/lib/pipeline-phase";
 import type {
@@ -138,6 +139,7 @@ function demoStressFromPhase(phase: PipelinePhase): number {
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const { activeView, setActiveView } = useLayout();
+  const { products, select } = useWorkspace();
 
   // Refs for tool routing — avoids stale closures
   const activeViewRef = useRef<ActiveView>(activeView);
@@ -149,6 +151,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setActiveViewRef.current = setActiveView;
   }, [setActiveView]);
+
+  const productsRef = useRef(products);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
+
+  const selectRef = useRef(select);
+  useEffect(() => {
+    selectRef.current = select;
+  }, [select]);
 
   // View-specific tool handler (registered by the active view)
   const toolHandlerRef = useRef<ViewToolHandler | null>(null);
@@ -191,6 +203,61 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
         return {
           error: `Invalid view: ${String(view)}. Valid views: ${ACTIVE_VIEWS.join(", ")}`,
+        };
+      }
+
+      // select_product — open a product in the workspace inspector (instant, no API call)
+      if (name === "select_product") {
+        const identifier = args.identifier;
+        if (typeof identifier !== "string" || !identifier.trim()) {
+          return { error: "Missing product identifier (SKU or name)" };
+        }
+
+        const query = identifier.trim().toLowerCase();
+        const allProducts = productsRef.current;
+
+        if (allProducts.length === 0) {
+          return { error: "No products loaded yet. Please wait for the workspace to finish loading." };
+        }
+
+        // Match strategy: exact SKU > SKU prefix > exact name > name substring
+        let match = allProducts.find((p) => p.sku.toLowerCase() === query);
+        if (!match) {
+          match = allProducts.find((p) => p.sku.toLowerCase().startsWith(query));
+        }
+        if (!match) {
+          match = allProducts.find((p) => p.name.toLowerCase() === query);
+        }
+        if (!match) {
+          match = allProducts.find((p) => p.name.toLowerCase().includes(query));
+        }
+
+        if (!match) {
+          const skus = allProducts.map((p) => `${p.sku} (${p.name})`).join(", ");
+          return {
+            error: `No product found matching "${identifier}". Available products: ${skus}`,
+          };
+        }
+
+        // Navigate to workspace if not already there
+        if (activeViewRef.current !== "workspace") {
+          setActiveViewRef.current("workspace");
+        }
+
+        // Select the product (opens InspectorPanel)
+        selectRef.current(match.id);
+
+        return {
+          success: true,
+          message: `Opened ${match.name} (${match.sku}) in the workspace inspector.`,
+          product: {
+            name: match.name,
+            sku: match.sku,
+            price: match.price,
+            promoPrice: match.promoPrice,
+            inventory: match.inventory,
+            promoStatus: match.promoStatus,
+          },
         };
       }
 
