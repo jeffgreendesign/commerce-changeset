@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Chores
+
+- Sync demo scenario receipts with production executor: add `create_product` to writer toolsGranted, `send_execution_receipt` to notifier toolsGranted
+- Restore production-matching mixed numeric/flag inventory values in mock data
+- Update AGENTS.md file structure to reflect all current app routes, components, and lib modules
+- Update AGENTS.md and llms.txt agent descriptions: add `create_product` (writer) and `send_execution_receipt` (notifier)
+- Document Google Sheets data contract and inventory dual-format model in AGENTS.md
+
 ### Features
 
 - Add demo mode with 4 complete scenarios, mock Auth0 login, Claude Sonnet 4.6 (PR `#30`)
