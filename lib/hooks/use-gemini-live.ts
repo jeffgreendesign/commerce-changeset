@@ -600,11 +600,11 @@ export function useGeminiLive(
       };
 
       // Trigger the model's initial greeting from the system instruction.
-      // Placed after audio pipeline is wired so mic audio is already flowing
-      // when the model starts responding. Wrapped in try-catch so a failure
-      // doesn't tear down the session (model will respond to audio instead).
+      // Uses sendRealtimeInput (same mode as audio) to avoid mixing with
+      // sendClientContent, which causes 1007 "invalid argument" when audio
+      // is also flowing via sendRealtimeInput.
       try {
-        primarySession.sendClientContent({ turnComplete: true });
+        primarySession.sendRealtimeInput({ text: " " });
       } catch {
         // Non-critical — model will respond once it receives audio input
       }
