@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Chores
+
+- Sync demo scenario receipts with production executor: add `create_product` to writer toolsGranted, `send_execution_receipt` to notifier toolsGranted
+- Fix mock product inventory values: replace numeric strings with valid status flags (`in_stock`, `low_stock`, etc.)
+- Update AGENTS.md file structure to reflect all current app routes, components, and lib modules
+- Update AGENTS.md and llms.txt agent descriptions: add `create_product` (writer) and `send_execution_receipt` (notifier)
+
 ### Features
 
 - Add demo mode with 4 complete scenarios, mock Auth0 login, Claude Sonnet 4.6 (PR `#30`)
