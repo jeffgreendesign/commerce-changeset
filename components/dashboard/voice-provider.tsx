@@ -233,9 +233,15 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
 
         if (!match) {
-          const skus = allProducts.map((p) => `${p.sku} (${p.name})`).join(", ");
+          const MAX_PREVIEW = 10;
+          const preview = allProducts.slice(0, MAX_PREVIEW);
+          const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
+          const suffix =
+            allProducts.length > MAX_PREVIEW
+              ? ` and ${allProducts.length - MAX_PREVIEW} more — try a more specific name or SKU`
+              : "";
           return {
-            error: `No product found matching "${identifier}". Available products: ${skus}`,
+            error: `No product found matching "${identifier}". Available products: ${skus}${suffix}`,
           };
         }
 
