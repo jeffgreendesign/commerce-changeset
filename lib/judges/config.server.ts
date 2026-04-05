@@ -6,24 +6,20 @@
  */
 
 import crypto from "node:crypto";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { JUDGE_COOKIE_NAME } from "./config";
-import { DEMO_HEADER_NAME } from "@/lib/demo/config";
 
 /**
- * Check if the current request has a valid, signed judge session cookie
- * AND the x-demo-session request header.
+ * Check if the current request has a valid, signed judge session cookie.
  *
- * The header requirement prevents the judge cookie from leaking into
- * production routes — same defense-in-depth as isDemoSession().
+ * Header-level demo gating is handled by isDemoSession() in
+ * lib/demo/config.server.ts, which checks x-demo-session before
+ * calling this function. This avoids a redundant header read.
  *
  * The cookie value is "expiry.hmac" where hmac = HMAC-SHA256(JUDGE_ACCESS_CODE, expiry).
- * Returns true only if the header is present, signature is valid, and the token has not expired.
+ * Returns true only if the signature is valid and the token has not expired.
  */
 export async function isJudgeSession(): Promise<boolean> {
-  const headerStore = await headers();
-  if (headerStore.get(DEMO_HEADER_NAME) !== "1") return false;
-
   const cookieStore = await cookies();
   const token = cookieStore.get(JUDGE_COOKIE_NAME)?.value;
   if (!token) return false;

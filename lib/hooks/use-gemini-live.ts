@@ -601,7 +601,7 @@ export function useGeminiLive(
       mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
       mediaStreamRef.current = null;
     }
-  }, [handlePrimaryMessage, handleSidecarMessage, isDemo]);
+  }, [handlePrimaryMessage, isDemo]);
 
   // ── Disconnect ───────────────────────────────────────────────────
 
