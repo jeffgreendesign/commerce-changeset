@@ -692,9 +692,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             ? `\n\nSelected products: ${selectedProducts.map((p) => `${p.name} (${p.sku})`).join(", ")}`
             : "";
 
+        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (isDemo) fetchHeaders["x-demo-session"] = "1";
         const res = await fetch("/api/orchestrator", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: fetchHeaders,
           body: JSON.stringify({ message: text + context }),
         });
 
@@ -720,7 +722,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return null;
       }
     },
-    [products, selectedIds],
+    [products, selectedIds, isDemo],
   );
 
   const submitIntentForProduct = useCallback(
@@ -739,9 +741,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
         const context = `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`;
 
+        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (isDemo) fetchHeaders["x-demo-session"] = "1";
         const res = await fetch("/api/orchestrator", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: fetchHeaders,
           body: JSON.stringify({ message: text + context }),
         });
 
@@ -767,7 +771,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return null;
       }
     },
-    [products],
+    [products, isDemo],
   );
 
   const executeChangeset = useCallback(async (overrideCs?: ChangeSet): Promise<{ success: boolean; status?: string; error?: string }> => {
@@ -781,9 +785,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPhase("executing");
     setExecutionError(null);
     try {
+      const execHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (isDemo) execHeaders["x-demo-session"] = "1";
       const res = await fetch("/api/orchestrator/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: execHeaders,
         body: JSON.stringify({ changeSet: cs }),
       });
       if (!res.ok) {
@@ -844,7 +850,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       executeInFlightRef.current = false;
       return { success: false, status: "failed", error: msg };
     }
-  }, [draftChangeset]);
+  }, [draftChangeset, isDemo]);
 
   const cancelDraft = useCallback(() => {
     setDraftChangeset(null);
