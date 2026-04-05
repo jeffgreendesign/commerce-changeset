@@ -694,7 +694,7 @@
   padding-top: env(safe-area-inset-top, 0px);
 }
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 .pl-safe {
   padding-left: env(safe-area-inset-left, 0px);
