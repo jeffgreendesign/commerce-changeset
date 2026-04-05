@@ -50,7 +50,7 @@ export default async function Home() {
   const session = await auth0.getSession();
 
   return (
-    <div className="flex h-dvh flex-col overflow-y-auto bg-[oklch(0.08_0_0)] text-white">
+    <div className="dark flex h-dvh flex-col overflow-y-auto bg-[oklch(0.08_0_0)] text-white">
       {/* ── Nav ─────────────────────────────────────────────────── */}
       <nav className="flex items-center justify-between px-6 py-4 sm:px-10">
         <span className="font-mono text-xs font-medium tracking-wide">
@@ -81,7 +81,7 @@ export default async function Home() {
           Changeset
         </h1>
 
-        <p className="mt-6 max-w-lg text-center font-mono text-sm leading-relaxed text-white/50 sm:text-base">
+        <p className="mt-6 max-w-lg text-center font-mono text-sm leading-relaxed text-white/60 sm:text-base">
           Multi-agent commerce operations &mdash; pricing, promotions,
           inventory &mdash; through auditable, authorization-gated AI workflows.
         </p>
@@ -150,7 +150,7 @@ export default async function Home() {
       </section>
 
       {/* ── Features ────────────────────────────────────────────── */}
-      <section className="border-t border-white/10 px-6 py-20 sm:py-28">
+      <section className="border-t border-border px-6 py-20 sm:py-28">
         <div className="mx-auto grid max-w-4xl gap-10 sm:grid-cols-2 sm:gap-8">
           {features.map((f, i) => (
             <div
@@ -163,7 +163,7 @@ export default async function Home() {
               >
                 {f.label.toUpperCase()}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/50">
+              <p className="mt-2 text-sm leading-relaxed text-white/60">
                 {f.description}
               </p>
             </div>
@@ -172,8 +172,8 @@ export default async function Home() {
       </section>
 
       {/* ── Second CTA ──────────────────────────────────────────── */}
-      <section className="border-t border-white/10 px-6 py-16 text-center">
-        <p className="font-mono text-[11px] tracking-[0.2em] text-white/30">
+      <section className="border-t border-border px-6 py-16 text-center">
+        <p className="font-mono text-[11px] tracking-[0.2em] text-white/60">
           NO SIGN-UP REQUIRED
         </p>
         <Link
@@ -182,24 +182,24 @@ export default async function Home() {
         >
           Try the Demo &rarr;
         </Link>
-        <div className="mt-6 flex items-center justify-center gap-4 text-sm text-white/25">
+        <div className="mt-6 flex items-center justify-center gap-4 text-sm text-white/60">
           <Link
             href="/about"
-            className="transition-colors hover:text-white/50"
+            className="transition-colors hover:text-white/80"
           >
             How it works
           </Link>
           <span aria-hidden="true">&middot;</span>
           <Link
             href="/blog"
-            className="transition-colors hover:text-white/50"
+            className="transition-colors hover:text-white/80"
           >
             Blog
           </Link>
           <span aria-hidden="true">&middot;</span>
           <Link
             href="/changelog"
-            className="transition-colors hover:text-white/50"
+            className="transition-colors hover:text-white/80"
           >
             Changelog
           </Link>
