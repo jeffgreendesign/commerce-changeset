@@ -34,6 +34,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixes
 
+- Fix bottom bar button/input height mismatch on desktop (Send and Mic buttons now match input height at sm+ breakpoint)
 - Fix missing voice and visual feedback after changeset execution via voice approval (PR `#29`)
 - Add error handling and logging to Gemini Live tool response pipeline to prevent silent failures (PR `#29`)
 - Add toast notifications and haptic feedback to voice-triggered execution paths (PR `#29`)
