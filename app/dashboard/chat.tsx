@@ -155,6 +155,8 @@ export function Chat({ chatId }: ChatProps) {
   const demoAnnotations = useDemoAnnotations();
   // Load persisted session once so all initializers can use it
   const [restoredSession] = useState(() => loadSession(chatId));
+  // Don't restore draft state from a denied session — user should start fresh
+  const restoreDraft = restoredSession?.phase !== "denied";
 
   const [messages, setMessages] = useState<Message[]>(() => {
     if (restoredSession?.messages) {
@@ -183,15 +185,15 @@ export function Chat({ chatId }: ChatProps) {
   });
   const [error, setError] = useState("");
   const [draftChangeSet, setDraftChangeSet] = useState<ChangeSet | null>(
-    () => restoredSession?.draftChangeSet ?? null,
+    () => restoreDraft ? (restoredSession?.draftChangeSet ?? null) : null,
   );
   // Ref mirrors draftChangeSet for synchronous access in voice tool handlers,
   // bypassing stale closures when Gemini batches submit + execute calls.
   const draftChangeSetRef = useRef<ChangeSet | null>(
-    restoredSession?.draftChangeSet ?? null,
+    restoreDraft ? (restoredSession?.draftChangeSet ?? null) : null,
   );
   const [draftReasoning, setDraftReasoning] = useState(
-    () => restoredSession?.draftReasoning ?? "",
+    () => restoreDraft ? (restoredSession?.draftReasoning ?? "") : "",
   );
   const [activeRollbackId, setActiveRollbackId] = useState<string | null>(null);
   const [cibaApproved, setCibaApproved] = useState(false);
@@ -622,6 +624,23 @@ export function Chat({ chatId }: ChatProps) {
       }
 
       const execData: ExecuteChangeSetResult = await execRes.json();
+
+      // Handle CIBA denial during rollback
+      if (execData.error?.code === "access_denied" || execData.changeSet.status === "denied") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Approval was denied. No changes were made.",
+            changeSet: execData.changeSet,
+          },
+        ]);
+        setActiveRollbackId(null);
+        setPhase("denied");
+        toast.warning("CIBA approval denied — no changes were made");
+        scrollToBottom();
+        return;
+      }
 
       if (execData.error) {
         throw new Error(execData.error.message);

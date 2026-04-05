@@ -26,7 +26,7 @@ export interface DemoScenario {
   changeSet: ChangeSet;
   reasoning: string;
   readerText: string;
-  executionResult: ChangeSetExecution;
+  executionResult?: ChangeSetExecution;
   /** When set, the demo execute route simulates this outcome instead of success. */
   demoOutcome?: "denied";
 }
@@ -846,13 +846,6 @@ function buildScenario8(): DemoScenario {
     },
   };
 
-  // Execution result is never used (denial prevents execution), but required by interface
-  const results: OperationResult[] = allOps.map((op) => ({
-    operationId: op.id,
-    status: "success" as const,
-    duration: 0,
-  }));
-
   return {
     id: "scenario-8",
     name: "Summer Collection denial",
@@ -862,15 +855,6 @@ function buildScenario8(): DemoScenario {
       "Lowering all Summer Collection prices by 40% affects 4 products (Urban Walk, Weekend Jogger, Performance Hoodie, Compression Tights). The >25% price reduction escalates this to BULK tier, requiring CIBA push approval.",
     readerText:
       "Summer Collection products: Urban Walk ($89.99), Weekend Jogger ($79.99), Performance Hoodie ($89.99), Compression Tights ($64.99). None currently have active promotions.",
-    executionResult: {
-      executedAt: now(),
-      results,
-      receipt: makeReceipt(
-        csId,
-        allOps.map((o) => ({ id: o.id, action: o.action })),
-        []
-      ),
-    },
     demoOutcome: "denied",
   };
 }

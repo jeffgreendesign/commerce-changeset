@@ -35,7 +35,7 @@ async function haikuClassify(prompt: string): Promise<DemoScenario | null> {
           .describe("Index of the best-matching scenario, or null if none fit"),
       }),
       system:
-        "Pick the closest scenario (0-6) for the user's commerce request, or null if none match.\n" +
+        "Pick the closest scenario (0-7) for the user's commerce request, or null if none match.\n" +
         "0: Single product discount or promo change\n" +
         "1: Bulk price change across multiple products\n" +
         "2: Read-only query about products, prices, or inventory\n" +
