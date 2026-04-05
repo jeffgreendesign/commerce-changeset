@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
+- Add production Google account connection endpoint at `/api/auth/connect-google`
 - Add demo mode with 4 complete scenarios, mock Auth0 login, Claude Sonnet 4.6 (PR `#30`)
 - Add homepage redesign: demo-focused dark landing with animated pipeline (PR `#31`)
 - Add mobile dashboard CTAs: long-press product actions + FAB for bulk actions (PR `#32`)

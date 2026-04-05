@@ -27,6 +27,8 @@ app/
     terms/page.tsx    — Terms of service
   api/auth/[auth0]/
     route.ts          — Auth0 route handler (login, logout, callback)
+  api/auth/connect-google/
+    route.ts          — Google Connected Accounts linking (GET, authenticated)
   api/judges/verify/
     route.ts          — Judge access code verification (POST, constant-time compare)
   api/reader/
