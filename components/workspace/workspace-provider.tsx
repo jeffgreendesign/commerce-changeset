@@ -82,6 +82,9 @@ interface WorkspaceContextValue {
   loading: boolean;
   fetchError: string | null;
   executionError: string | null;
+  /** Informational response when orchestrator returns no operations (read-only query). */
+  infoResponse: { reasoning: string; readerText?: string; suggestions?: string[] } | null;
+  dismissInfo: () => void;
   selectedIds: Set<string>;
   draftChangeset: ChangeSet | null;
   phase: WorkspacePhase;
@@ -136,10 +139,38 @@ const ChangeSetSchema = z.object({
 }).passthrough();
 
 const OrchestratorResponseSchema = z.object({
-  changeSet: ChangeSetSchema,
+  changeSet: ChangeSetSchema.nullable(),
   reasoning: z.string(),
   readerText: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
 });
+
+/**
+ * Resolve an orchestrator response into either a ChangeSet (action) or an
+ * informational response (read-only query / no operations).
+ */
+function resolveOrchestratorResponse(
+  data: z.infer<typeof OrchestratorResponseSchema>,
+  setDraftChangeset: (cs: ChangeSet | null) => void,
+  setInfoResponse: (info: { reasoning: string; readerText?: string; suggestions?: string[] } | null) => void,
+  setPhase: (phase: WorkspacePhase) => void,
+): ChangeSet | null {
+  const { changeSet: rawCs, reasoning, readerText, suggestions } = data;
+
+  // Read-only / informational response (no operations to draft)
+  if (!rawCs || !Array.isArray(rawCs.operations) || rawCs.operations.length === 0) {
+    setDraftChangeset(null);
+    setInfoResponse({ reasoning, readerText, suggestions });
+    setPhase("complete");
+    return null;
+  }
+
+  // Schema validates structural shape; cast through unknown since Zod passthrough
+  // infers a wider type than the full ChangeSet with its deep nested types
+  const cs = rawCs as unknown as ChangeSet;
+  setDraftChangeset(cs);
+  return cs;
+}
 
 const ExecutorResponseSchema = z.object({
   changeSet: ChangeSetSchema,
@@ -453,6 +484,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [chatActivityPhase, setChatActivityPhase] = useState<ChatActivityPhase>("idle");
   const [chatActivityChangeset, setChatActivityChangeset] = useState<ChangeSet | null>(null);
   const [executionError, setExecutionError] = useState<string | null>(null);
+  const [infoResponse, setInfoResponse] = useState<{
+    reasoning: string;
+    readerText?: string;
+    suggestions?: string[];
+  } | null>(null);
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
 
@@ -645,6 +681,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (text: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
+      setInfoResponse(null);
       setDraftChangeset(null); // clear stale draft immediately
       try {
         const selectedProducts = products.filter((p) =>
@@ -655,9 +692,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             ? `\n\nSelected products: ${selectedProducts.map((p) => `${p.name} (${p.sku})`).join(", ")}`
             : "";
 
+        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (isDemo) fetchHeaders["x-demo-session"] = "1";
         const res = await fetch("/api/orchestrator", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: fetchHeaders,
           body: JSON.stringify({ message: text + context }),
         });
 
@@ -675,31 +714,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setPhase("error");
           return null;
         }
-        // Schema validates structural shape; cast through unknown since Zod passthrough
-        // infers a wider type than the full ChangeSet with its deep nested types
-        const cs = validated.data.changeSet as unknown as ChangeSet;
-        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
-          console.error("[workspace] Orchestrator returned changeset with 0 operations");
-          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
-          setDraftChangeset(null);
-          setPhase("error");
-          return null;
-        }
-        setDraftChangeset(cs);
-        return cs;
+
+        return resolveOrchestratorResponse(validated.data, setDraftChangeset, setInfoResponse, setPhase);
       } catch {
         setDraftChangeset(null);
         setPhase("error");
         return null;
       }
     },
-    [products, selectedIds],
+    [products, selectedIds, isDemo],
   );
 
   const submitIntentForProduct = useCallback(
     async (text: string, productId: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
+      setInfoResponse(null);
       setDraftChangeset(null); // clear stale draft immediately
       try {
         const targetProduct = products.find((p) => p.id === productId);
@@ -711,9 +741,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
         const context = `\n\nSelected products: ${targetProduct.name} (${targetProduct.sku})`;
 
+        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (isDemo) fetchHeaders["x-demo-session"] = "1";
         const res = await fetch("/api/orchestrator", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: fetchHeaders,
           body: JSON.stringify({ message: text + context }),
         });
 
@@ -731,23 +763,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setPhase("error");
           return null;
         }
-        const cs = validated.data.changeSet as unknown as ChangeSet;
-        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
-          console.error("[workspace] Orchestrator returned changeset with 0 operations");
-          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
-          setDraftChangeset(null);
-          setPhase("error");
-          return null;
-        }
-        setDraftChangeset(cs);
-        return cs;
+
+        return resolveOrchestratorResponse(validated.data, setDraftChangeset, setInfoResponse, setPhase);
       } catch {
         setDraftChangeset(null);
         setPhase("error");
         return null;
       }
     },
-    [products],
+    [products, isDemo],
   );
 
   const executeChangeset = useCallback(async (overrideCs?: ChangeSet): Promise<{ success: boolean; status?: string; error?: string }> => {
@@ -761,9 +785,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPhase("executing");
     setExecutionError(null);
     try {
+      const execHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (isDemo) execHeaders["x-demo-session"] = "1";
       const res = await fetch("/api/orchestrator/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: execHeaders,
         body: JSON.stringify({ changeSet: cs }),
       });
       if (!res.ok) {
@@ -824,12 +850,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       executeInFlightRef.current = false;
       return { success: false, status: "failed", error: msg };
     }
-  }, [draftChangeset]);
+  }, [draftChangeset, isDemo]);
 
   const cancelDraft = useCallback(() => {
     setDraftChangeset(null);
     setExecutionError(null);
+    setInfoResponse(null);
     executeInFlightRef.current = false;
+    setPhase("idle");
+  }, []);
+
+  const dismissInfo = useCallback(() => {
+    setInfoResponse(null);
     setPhase("idle");
   }, []);
 
@@ -863,6 +895,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       loading,
       fetchError,
       executionError,
+      infoResponse,
+      dismissInfo,
       selectedIds,
       draftChangeset,
       phase,
@@ -890,6 +924,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       loading,
       fetchError,
       executionError,
+      infoResponse,
+      dismissInfo,
       selectedIds,
       draftChangeset,
       phase,
