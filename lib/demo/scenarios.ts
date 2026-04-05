@@ -672,7 +672,7 @@ function buildScenario6(): DemoScenario {
     reasoning:
       "Applying 90% clearance to Velocity Racer (STR-013) sets promo price to $22.00 on a $219.99 base. This breaches the 15% margin floor and triggers a large-discount warning. The policy escalates to BULK tier due to the >25% price change.",
     readerText:
-      "Velocity Racer (STR-013): Base Price $219.99, no active promo. Inventory: 60 units.",
+      "Velocity Racer (STR-013): Base Price $219.99, no active promo. Inventory: in_stock.",
     executionResult: {
       executedAt: now(),
       results,
