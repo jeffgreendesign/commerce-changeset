@@ -253,6 +253,17 @@ export default function BlogPost() {
           or dual-approver workflows.
         </p>
 
+        <p>
+          An important note on consent: stress and fatigue signals are opt-in,
+          assistive, and escalation-only. They never block an operation &mdash;
+          they add a confirmation step. Voice-derived signals are ephemeral
+          session metadata: no recordings are stored, no biometric profiles are
+          built, and no data leaves the session. The user can disable
+          voice-aware escalation at any time without affecting their base
+          permissions. When no voice context exists, the policy engine evaluates
+          operations with standard rules and zero behavioral penalty.
+        </p>
+
         {/* Audit Trail */}
         <h2 className="mt-10 text-xl font-semibold tracking-tight sm:text-2xl">
           The Audit Trail

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { TIER_CONFIG } from "@/lib/risk-tier-config";
+import { getEscalationExplanation } from "@/lib/policy/escalation-explanation";
 import type { OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { useWorkspace, inventoryLabel } from "./workspace-provider";
@@ -327,6 +328,11 @@ function InspectorContent({
                       <span className="font-medium">Reason:</span>{" "}
                       {highestTierOp.policyExplanation.reason}
                     </p>
+                    {getEscalationExplanation(highestTierOp.policyExplanation.ruleName) && (
+                      <p className="italic text-muted-foreground/80">
+                        {getEscalationExplanation(highestTierOp.policyExplanation.ruleName)}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

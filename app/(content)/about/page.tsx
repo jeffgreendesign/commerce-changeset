@@ -279,6 +279,34 @@ export default function AboutPage() {
         </p>
       </section>
 
+      {/* Consent-First Framing */}
+      <section className="mt-14">
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          Authorization as Cognitive Protection
+        </h2>
+        <p className="mt-2 leading-relaxed text-muted-foreground">
+          Traditional authorization asks whether a user <em>has</em> permission.
+          This system also asks whether the user <em>should exercise</em> that
+          permission right now. Stress and fatigue signals are opt-in, assistive,
+          and escalation-only. They never block an operation or restrict access
+          &mdash; they add a CIBA confirmation step so the user can pause and
+          verify intent before a write executes.
+        </p>
+        <p className="mt-3 leading-relaxed text-muted-foreground">
+          When no voice context exists, the system falls back to standard policy
+          evaluation with no behavioral penalty. Voice-derived signals are
+          ephemeral session metadata: no audio recordings are stored, no
+          biometric profiles are built, and no data leaves the session boundary.
+          The sidecar model emits a scalar stress estimate and discards the
+          audio stream.
+        </p>
+        <p className="mt-3 leading-relaxed text-muted-foreground">
+          The user can disable voice-aware escalation at any time without
+          affecting their base permissions. The system degrades gracefully to
+          standard tier classification &mdash; additive safety, not a gate.
+        </p>
+      </section>
+
       {/* Audit */}
       <section className="mt-14">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
