@@ -145,6 +145,33 @@ const OrchestratorResponseSchema = z.object({
   suggestions: z.array(z.string()).optional(),
 });
 
+/**
+ * Resolve an orchestrator response into either a ChangeSet (action) or an
+ * informational response (read-only query / no operations).
+ */
+function resolveOrchestratorResponse(
+  data: z.infer<typeof OrchestratorResponseSchema>,
+  setDraftChangeset: (cs: ChangeSet | null) => void,
+  setInfoResponse: (info: { reasoning: string; readerText?: string; suggestions?: string[] } | null) => void,
+  setPhase: (phase: WorkspacePhase) => void,
+): ChangeSet | null {
+  const { changeSet: rawCs, reasoning, readerText, suggestions } = data;
+
+  // Read-only / informational response (no operations to draft)
+  if (!rawCs || !Array.isArray(rawCs.operations) || rawCs.operations.length === 0) {
+    setDraftChangeset(null);
+    setInfoResponse({ reasoning, readerText, suggestions });
+    setPhase("complete");
+    return null;
+  }
+
+  // Schema validates structural shape; cast through unknown since Zod passthrough
+  // infers a wider type than the full ChangeSet with its deep nested types
+  const cs = rawCs as unknown as ChangeSet;
+  setDraftChangeset(cs);
+  return cs;
+}
+
 const ExecutorResponseSchema = z.object({
   changeSet: ChangeSetSchema,
 }).passthrough();
@@ -686,21 +713,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return null;
         }
 
-        const { changeSet: rawCs, reasoning, readerText, suggestions } = validated.data;
-
-        // Read-only / informational response (no operations to draft)
-        if (!rawCs || !Array.isArray(rawCs.operations) || rawCs.operations.length === 0) {
-          setDraftChangeset(null);
-          setInfoResponse({ reasoning, readerText, suggestions });
-          setPhase("complete");
-          return null;
-        }
-
-        // Schema validates structural shape; cast through unknown since Zod passthrough
-        // infers a wider type than the full ChangeSet with its deep nested types
-        const cs = rawCs as unknown as ChangeSet;
-        setDraftChangeset(cs);
-        return cs;
+        return resolveOrchestratorResponse(validated.data, setDraftChangeset, setInfoResponse, setPhase);
       } catch {
         setDraftChangeset(null);
         setPhase("error");
@@ -747,19 +760,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return null;
         }
 
-        const { changeSet: rawCs, reasoning, readerText, suggestions } = validated.data;
-
-        // Read-only / informational response (no operations to draft)
-        if (!rawCs || !Array.isArray(rawCs.operations) || rawCs.operations.length === 0) {
-          setDraftChangeset(null);
-          setInfoResponse({ reasoning, readerText, suggestions });
-          setPhase("complete");
-          return null;
-        }
-
-        const cs = rawCs as unknown as ChangeSet;
-        setDraftChangeset(cs);
-        return cs;
+        return resolveOrchestratorResponse(validated.data, setDraftChangeset, setInfoResponse, setPhase);
       } catch {
         setDraftChangeset(null);
         setPhase("error");

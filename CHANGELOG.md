@@ -14,10 +14,6 @@ All notable changes to this project will be documented in this file.
 - Update AGENTS.md and llms.txt agent descriptions: add `create_product` (writer) and `send_execution_receipt` (notifier)
 - Document Google Sheets data contract and inventory dual-format model in AGENTS.md
 
-### Fixes
-
-- Fix workspace intent bar erroring on simple questions / read-only queries instead of showing response text
-
 ### Features
 
 - Add production Google account connection endpoint at `/api/auth/connect-google` (PR `#64`)
@@ -39,6 +35,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixes
 
+- Fix workspace intent bar erroring on simple questions / read-only queries instead of showing response text
 - Fix bottom bar button/input height mismatch on desktop (Send and Mic buttons now match input height at sm+ breakpoint)
 - Fix missing voice and visual feedback after changeset execution via voice approval (PR `#29`)
 - Add error handling and logging to Gemini Live tool response pipeline to prevent silent failures (PR `#29`)

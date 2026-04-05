@@ -142,7 +142,7 @@ export function IntentBar({
         <div className="mx-4 mt-2 rounded-lg border bg-muted/50 p-3 text-sm sm:mx-6 lg:mx-8">
           <p className="text-foreground">{infoResponse.reasoning}</p>
           {infoResponse.readerText && (
-            <pre className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+            <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
               {infoResponse.readerText}
             </pre>
           )}
