@@ -213,6 +213,12 @@ export function Chat({ chatId }: ChatProps) {
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
 
+  // Accumulates model transcript text across Gemini utterances so that
+  // multiple utterances merge into a single chat bubble instead of
+  // fragmenting into many tiny ones. Reset when a non-transcript message
+  // is added (user message, tool result, changeset).
+  const modelTranscriptAccRef = useRef("");
+
   // Compute active annotations locally to avoid one-render lag from context sync
   const localActiveAnnotations = useMemo(() => {
     if (!demoAnnotations?.enabled) return [];
@@ -290,6 +296,8 @@ export function Chat({ chatId }: ChatProps) {
 
   const chatToolHandler: ViewToolHandler = useCallback(
     async (name: string, args: Record<string, unknown>) => {
+      // Reset transcript accumulator before tool results add messages
+      modelTranscriptAccRef.current = "";
       switch (name) {
         case "submit_commerce_change": {
           const res = await fetch("/api/orchestrator", {
@@ -444,33 +452,56 @@ export function Chat({ chatId }: ChatProps) {
       },
       onModelTranscript: (text: string, finished: boolean) => {
         setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          const isInterim = last?.role === "assistant" && last.interim;
+          const hasStructured = last?.role === "assistant" && (last.changeSet || last.readResult);
+
           if (!finished) {
-            // Interim: update last in-progress assistant message or create one
-            const last = prev[prev.length - 1];
-            if (last?.role === "assistant" && last.interim) {
+            if (isInterim) {
+              // Same or continuing utterance — combine accumulated prefix with current chunk
+              const combined = modelTranscriptAccRef.current
+                ? modelTranscriptAccRef.current + " " + text
+                : text;
               const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: text };
+              updated[updated.length - 1] = { ...last, content: combined };
               return updated;
             }
-            if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
+            if (hasStructured || last?.role === "user") {
+              // After changeset/readResult/user message — start a new bubble
+              modelTranscriptAccRef.current = "";
+              return [...prev, { role: "assistant" as const, content: text, interim: true }];
+            }
+            if (last?.role === "assistant") {
+              // Finalized transcript from a prior utterance — append, don't replace
+              modelTranscriptAccRef.current = last.content;
+              const combined = last.content + " " + text;
               const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: text, interim: true };
+              updated[updated.length - 1] = { ...last, content: combined, interim: true };
               return updated;
             }
+            // No prior assistant message — new bubble
+            modelTranscriptAccRef.current = "";
             return [...prev, { role: "assistant" as const, content: text, interim: true }];
           }
-          // Final: finalize the interim message
-          const last = prev[prev.length - 1];
-          if (last?.role === "assistant" && last.interim) {
+
+          // finished === true — finalize the utterance
+          if (isInterim) {
+            const combined = modelTranscriptAccRef.current
+              ? modelTranscriptAccRef.current + " " + text
+              : text;
+            modelTranscriptAccRef.current = combined;
             const updated = [...prev];
-            updated[updated.length - 1] = { role: "assistant", content: text };
+            updated[updated.length - 1] = { role: "assistant", content: combined };
             return updated;
           }
-          if (last?.role === "assistant" && !last.changeSet && !last.readResult) {
+          if (last?.role === "assistant" && !hasStructured) {
+            const combined = last.content + " " + text;
+            modelTranscriptAccRef.current = combined;
             const updated = [...prev];
-            updated[updated.length - 1] = { ...last, content: text };
+            updated[updated.length - 1] = { ...last, content: combined };
             return updated;
           }
+          modelTranscriptAccRef.current = text;
           return [...prev, { role: "assistant" as const, content: text }];
         });
         scrollToBottom();
@@ -742,6 +773,7 @@ export function Chat({ chatId }: ChatProps) {
       setError("");
       setDraftChangeSet(null); draftChangeSetRef.current = null;
       setPhase("loading");
+      modelTranscriptAccRef.current = "";
 
       const userMessage: Message = { role: "user", content: prompt };
       setMessages((prev) => [...prev, userMessage]);
