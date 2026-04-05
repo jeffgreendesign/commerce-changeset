@@ -137,6 +137,8 @@ See our [blog post: Building Trust Surfaces for AI Agents](https://commerce-chan
 - Continuous trust scoring (real-time modulation of agent autonomy)
 - Context boundary enforcement (Writer sees only approved operations, not full catalog)
 - Ambient trust visualization (active delegations shown inline in agent workflow)
+- Server-side conversation persistence with per-user encrypted storage and cross-device continuity
+- Durable execution jobs (enqueue + poll) replacing synchronous CIBA block-mode to support serverless timeout constraints at scale
 
 <details>
 <summary><strong>Developer Setup</strong></summary>
