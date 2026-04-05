@@ -111,7 +111,6 @@ export default async function Home() {
               className="absolute inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-8"
               height="2"
               preserveAspectRatio="none"
-              style={{ width: "calc(100% - 2rem)" }}
               aria-hidden="true"
             >
               <line
