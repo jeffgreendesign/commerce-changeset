@@ -34,6 +34,7 @@ import { useLayout } from "./layout-shell";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
+import { DemoAnnotationToggle } from "@/components/demo/demo-annotation-toggle";
 
 // ── Nav items ────────────────────────────────────────────────────────
 
@@ -212,6 +213,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
           )}
 
           <div className="mt-auto border-t px-4 py-3">
+            <DemoAnnotationToggle className="mb-2 w-full justify-center" />
             <p className="truncate text-xs text-muted-foreground">
               {userName}
             </p>
