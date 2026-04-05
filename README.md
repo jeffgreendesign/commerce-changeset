@@ -115,6 +115,10 @@ Transparency for reviewers: this table describes what runs against live APIs vs.
 | Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
 | Product data (Google Sheet) | Reference dataset — sample commerce catalog, not production inventory |
 
+## Production Portability
+
+Google Sheets serves as the data-plane reference implementation — a real API with real OAuth scopes that demonstrates the full Token Vault OBO delegation chain. The agent layer is adapter-based: Reader and Writer tools accept a data source interface, not Sheets-specific calls. In production, the same agent architecture ports to Shopify Admin GraphQL, any REST/GraphQL ERP, or a PIM system by swapping the tool implementations while preserving the policy engine, CIBA approval flow, OBO delegation chain, and audit receipt pipeline. The authorization model (Token Vault scopes, CIBA gating, per-agent isolation) is data-plane agnostic by design.
+
 ## Challenges
 
 Token Vault's async context requirement cost two days — the "No AI context found" error doesn't reference Token Vault or the `withTokenVault()` wrapper (Discovery 1). CIBA binding messages are restricted to 64 characters of alphanumeric text plus basic punctuation — no dollar signs, no unicode, discovered only at runtime (Discovery 2). Connected Accounts requires your own Google OAuth credentials, not Auth0's dev keys (Discovery 3). Rich Authorization Requests need an enterprise plan, so we stubbed the types and plumbing for when the plan tier allows it (Discovery 4).
