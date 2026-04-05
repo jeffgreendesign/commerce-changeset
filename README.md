@@ -113,7 +113,7 @@ Transparency for reviewers: this table describes what runs against live APIs vs.
 | Verify-after-write read-back | Live — Reader Agent re-reads Sheets post-write |
 | Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values (real voice input not used in demo) |
 | Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
-| Product data (Google Sheet) | Reference dataset — sample commerce catalog, not production inventory |
+| Product data (Google Sheet) | Reference dataset — [sample commerce catalog](https://docs.google.com/spreadsheets/d/1su_DDvgDeA_B9zb-mc4eGl-tXlSUBS0Qd_bh5T3eLxE/edit?usp=sharing), not production inventory |
 
 ## Production Portability
 
