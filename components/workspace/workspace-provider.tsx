@@ -82,6 +82,9 @@ interface WorkspaceContextValue {
   loading: boolean;
   fetchError: string | null;
   executionError: string | null;
+  /** Informational response when orchestrator returns no operations (read-only query). */
+  infoResponse: { reasoning: string; readerText?: string; suggestions?: string[] } | null;
+  dismissInfo: () => void;
   selectedIds: Set<string>;
   draftChangeset: ChangeSet | null;
   phase: WorkspacePhase;
@@ -136,9 +139,10 @@ const ChangeSetSchema = z.object({
 }).passthrough();
 
 const OrchestratorResponseSchema = z.object({
-  changeSet: ChangeSetSchema,
+  changeSet: ChangeSetSchema.nullable(),
   reasoning: z.string(),
   readerText: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
 });
 
 const ExecutorResponseSchema = z.object({
@@ -453,6 +457,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [chatActivityPhase, setChatActivityPhase] = useState<ChatActivityPhase>("idle");
   const [chatActivityChangeset, setChatActivityChangeset] = useState<ChangeSet | null>(null);
   const [executionError, setExecutionError] = useState<string | null>(null);
+  const [infoResponse, setInfoResponse] = useState<{
+    reasoning: string;
+    readerText?: string;
+    suggestions?: string[];
+  } | null>(null);
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const executeInFlightRef = useRef(false);
 
@@ -645,6 +654,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (text: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
+      setInfoResponse(null);
       setDraftChangeset(null); // clear stale draft immediately
       try {
         const selectedProducts = products.filter((p) =>
@@ -675,16 +685,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setPhase("error");
           return null;
         }
-        // Schema validates structural shape; cast through unknown since Zod passthrough
-        // infers a wider type than the full ChangeSet with its deep nested types
-        const cs = validated.data.changeSet as unknown as ChangeSet;
-        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
-          console.error("[workspace] Orchestrator returned changeset with 0 operations");
-          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+
+        const { changeSet: rawCs, reasoning, readerText, suggestions } = validated.data;
+
+        // Read-only / informational response (no operations to draft)
+        if (!rawCs || !Array.isArray(rawCs.operations) || rawCs.operations.length === 0) {
           setDraftChangeset(null);
-          setPhase("error");
+          setInfoResponse({ reasoning, readerText, suggestions });
+          setPhase("complete");
           return null;
         }
+
+        // Schema validates structural shape; cast through unknown since Zod passthrough
+        // infers a wider type than the full ChangeSet with its deep nested types
+        const cs = rawCs as unknown as ChangeSet;
         setDraftChangeset(cs);
         return cs;
       } catch {
@@ -700,6 +714,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (text: string, productId: string): Promise<ChangeSet | null> => {
       setPhase("preview");
       setExecutionError(null);
+      setInfoResponse(null);
       setDraftChangeset(null); // clear stale draft immediately
       try {
         const targetProduct = products.find((p) => p.id === productId);
@@ -731,14 +746,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setPhase("error");
           return null;
         }
-        const cs = validated.data.changeSet as unknown as ChangeSet;
-        if (!Array.isArray(cs.operations) || cs.operations.length === 0) {
-          console.error("[workspace] Orchestrator returned changeset with 0 operations");
-          setExecutionError("No operations generated — try a more specific request (e.g. \"Change price to $79\")");
+
+        const { changeSet: rawCs, reasoning, readerText, suggestions } = validated.data;
+
+        // Read-only / informational response (no operations to draft)
+        if (!rawCs || !Array.isArray(rawCs.operations) || rawCs.operations.length === 0) {
           setDraftChangeset(null);
-          setPhase("error");
+          setInfoResponse({ reasoning, readerText, suggestions });
+          setPhase("complete");
           return null;
         }
+
+        const cs = rawCs as unknown as ChangeSet;
         setDraftChangeset(cs);
         return cs;
       } catch {
@@ -829,7 +848,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const cancelDraft = useCallback(() => {
     setDraftChangeset(null);
     setExecutionError(null);
+    setInfoResponse(null);
     executeInFlightRef.current = false;
+    setPhase("idle");
+  }, []);
+
+  const dismissInfo = useCallback(() => {
+    setInfoResponse(null);
     setPhase("idle");
   }, []);
 
@@ -863,6 +888,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       loading,
       fetchError,
       executionError,
+      infoResponse,
+      dismissInfo,
       selectedIds,
       draftChangeset,
       phase,
@@ -890,6 +917,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       loading,
       fetchError,
       executionError,
+      infoResponse,
+      dismissInfo,
       selectedIds,
       draftChangeset,
       phase,

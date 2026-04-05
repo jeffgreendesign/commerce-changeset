@@ -73,6 +73,8 @@ export function IntentBar({
     cancelDraft,
     draftChangeset,
     executionError,
+    infoResponse,
+    dismissInfo,
   } = useWorkspace();
   const { isDemo } = useLayout();
   const [input, setInput] = useState("");
@@ -90,13 +92,14 @@ export function IntentBar({
     if (draftChangeset && (phase === "preview" || phase === "executing")) {
       return "Review changeset above";
     }
+    if (phase === "complete" && infoResponse) return "Ask another question or describe a change...";
     if (phase === "complete") return "Changes applied";
     if (selectedProducts.length === 0)
       return "Describe a commerce change...";
     if (selectedProducts.length === 1)
       return `${selectedProducts[0].name} — what to change?`;
     return `${selectedProducts.length} products — what to change?`;
-  }, [selectedProducts, draftChangeset, phase, voiceActive, voiceConnecting]);
+  }, [selectedProducts, draftChangeset, phase, voiceActive, voiceConnecting, infoResponse]);
 
   const chips = useMemo(() => {
     if (selectedProducts.length === 0) return [];
@@ -107,9 +110,10 @@ export function IntentBar({
   const handleSubmit = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || phase === "executing" || phase === "preview") return;
+    if (phase === "complete" && !infoResponse) return;
     setInput("");
     submitIntent(trimmed);
-  }, [input, phase, submitIntent]);
+  }, [input, phase, submitIntent, infoResponse]);
 
   const isBusy = phase === "executing" || phase === "preview";
   const hasDraft = !!draftChangeset && phase === "preview";
@@ -125,11 +129,48 @@ export function IntentBar({
         </div>
       )}
 
-      {/* Completion indicator */}
-      {phase === "complete" && (
+      {/* Completion indicator (changeset executed) */}
+      {phase === "complete" && !infoResponse && (
         <div className="flex items-center gap-2 px-4 pt-2 text-xs text-emerald-600 dark:text-emerald-400 sm:px-6 lg:px-8">
           <CheckCircleIcon className="size-3" />
           <span>Changes applied successfully</span>
+        </div>
+      )}
+
+      {/* Informational response (read-only query / no operations) */}
+      {phase === "complete" && infoResponse && (
+        <div className="mx-4 mt-2 rounded-lg border bg-muted/50 p-3 text-sm sm:mx-6 lg:mx-8">
+          <p className="text-foreground">{infoResponse.reasoning}</p>
+          {infoResponse.readerText && (
+            <pre className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+              {infoResponse.readerText}
+            </pre>
+          )}
+          {infoResponse.suggestions && infoResponse.suggestions.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {infoResponse.suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="intent-suggestion shrink-0 min-h-[32px]"
+                  onClick={() => {
+                    setInput(s);
+                    dismissInfo();
+                    inputRef.current?.focus();
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            className="mt-1 text-xs text-muted-foreground underline hover:no-underline"
+            onClick={dismissInfo}
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -203,7 +244,7 @@ export function IntentBar({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={placeholder}
-              disabled={isBusy || phase === "complete"}
+              disabled={isBusy || (phase === "complete" && !infoResponse)}
               className="flex-1"
             />
             <VoiceControls
