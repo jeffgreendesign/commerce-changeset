@@ -40,6 +40,38 @@ describe("evaluatePolicy", () => {
     expect(result.ruleName).toBe("write-bulk-records");
   });
 
+  it("escalates write with exactly 2 records to Tier 3", async () => {
+    const facts: PolicyFact = { operationType: "write", affectedRecords: 2 };
+    const result = await evaluatePolicy(facts);
+
+    expect(result.tier).toBe(RiskTier.BULK);
+    expect(result.decision).toBe("ciba-escalated");
+  });
+
+  it("does not escalate price change at exactly 25%", async () => {
+    const facts: PolicyFact = {
+      operationType: "write",
+      affectedRecords: 1,
+      priceChangePercent: 25,
+    };
+    const result = await evaluatePolicy(facts);
+
+    expect(result.tier).not.toBe(RiskTier.BULK);
+    expect(result.decision).not.toBe("ciba-escalated");
+  });
+
+  it("escalates price change at 26% (just above threshold)", async () => {
+    const facts: PolicyFact = {
+      operationType: "write",
+      affectedRecords: 1,
+      priceChangePercent: 26,
+    };
+    const result = await evaluatePolicy(facts);
+
+    expect(result.tier).toBe(RiskTier.BULK);
+    expect(result.decision).toBe("ciba-escalated");
+  });
+
   it("escalates large price change (>25%) to Tier 3", async () => {
     const facts: PolicyFact = {
       operationType: "write",
