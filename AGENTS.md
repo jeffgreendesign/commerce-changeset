@@ -203,7 +203,7 @@ The app reads from two sheets in the Stride Athletics Google Sheet:
 
 ### Inventory field (dual-format)
 
-Production Sheets store Inventory as **either** numeric counts (`"450"`, `"60"`, `"8"`) **or** status flags (`"in_stock"`, `"low_stock"`, `"out_of_stock"`, `"discontinued"`, `"pre_order"`). Both formats are valid and must be preserved:
+Production Sheets store Inventory as **either** numeric counts (`"450"`, `"60"`, `"8"`) **or** status flags (`"in_stock"`, `"low_stock"`, `"out_of_stock"`, `"discontinued"`, `"pre_order"`). Both formats are valid; the system must handle both during the migration to flag-based inventory:
 
 - **Reader Agent** — passes raw values from Sheets without transformation.
 - **Writer Agent** — only writes status flags (validated by `VALID_INVENTORY_FLAGS` in `lib/agents/writer.ts`). The writer never writes numeric counts.
