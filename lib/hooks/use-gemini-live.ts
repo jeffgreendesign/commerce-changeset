@@ -498,10 +498,6 @@ export function useGeminiLive(
       primaryReadyRef.current = true;
       console.log("[gemini-live] Primary setup complete — ready for audio");
 
-      // Trigger the model's initial greeting from the system instruction.
-      // sendClientContent with turnComplete signals "your turn" to the model.
-      primarySession.sendClientContent({ turnComplete: true });
-
       // 5. Sidecar disabled temporarily to isolate primary connection issue.
       // TODO: Re-enable once primary voice connection is stable.
       // try {
@@ -588,6 +584,16 @@ export function useGeminiLive(
           }
         }
       };
+
+      // Trigger the model's initial greeting from the system instruction.
+      // Placed after audio pipeline is wired so mic audio is already flowing
+      // when the model starts responding. Wrapped in try-catch so a failure
+      // doesn't tear down the session (model will respond to audio instead).
+      try {
+        primarySession.sendClientContent({ turnComplete: true });
+      } catch {
+        // Non-critical — model will respond once it receives audio input
+      }
 
       console.log(
         "[gemini-live] Voice session fully initialized — primary:",
