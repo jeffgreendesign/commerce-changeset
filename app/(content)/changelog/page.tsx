@@ -117,7 +117,8 @@ export default function ChangelogPage() {
         Changelog
       </h1>
       <p className="mt-2 text-lg text-muted-foreground">
-        Built in 8 days for the Auth0 &ldquo;Authorized to Act&rdquo;
+        Built in 8 days for the{" "}
+        <a href="https://authorizedtoact.devpost.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-foreground">Authorized to Act: Auth0 for AI Agents</a>{" "}
         hackathon.
       </p>
 
