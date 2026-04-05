@@ -274,6 +274,13 @@ export function Chat({ chatId }: ChatProps) {
   const createdAtRef = useRef<number | undefined>(restoredSession?.createdAt);
   const isMobile = useIsMobile();
 
+  // Headers for API fetch calls — includes demo signal when in demo/judge mode
+  const fetchHeaders = useMemo(() => {
+    const h: Record<string, string> = { "Content-Type": "application/json" };
+    if (isDemo) h["x-demo-session"] = "1";
+    return h;
+  }, [isDemo]);
+
   // Accumulates model transcript text across Gemini utterances so that
   // multiple utterances merge into a single chat bubble instead of
   // fragmenting into many tiny ones. Reset when a non-transcript message
@@ -363,7 +370,7 @@ export function Chat({ chatId }: ChatProps) {
         case "submit_commerce_change": {
           const res = await fetch("/api/orchestrator", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: fetchHeaders,
             body: JSON.stringify({ message: args.request }),
           });
           if (!res.ok) throw new Error("Orchestrator request failed");
@@ -411,7 +418,7 @@ export function Chat({ chatId }: ChatProps) {
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: fetchHeaders,
             body: JSON.stringify({ changeSet: cs }),
           });
           if (!res.ok) throw new Error("Execution failed");
@@ -446,7 +453,7 @@ export function Chat({ chatId }: ChatProps) {
           setPhase("executing");
           const res = await fetch("/api/orchestrator/execute", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: fetchHeaders,
             body: JSON.stringify({ changeSet: cs }),
           });
           if (!res.ok) throw new Error("Approval/execution failed");
@@ -475,7 +482,7 @@ export function Chat({ chatId }: ChatProps) {
           return { error: `Unknown tool: ${name}` };
       }
     },
-    [applyExecutedChangeset],
+    [applyExecutedChangeset, fetchHeaders],
   );
 
   // Register chat tool handler + transcript callbacks with VoiceProvider.
@@ -550,7 +557,7 @@ export function Chat({ chatId }: ChatProps) {
     try {
       const res = await fetch("/api/orchestrator/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fetchHeaders,
         body: JSON.stringify({ changeSet: draftChangeSet }),
       });
 
@@ -634,7 +641,7 @@ export function Chat({ chatId }: ChatProps) {
       // Step 1: Build reversal changeset
       const buildRes = await fetch("/api/orchestrator/rollback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fetchHeaders,
         body: JSON.stringify({ changeSet: sourceChangeSet }),
       });
 
@@ -666,7 +673,7 @@ export function Chat({ chatId }: ChatProps) {
       // Step 3: Execute the reversal through the standard pipeline
       const execRes = await fetch("/api/orchestrator/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fetchHeaders,
         body: JSON.stringify({ changeSet: rollbackDraft }),
       });
 
@@ -814,7 +821,7 @@ export function Chat({ chatId }: ChatProps) {
 
         const res = await fetch("/api/orchestrator", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: fetchHeaders,
           body: JSON.stringify({ message: prompt }),
         });
 
@@ -869,7 +876,7 @@ export function Chat({ chatId }: ChatProps) {
         scrollToBottom();
       }
     },
-    [isBusy, scrollToBottom, voiceActive, voice],
+    [isBusy, scrollToBottom, voiceActive, voice, fetchHeaders],
   );
 
   const handleApplyFix = useCallback(

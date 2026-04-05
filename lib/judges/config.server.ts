@@ -12,6 +12,10 @@ import { JUDGE_COOKIE_NAME } from "./config";
 /**
  * Check if the current request has a valid, signed judge session cookie.
  *
+ * Header-level demo gating is handled by isDemoSession() in
+ * lib/demo/config.server.ts, which checks x-demo-session before
+ * calling this function. This avoids a redundant header read.
+ *
  * The cookie value is "expiry.hmac" where hmac = HMAC-SHA256(JUDGE_ACCESS_CODE, expiry).
  * Returns true only if the signature is valid and the token has not expired.
  */

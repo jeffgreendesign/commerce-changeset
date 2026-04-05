@@ -15,6 +15,7 @@ import { z } from "zod/v4";
 import type { ChangeSet, ChangeSetStatus, Operation, OperationDiff } from "@/lib/changeset/types";
 import type { ProactiveIssue } from "@/lib/voice/types";
 import { runProactiveChecks } from "@/lib/voice/proactive-insights";
+import { useLayout } from "@/components/dashboard/layout-shell";
 import {
   subscribeTimeline,
   getTimelineSnapshot,
@@ -441,6 +442,8 @@ function applyDiffsToProducts(
 // ── Provider ────────────────────────────────────────────────────────
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { isDemo } = useLayout();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -540,9 +543,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     async function fetchProducts() {
       try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (isDemo) headers["x-demo-session"] = "1";
         const res = await fetch("/api/reader", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             message:
               "Show me all products with their names, SKUs, prices, inventory counts, promo status, and categories",
@@ -612,7 +617,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [fetchAttempt]);
+  }, [fetchAttempt, isDemo]);
 
   const select = useCallback((id: string) => {
     setSelectedIds(new Set([id]));

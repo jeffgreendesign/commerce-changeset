@@ -139,8 +139,15 @@ function demoStressFromPhase(phase: PipelinePhase): number {
 // ── Provider ────────────────────────────────────────────────────────
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
-  const { activeView, setActiveView } = useLayout();
+  const { activeView, setActiveView, isDemo } = useLayout();
   const { products, select } = useWorkspace();
+
+  // Headers for API fetch calls — includes demo signal when in demo/judge mode
+  const fetchHeaders = useMemo(() => {
+    const h: Record<string, string> = { "Content-Type": "application/json" };
+    if (isDemo) h["x-demo-session"] = "1";
+    return h;
+  }, [isDemo]);
 
   // Refs for tool routing — avoids stale closures
   const activeViewRef = useRef<ActiveView>(activeView);
@@ -309,7 +316,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         try {
           const res = await fetch("/api/reader", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: fetchHeaders,
             body: JSON.stringify({ message: args.query }),
           });
           if (!res.ok) return { error: "Reader query failed" };
@@ -329,7 +336,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       // Fallback: no view handler registered — use direct API calls
       return { error: `No active view handler for tool: ${name}` };
     },
-    [],
+    [fetchHeaders],
   );
 
   // ── Transcript routing ─────────────────────────────────────────────
@@ -358,6 +365,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       // Error handled via the returned error state
       console.error("[VoiceProvider] Gemini error:", msg);
     },
+    isDemo,
   });
 
   // ── Activate / Deactivate ──────────────────────────────────────────
@@ -369,7 +377,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch("/api/voice", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fetchHeaders,
         body: JSON.stringify({ action: "init", sessionId }),
       });
       if (res.ok) {
@@ -381,7 +389,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       // Non-critical — pattern detection failure shouldn't block voice
     }
     await geminiLive.connect();
-  }, [geminiLive]);
+  }, [geminiLive, fetchHeaders]);
 
   const handleVoiceDeactivate = useCallback(async () => {
     geminiLive.disconnect();
@@ -392,7 +400,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     try {
       await fetch("/api/voice", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fetchHeaders,
         body: JSON.stringify({
           action: "end_session",
           sessionId: sessionId ?? crypto.randomUUID(),
@@ -413,7 +421,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     } catch {
       // Non-critical
     }
-  }, [geminiLive]);
+  }, [geminiLive, fetchHeaders]);
 
   // ── Handler registration ───────────────────────────────────────────
 
