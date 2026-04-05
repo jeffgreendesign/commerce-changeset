@@ -108,7 +108,7 @@ export default async function Home() {
           {/* Dots row with connector line behind */}
           <div className="relative flex items-center justify-between px-4 sm:px-8">
             <svg
-              className="absolute inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-8"
+              className="absolute inset-x-4 top-1/2 w-[calc(100%-2rem)] -translate-y-1/2 sm:inset-x-8 sm:w-[calc(100%-4rem)]"
               height="2"
               preserveAspectRatio="none"
               aria-hidden="true"
