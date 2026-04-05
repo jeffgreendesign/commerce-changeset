@@ -31,8 +31,8 @@ import type {
 
 export interface UseGeminiLiveOptions {
   onToolCall: ToolCallHandler;
-  onUserTranscript?: (text: string, finished: boolean) => void;
-  onModelTranscript?: (text: string, finished: boolean) => void;
+  onUserTranscript?: (text: string, turnComplete: boolean) => void;
+  onModelTranscript?: (text: string, turnComplete: boolean) => void;
   onError?: (error: string) => void;
   /** When true, includes x-demo-session header on token fetch requests. */
   isDemo?: boolean;
@@ -173,6 +173,10 @@ export function useGeminiLive(
       gain.connect(playbackContextRef.current.destination);
       gainNodeRef.current = gain;
     }
+    // iOS Safari: ensure playback context is running (may be suspended)
+    if (playbackContextRef.current.state === "suspended") {
+      void playbackContextRef.current.resume();
+    }
     return playbackContextRef.current;
   }, []);
 
@@ -262,16 +266,22 @@ export function useGeminiLive(
       }
 
       // User speech transcript (best-effort from Gemini 3.1)
+      const turnComplete = message.serverContent?.turnComplete ?? false;
       const inputTx = message.serverContent?.inputTranscription;
       if (inputTx?.text) {
-        onUserTranscriptRef.current?.(inputTx.text, inputTx.finished ?? false);
+        onUserTranscriptRef.current?.(inputTx.text, turnComplete);
+      } else if (turnComplete) {
+        // Turn ended without a final user transcript chunk — finalize the bubble
+        onUserTranscriptRef.current?.("", true);
       }
 
-      // Model speech transcript
+      // Model speech transcript (delta text — each chunk is incremental)
       const outputTx = message.serverContent?.outputTranscription;
       if (outputTx?.text) {
-        console.log("[gemini-live] Model transcript:", JSON.stringify({ text: outputTx.text, finished: outputTx.finished }));
-        onModelTranscriptRef.current?.(outputTx.text, outputTx.finished ?? false);
+        onModelTranscriptRef.current?.(outputTx.text, turnComplete);
+      } else if (turnComplete) {
+        // Turn ended without a final transcript chunk — signal finalization
+        onModelTranscriptRef.current?.("", true);
       }
 
       // Interruption — user started speaking while model was playing
@@ -443,6 +453,11 @@ export function useGeminiLive(
       // 3. Set up audio capture at 16kHz (required by Gemini Live API)
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
+      // iOS Safari creates AudioContext in "suspended" state — must resume
+      // inside a user-gesture callback (this runs from a click handler).
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
       if (audioCtx.sampleRate !== 16000) {
         console.warn(
           `[gemini-live] Browser using ${audioCtx.sampleRate}Hz instead of 16000Hz — audio may not work`
@@ -582,6 +597,16 @@ export function useGeminiLive(
           }
         }
       };
+
+      // Trigger the model's initial greeting from the system instruction.
+      // Placed after audio pipeline is wired so mic audio is already flowing
+      // when the model starts responding. Wrapped in try-catch so a failure
+      // doesn't tear down the session (model will respond to audio instead).
+      try {
+        primarySession.sendClientContent({ turnComplete: true });
+      } catch {
+        // Non-critical — model will respond once it receives audio input
+      }
 
       console.log(
         "[gemini-live] Voice session fully initialized — primary:",

@@ -14,6 +14,29 @@ interface ChangelogEntry {
 
 const entries: ChangelogEntry[] = [
   {
+    date: "Apr 5",
+    title: "Polish & Documentation",
+    items: [
+      "Fix taskbar padding and pipeline line alignment",
+      "Production Portability section added to README",
+      "Sync mock data with Google Sheet (STR-013 image, L005–L008 launches)",
+      "Hackathon reference corrections across site",
+      "README What's Next and screenshot placeholder updates",
+    ],
+  },
+  {
+    date: "Apr 4",
+    title: "Testing & Error Handling",
+    items: [
+      "Policy engine unit tests with vitest (boundary thresholds for bulk-write and price-change)",
+      "Shared apiError() helper standardizing API error responses",
+      "Distinct CIBA denial handling across executor, UI, and demo",
+      "Password-gated judges login with HMAC-signed tokens",
+      "Enriched demo data exercising all agent tools and proactive checks",
+      '"What Is Real vs. Simulated" README documentation',
+    ],
+  },
+  {
     date: "Apr 3",
     title: "Submission Hardening",
     items: [
@@ -21,7 +44,20 @@ const entries: ChangelogEntry[] = [
       "README restructured for Devpost submission format",
       "About page: OAuth scope badges per agent (Reader read-only, Writer read-write, Notifier send-only)",
       "Blog post updated: per-agent scope isolation moved from future work to accomplishment",
-      "Demo mode: 4 complete scenarios (discount, bulk, read-only, rollback) with mock Auth0 login",
+      "Inventory display fix and demo step delays for sequential execution feel",
+    ],
+  },
+  {
+    date: "Apr 1–2",
+    title: "Demo Mode & Homepage Redesign",
+    items: [
+      "Demo mode with mock Auth0 login and 4 complete scenarios (discount, bulk, read-only, rollback)",
+      "Homepage redesign: demo-focused dark landing with animated pipeline",
+      "Mobile dashboard CTAs with long-press product actions and FAB for bulk actions",
+      "Product image support via Vercel Blob URLs in Google Sheet",
+      "Persistent voice agent across view navigation with prismatic mic glow",
+      "Token Vault visibility with demo phase annotations",
+      "Architecture diagram (static SVG + React component)",
     ],
   },
   {
@@ -117,7 +153,8 @@ export default function ChangelogPage() {
         Changelog
       </h1>
       <p className="mt-2 text-lg text-muted-foreground">
-        Built in 8 days for the Auth0 &ldquo;Authorized to Act&rdquo;
+        Built in 8 days for the{" "}
+        <a href="https://authorizedtoact.devpost.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-foreground">Authorized to Act: Auth0 for AI Agents</a>{" "}
         hackathon.
       </p>
 

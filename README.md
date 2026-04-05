@@ -7,7 +7,7 @@
 [![Auth0](https://img.shields.io/badge/Auth0-Token_Vault_+_CIBA-EB5424?logo=auth0&logoColor=white)](https://auth0.com/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
-Multi-agent commerce operations — pricing, promotions, inventory, product creation — through auditable, authorization-gated AI workflows. Built for the Auth0 **"Authorized to Act"** hackathon.
+Multi-agent commerce operations — pricing, promotions, inventory, product creation — through auditable, authorization-gated AI workflows. Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.devpost.com/) hackathon.
 
 **[Live Demo](https://commerce-changeset.vercel.app)** · **[Blog Post](https://commerce-changeset.vercel.app/blog/building-trust-surfaces-for-ai-agents)**
 
