@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
+import { apiError, BAD_REQUEST, GOOGLE_CONNECTION_REQUIRED, MISSING_REFRESH_TOKEN, UNAUTHORIZED } from "@/lib/api-error";
 import { setAIContext } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 import { executeChangeSet } from "@/lib/changeset/executor";
@@ -32,10 +33,7 @@ export async function POST(request: Request) {
     const body: unknown = await request.json();
     const parsed = RequestBody.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid request", details: parsed.error.issues },
-        { status: 400 }
-      );
+      return apiError(BAD_REQUEST, "Invalid request", 400);
     }
     const cs = parsed.data.changeSet as unknown as ChangeSet;
 
@@ -105,38 +103,30 @@ export async function POST(request: Request) {
   // ── Production mode ───────────────────────────────────────────────
   const session = await auth0.getSession();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError(UNAUTHORIZED, "Unauthorized", 401);
   }
 
   const body: unknown = await request.json();
   const parsed = RequestBody.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
-    );
+    return apiError(BAD_REQUEST, "Invalid request", 400);
   }
 
   const changeSet = parsed.data.changeSet as unknown as ChangeSet;
   if (changeSet.status !== "draft") {
-    return NextResponse.json(
-      {
-        error: "invalid_status",
-        message: `Change set must be in "draft" status. Got "${changeSet.status}".`,
-      },
-      { status: 400 }
+    return apiError(
+      BAD_REQUEST,
+      `Change set must be in "draft" status. Got "${changeSet.status}".`,
+      400,
     );
   }
 
   const refreshToken = session.tokenSet.refreshToken;
   if (!refreshToken) {
-    return NextResponse.json(
-      {
-        error: "missing_refresh_token",
-        message:
-          "Session has no refresh token. Re-login with offline_access scope.",
-      },
-      { status: 403 }
+    return apiError(
+      MISSING_REFRESH_TOKEN,
+      "Session has no refresh token. Re-login with offline_access scope.",
+      403,
     );
   }
 
@@ -161,14 +151,11 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof TokenVaultInterrupt) {
       console.error("[execute] Token Vault interrupt — Google account not connected");
-      return NextResponse.json(
-        {
-          error: "google_connection_required",
-          message:
-            "Connect your Google account before using this feature. " +
-            "Visit /api/spike/connect-google to link your account.",
-        },
-        { status: 403 }
+      return apiError(
+        GOOGLE_CONNECTION_REQUIRED,
+        "Connect your Google account before using this feature. " +
+          "Visit /api/spike/connect-google to link your account.",
+        403,
       );
     }
     console.error("[execute] Unhandled error:", err);

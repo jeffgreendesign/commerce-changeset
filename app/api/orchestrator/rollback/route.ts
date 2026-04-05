@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
+import { apiError, BAD_REQUEST, INTERNAL_ERROR, UNAUTHORIZED } from "@/lib/api-error";
 import {
   buildRollbackChangeSet,
   RollbackValidationError,
@@ -85,66 +86,47 @@ export async function POST(request: Request) {
     if (rollbackScenario) {
       return NextResponse.json({ changeSet: rollbackScenario.changeSet });
     }
-    return NextResponse.json(
-      { error: "No rollback scenario available in demo mode" },
-      { status: 400 }
-    );
+    return apiError(BAD_REQUEST, "No rollback scenario available in demo mode", 400);
   }
 
   // ── Production mode ───────────────────────────────────────────────
   const session = await auth0.getSession();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError(UNAUTHORIZED, "Unauthorized", 401);
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid request", message: "Malformed JSON in request body" },
-      { status: 400 }
-    );
+    return apiError(BAD_REQUEST, "Malformed JSON in request body", 400);
   }
 
   const parsed = RequestBody.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
-    );
+    return apiError(BAD_REQUEST, "Invalid request", 400);
   }
 
   const changeSet = parsed.data.changeSet;
 
   if (changeSet.status !== "completed" && changeSet.status !== "partial_failure") {
-    return NextResponse.json(
-      {
-        error: "invalid_status",
-        message: `Change set must be "completed" or "partial_failure" to roll back. Got "${changeSet.status}".`,
-      },
-      { status: 400 }
+    return apiError(
+      BAD_REQUEST,
+      `Change set must be "completed" or "partial_failure" to roll back. Got "${changeSet.status}".`,
+      400,
     );
   }
 
   if (changeSet.rollbackOf) {
-    return NextResponse.json(
-      {
-        error: "already_rollback",
-        message: "Cannot roll back a changeset that is itself a rollback.",
-      },
-      { status: 400 }
+    return apiError(
+      BAD_REQUEST,
+      "Cannot roll back a changeset that is itself a rollback.",
+      400,
     );
   }
 
   if (!changeSet.execution) {
-    return NextResponse.json(
-      {
-        error: "no_execution",
-        message: "Change set has no execution data.",
-      },
-      { status: 400 }
-    );
+    return apiError(BAD_REQUEST, "Change set has no execution data.", 400);
   }
 
   const routeStart = performance.now();
@@ -172,15 +154,9 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof RollbackValidationError) {
       console.error("[rollback] Validation error:", err.message);
-      return NextResponse.json(
-        { error: "rollback_failed", message: err.message },
-        { status: 400 }
-      );
+      return apiError(BAD_REQUEST, err.message, 400);
     }
     console.error("[rollback] Internal error:", err);
-    return NextResponse.json(
-      { error: "internal_server_error", message: "Internal server error" },
-      { status: 500 }
-    );
+    return apiError(INTERNAL_ERROR, "Internal server error", 500);
   }
 }

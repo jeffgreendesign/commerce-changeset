@@ -503,7 +503,7 @@ export function Chat({ chatId }: ChatProps) {
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         throw new Error(
-          body.message ?? body.error ?? `Execution failed (${res.status})`
+          body.error?.message ?? body.message ?? `Execution failed (${res.status})`
         );
       }
 
@@ -587,7 +587,7 @@ export function Chat({ chatId }: ChatProps) {
       if (!buildRes.ok) {
         const body = await buildRes.json().catch(() => ({ error: buildRes.statusText }));
         throw new Error(
-          body.message ?? body.error ?? `Rollback build failed (${buildRes.status})`
+          body.error?.message ?? body.message ?? `Rollback build failed (${buildRes.status})`
         );
       }
 
@@ -619,7 +619,7 @@ export function Chat({ chatId }: ChatProps) {
       if (!execRes.ok) {
         const body = await execRes.json().catch(() => ({ error: execRes.statusText }));
         throw new Error(
-          body.message ?? body.error ?? `Rollback execution failed (${execRes.status})`
+          body.error?.message ?? body.message ?? `Rollback execution failed (${execRes.status})`
         );
       }
 
@@ -765,7 +765,7 @@ export function Chat({ chatId }: ChatProps) {
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: res.statusText }));
           throw new Error(
-            body.message ?? body.error ?? `Request failed (${res.status})`
+            body.error?.message ?? body.message ?? `Request failed (${res.status})`
           );
         }
 
