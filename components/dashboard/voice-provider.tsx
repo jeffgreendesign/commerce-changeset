@@ -18,9 +18,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { z } from "zod/v4";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { UseGeminiLiveReturn } from "@/lib/hooks/use-gemini-live";
 import { useLayout } from "@/components/dashboard/layout-shell";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { ACTIVE_VIEWS, type ActiveView } from "@/lib/navigation-types";
 import type { PipelinePhase } from "@/lib/pipeline-phase";
 import type {
@@ -43,8 +45,8 @@ export type ViewToolHandler = (
 
 /** Callbacks views can register for transcript events. */
 export interface TranscriptCallbacks {
-  onUserTranscript?: (text: string, finished: boolean) => void;
-  onModelTranscript?: (text: string, finished: boolean) => void;
+  onUserTranscript?: (text: string, turnComplete: boolean) => void;
+  onModelTranscript?: (text: string, turnComplete: boolean) => void;
 }
 
 export interface VoiceContextValue {
@@ -138,6 +140,7 @@ function demoStressFromPhase(phase: PipelinePhase): number {
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const { activeView, setActiveView } = useLayout();
+  const { products, select } = useWorkspace();
 
   // Refs for tool routing — avoids stale closures
   const activeViewRef = useRef<ActiveView>(activeView);
@@ -149,6 +152,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setActiveViewRef.current = setActiveView;
   }, [setActiveView]);
+
+  const productsRef = useRef(products);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
+
+  const selectRef = useRef(select);
+  useEffect(() => {
+    selectRef.current = select;
+  }, [select]);
 
   // View-specific tool handler (registered by the active view)
   const toolHandlerRef = useRef<ViewToolHandler | null>(null);
@@ -191,6 +204,102 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
         return {
           error: `Invalid view: ${String(view)}. Valid views: ${ACTIVE_VIEWS.join(", ")}`,
+        };
+      }
+
+      // select_product — open a product in the workspace inspector (instant, no API call)
+      if (name === "select_product") {
+        const parsed = z
+          .object({ identifier: z.string().min(1) })
+          .safeParse(args);
+        if (!parsed.success) {
+          return { error: "Missing product identifier (SKU or name)" };
+        }
+
+        const identifier = parsed.data.identifier;
+        const query = identifier.trim().toLowerCase();
+        const allProducts = productsRef.current;
+
+        if (allProducts.length === 0) {
+          return { error: "No products loaded yet. Please wait for the workspace to finish loading." };
+        }
+
+        const MAX_PREVIEW = 10;
+
+        // Match strategy: exact SKU > exact name > SKU prefix > name substring
+        // Exact stages use find (unambiguous); fuzzy stages use filter + disambiguate.
+        let match = allProducts.find((p) => p.sku.toLowerCase() === query);
+        if (!match) {
+          match = allProducts.find((p) => p.name.toLowerCase() === query);
+        }
+        if (!match) {
+          const prefixMatches = allProducts.filter((p) =>
+            p.sku.toLowerCase().startsWith(query),
+          );
+          if (prefixMatches.length === 1) {
+            match = prefixMatches[0];
+          } else if (prefixMatches.length > 1) {
+            const preview = prefixMatches.slice(0, MAX_PREVIEW);
+            const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
+            const suffix =
+              prefixMatches.length > MAX_PREVIEW
+                ? ` and ${prefixMatches.length - MAX_PREVIEW} more`
+                : "";
+            return {
+              error: `Multiple products match SKU prefix "${identifier}": ${skus}${suffix}. Please be more specific.`,
+            };
+          }
+        }
+        if (!match) {
+          const nameMatches = allProducts.filter((p) =>
+            p.name.toLowerCase().includes(query),
+          );
+          if (nameMatches.length === 1) {
+            match = nameMatches[0];
+          } else if (nameMatches.length > 1) {
+            const preview = nameMatches.slice(0, MAX_PREVIEW);
+            const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
+            const suffix =
+              nameMatches.length > MAX_PREVIEW
+                ? ` and ${nameMatches.length - MAX_PREVIEW} more`
+                : "";
+            return {
+              error: `Multiple products match "${identifier}": ${skus}${suffix}. Please be more specific.`,
+            };
+          }
+        }
+
+        if (!match) {
+          const preview = allProducts.slice(0, MAX_PREVIEW);
+          const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
+          const suffix =
+            allProducts.length > MAX_PREVIEW
+              ? ` and ${allProducts.length - MAX_PREVIEW} more — try a more specific name or SKU`
+              : "";
+          return {
+            error: `No product found matching "${identifier}". Available products: ${skus}${suffix}`,
+          };
+        }
+
+        // Navigate to workspace if not already there
+        if (activeViewRef.current !== "workspace") {
+          setActiveViewRef.current("workspace");
+        }
+
+        // Select the product (opens InspectorPanel)
+        selectRef.current(match.id);
+
+        return {
+          success: true,
+          message: `Opened ${match.name} (${match.sku}) in the workspace inspector.`,
+          product: {
+            name: match.name,
+            sku: match.sku,
+            price: match.price,
+            promoPrice: match.promoPrice,
+            inventory: match.inventory,
+            promoStatus: match.promoStatus,
+          },
         };
       }
 

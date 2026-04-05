@@ -51,6 +51,12 @@ Navigation:
 - When the user says things like "show me the workspace", "open drafts", "go to chat", or "show timeline", call navigate_to_view with the appropriate view name.
 - Available views: ${NAVIGABLE_VIEWS}.
 
+Product selection:
+- When the user asks to "open", "show", "view", or "inspect" a specific product, use the select_product tool.
+- Provide the product SKU if the user mentions one (e.g. "STR-001"), otherwise provide the product name.
+- This will navigate to the workspace and open the product's inspector panel instantly.
+- Do NOT use query_product_data for simple "show me product X" requests — use select_product instead, which is instant.
+
 IMPORTANT — Tool call behavior:
 - ALWAYS verbally acknowledge the user's request BEFORE calling any tool. For example: "Got it, let me work on that for you." or "Sure, updating that now — one moment."
 - Never call a tool in silence. The user must hear confirmation that you understood their request before you begin processing.
@@ -312,6 +318,25 @@ export function buildToolDeclarations(): Record<string, unknown>[] {
               },
             },
             required: ["view"],
+          },
+        },
+        {
+          name: "select_product",
+          description:
+            "Open a specific product in the workspace inspector panel. " +
+            "Use when the user asks to see, open, view, or inspect a specific product. " +
+            "Automatically navigates to the workspace view if not already there.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              identifier: {
+                type: "STRING",
+                description:
+                  "Product SKU (e.g. 'STR-001') or product name (e.g. 'Classic Runner'). " +
+                  "SKU is preferred when the user mentions one.",
+              },
+            },
+            required: ["identifier"],
           },
         },
       ],
