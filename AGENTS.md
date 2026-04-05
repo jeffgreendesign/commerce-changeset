@@ -45,7 +45,7 @@ app/
   api/spike/token-vault/
     route.ts          — Token Vault → Google Sheets spike (GET, env-gated)
   api/spike/connect-google/
-    route.ts          — Google Connected Accounts linking spike (GET, env-gated)
+    route.ts          — [deprecated] Use /api/auth/connect-google instead (GET, env-gated)
   api/spike/ciba/
     route.ts          — CIBA + Guardian push notification approval spike (GET, env-gated)
   dashboard/

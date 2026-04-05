@@ -25,6 +25,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const step = url.searchParams.get("step");
   const domain = process.env.AUTH0_DOMAIN;
+  if (!domain) {
+    throw new Error("AUTH0_DOMAIN environment variable is not set");
+  }
   const issuer = `https://${domain}`;
   const appBaseUrl = resolveAppBaseUrl() ?? new URL(request.url).origin;
 
