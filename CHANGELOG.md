@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
 - Update AGENTS.md and llms.txt agent descriptions: add `create_product` (writer) and `send_execution_receipt` (notifier)
 - Document Google Sheets data contract and inventory dual-format model in AGENTS.md
 
+### Fixes
+
+- Fix workspace intent bar erroring on simple questions / read-only queries instead of showing response text
+
 ### Features
 
 - Add production Google account connection endpoint at `/api/auth/connect-google` (PR `#64`)
