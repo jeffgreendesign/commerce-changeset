@@ -93,6 +93,24 @@ A declarative, auditable policy engine evaluates every operation against 7 rules
 - [Gemini Live API](https://ai.google.dev/) — real-time voice input
 - [json-rules-engine](https://github.com/CacheControl/json-rules-engine) — policy evaluation
 
+## What Is Real vs. Simulated
+
+Transparency for reviewers: this table describes what runs against live APIs vs. what is simulated for demo stability.
+
+| Component | Status |
+|-----------|--------|
+| Auth0 Universal Login | Live — real Auth0 tenant |
+| Token Vault OBO delegation (Reader, Writer, Notifier) | Live — real token exchange per request |
+| Google Sheets read/write | Live — real Google Sheets API calls |
+| Gmail notification send | Live — real Gmail API via Token Vault OBO |
+| CIBA + Guardian push approval | Live — real push notification to Auth0 Guardian app |
+| Policy engine (7 rules, json-rules-engine) | Live — evaluated on every operation |
+| SHA-256 audit hash | Live — computed over real delegation chain |
+| Verify-after-write read-back | Live — Reader Agent re-reads Sheets post-write |
+| Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values |
+| Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
+| Product data (Google Sheet) | Reference dataset — sample commerce catalog, not production inventory |
+
 ## Challenges
 
 Token Vault's async context requirement cost two days — the "No AI context found" error doesn't reference Token Vault or the `withTokenVault()` wrapper (Discovery 1). CIBA binding messages are restricted to 64 characters of alphanumeric text plus basic punctuation — no dollar signs, no unicode, discovered only at runtime (Discovery 2). Connected Accounts requires your own Google OAuth credentials, not Auth0's dev keys (Discovery 3). Rich Authorization Requests need an enterprise plan, so we stubbed the types and plumbing for when the plan tier allows it (Discovery 4).
