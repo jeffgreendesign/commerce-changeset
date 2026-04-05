@@ -111,17 +111,17 @@ export function DashboardClient({ userName, isDemo = false }: { userName: string
     </WorkspaceProvider>
   );
 
-  return (
+  const shell = (
     <StatusBarProvider>
       <LayoutShell userName={userName} isDemo={isDemo}>
-        {isDemo ? (
-          <DemoAnnotationProvider>
-            {content}
-          </DemoAnnotationProvider>
-        ) : (
-          content
-        )}
+        {content}
       </LayoutShell>
     </StatusBarProvider>
+  );
+
+  return isDemo ? (
+    <DemoAnnotationProvider>{shell}</DemoAnnotationProvider>
+  ) : (
+    shell
   );
 }
