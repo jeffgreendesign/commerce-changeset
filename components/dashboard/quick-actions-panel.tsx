@@ -222,7 +222,7 @@ export function QuickActionsPanel() {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-6 px-4 py-4 pb-safe sm:px-6">
+        <div className="space-y-6 px-4 pt-4 pb-safe sm:px-6">
           {grouped.map(({ category, actions }, catIdx) => {
             const meta = CATEGORY_META[category];
             const CatIcon = meta.icon;

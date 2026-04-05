@@ -35,6 +35,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixes
 
+- Fix input bar bottom padding lost on desktop due to Tailwind v4 `padding-block` cascade overriding `pb-safe`; align chat Send button height with workspace
 - Fix voice session immediately disconnecting with WebSocket 1007 by replacing `sendClientContent` with `sendRealtimeInput` to avoid mixing input modes
 - Fix workspace intent bar erroring on simple questions / read-only queries instead of showing response text
 - Fix bottom bar button/input height mismatch on desktop (Send and Mic buttons now match input height at sm+ breakpoint)
