@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "gates": "npm run lint && npm run typecheck && npm run build",
+    "test": "vitest run",
+    "gates": "npm run lint && npm run typecheck && npm run test && npm run build",
     "verify": "npm run gates",
     "prepare": "husky"
   },
@@ -46,7 +47,8 @@
     "lint-staged": "^16.4.0",
     "shadcn": "^4.1.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.2"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
