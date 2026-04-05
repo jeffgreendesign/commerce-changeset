@@ -764,8 +764,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         let msg = "Execution failed";
         try {
           const errBody = (await res.json()) as Record<string, unknown>;
-          if (typeof errBody.message === "string") msg = errBody.message;
-          else if (typeof errBody.error === "string") msg = errBody.error;
+          const nested =
+            errBody.error &&
+            typeof errBody.error === "object" &&
+            "message" in (errBody.error as Record<string, unknown>)
+              ? ((errBody.error as Record<string, unknown>).message as string)
+              : undefined;
+          msg =
+            nested ??
+            (typeof errBody.message === "string" ? errBody.message : undefined) ??
+            (typeof errBody.error === "string" ? errBody.error : undefined) ??
+            msg;
         } catch {
           // body wasn't JSON, use status text
           msg = `Execution failed (${res.status})`;
