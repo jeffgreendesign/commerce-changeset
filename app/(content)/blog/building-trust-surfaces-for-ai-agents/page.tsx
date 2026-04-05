@@ -192,6 +192,30 @@ export default function BlogPost() {
           is a first step.
         </p>
 
+        {/* Consent-first framing */}
+        <h3 className="mt-6 text-lg font-semibold tracking-tight">
+          Authorization as Cognitive Protection
+        </h3>
+        <p>
+          This feature is not surveillance. The analogy is a seatbelt warning
+          light: the system notices strain and adds a speed bump, not a
+          roadblock. Stress and fatigue signals are opt-in, assistive, and
+          escalation-only &mdash; they feed into the same CIBA confirmation
+          flow the user already knows. The user still approves via push
+          notification. When no voice context exists, the policy engine
+          evaluates the operation exactly as it would without the voice
+          interface, with zero behavioral penalty.
+        </p>
+        <p>
+          Privacy is non-negotiable here. Voice-derived signals are ephemeral
+          session metadata. No recordings are stored, no biometric profiles are
+          built, and no data leaves the session. The user can disable
+          voice-aware escalation at any time without affecting their base
+          permissions &mdash; the system degrades gracefully to standard tier
+          classification. Trust surfaces only work if users trust the surface
+          itself.
+        </p>
+
         {/* Section 4 */}
         <h2 className="mt-10 text-xl font-semibold tracking-tight sm:text-2xl">
           What We Would Build Next

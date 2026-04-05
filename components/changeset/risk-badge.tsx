@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import type { PolicyDecision } from "@/lib/policy/types";
 import { cn } from "@/lib/utils";
 import { TIER_CONFIG } from "@/lib/risk-tier-config";
+import { getEscalationExplanation } from "@/lib/policy/escalation-explanation";
 
 export function RiskBadge({
   tier,
@@ -15,6 +16,9 @@ export function RiskBadge({
 }) {
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
+  const escalationNote = policyExplanation
+    ? getEscalationExplanation(policyExplanation.ruleName)
+    : null;
   const config = TIER_CONFIG[tier] ?? {
     label: `Tier ${tier}`,
     className: "bg-muted text-muted-foreground",
@@ -51,6 +55,12 @@ export function RiskBadge({
             <span>{policyExplanation.ruleName}</span>
             <span className="font-medium">Reason:</span>
             <span>{policyExplanation.reason}</span>
+            {escalationNote && (
+              <>
+                <span className="font-medium">Note:</span>
+                <span className="italic">{escalationNote}</span>
+              </>
+            )}
             <span className="font-medium">Scope:</span>
             <span className="font-mono">{policyExplanation.scopeRequested}</span>
           </span>
