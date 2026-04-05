@@ -64,9 +64,13 @@ Four specialized agents decompose a natural language commerce request into discr
 
 ## Screenshots
 
-<!-- Screenshots coming soon — landing page, dashboard, CIBA approval, execution receipt, about page -->
+<!-- Replace these with actual screenshots before Devpost submission -->
 
-*Coming soon: landing page, demo dashboard with changeset view, CIBA approval flow, execution receipt with audit hash, about page with agent permissions.*
+![Landing page with login](public/screenshots/landing.png)
+![Dashboard with changeset draft showing field-level diffs](public/screenshots/dashboard-draft.png)
+![CIBA Guardian push approval notification](public/screenshots/ciba-approval.png)
+![Execution receipt with OBO delegation chain and SHA-256 audit hash](public/screenshots/execution-receipt.png)
+![Living Workspace with product tile grid and intent bar](public/screenshots/workspace.png)
 
 ## Auth0 Integration
 
