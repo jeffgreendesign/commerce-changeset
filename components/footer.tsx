@@ -17,7 +17,7 @@ export function Footer() {
           <span aria-hidden="true" className="hidden sm:inline">
             &middot;
           </span>
-          <span className="hidden sm:inline">Auth0 Hackathon 2026</span>
+          <a href="https://authorizedtoact.devpost.com/" target="_blank" rel="noopener noreferrer" className="hidden underline-offset-4 hover:text-foreground hover:underline sm:inline">Authorized to Act: Auth0 for AI Agents</a>
         </div>
         <nav aria-label="Footer navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
           {navLinks.map((link) => (

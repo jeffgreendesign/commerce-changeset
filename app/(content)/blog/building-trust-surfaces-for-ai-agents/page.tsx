@@ -35,8 +35,8 @@ export default function BlogPost() {
       {/* Hackathon callout */}
       <div className="mt-8 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm">
         <p>
-          <strong>Bonus Blog Post Submission</strong> &mdash; Auth0
-          &ldquo;Authorized to Act&rdquo; Hackathon 2026
+          <strong>Bonus Blog Post Submission</strong> &mdash;{" "}
+          <a href="https://authorizedtoact.devpost.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-foreground">Authorized to Act: Auth0 for AI Agents</a>
         </p>
       </div>
 

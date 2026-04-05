@@ -18,8 +18,8 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold">Demonstration application</h2>
           <p className="mt-2 text-muted-foreground">
-            Commerce Changeset is a demonstration application built for the
-            Auth0 &ldquo;Authorized to Act&rdquo; hackathon. It is not a
+            Commerce Changeset is a demonstration application built for the{" "}
+            <a href="https://authorizedtoact.devpost.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-foreground">Authorized to Act: Auth0 for AI Agents</a> hackathon. It is not a
             production service. It is provided as-is for educational and
             evaluation purposes.
           </p>

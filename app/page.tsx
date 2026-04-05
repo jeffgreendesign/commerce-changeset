@@ -71,9 +71,9 @@ export default async function Home() {
 
       {/* ── Hero ────────────────────────────────────────────────── */}
       <section className="dot-grid flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-12 sm:pb-24 sm:pt-16">
-        <span className="font-mono text-[11px] tracking-[0.25em] text-accent-teal sm:text-xs">
+        <a href="https://authorizedtoact.devpost.com/" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] tracking-[0.25em] text-accent-teal hover:underline sm:text-xs">
           AUTH0 &middot; AUTHORIZED TO ACT &middot; 2026
-        </span>
+        </a>
 
         <h1 className="mt-6 text-center text-5xl font-bold tracking-tighter sm:text-7xl lg:text-8xl">
           Commerce
