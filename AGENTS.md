@@ -194,6 +194,23 @@ public/               — Static assets (SVGs)
 - **Adding components:** Run `npx shadcn@latest add <component>` to scaffold new UI components into `components/ui/`.
 - **Mobile input font size:** All `<input>`, `<textarea>`, and `<select>` elements must use `text-base` (16px) on mobile to prevent iOS Safari auto-zoom on focus. Use the `text-base md:text-sm` pattern to step down on desktop. A CSS guardrail in `globals.css` enforces `font-size: 1rem` on mobile as a safety net, but component-level classes should still follow this convention.
 
+## Google Sheets Data Contract
+
+The app reads from two sheets in the Stride Athletics Google Sheet:
+
+- **Products sheet** — columns: SKU, Name, Category, Base Price, Promo Price, Promo Active, Inventory, Image URL
+- **Launch Schedule sheet** — columns: Launch ID, Name, Start Date, End Date, Status, SKUs, Discount %
+
+### Inventory field (dual-format)
+
+Production Sheets store Inventory as **either** numeric counts (`"450"`, `"60"`, `"8"`) **or** status flags (`"in_stock"`, `"low_stock"`, `"out_of_stock"`, `"discontinued"`, `"pre_order"`). Both formats are valid and must be preserved:
+
+- **Reader Agent** — passes raw values from Sheets without transformation.
+- **Writer Agent** — only writes status flags (validated by `VALID_INVENTORY_FLAGS` in `lib/agents/writer.ts`). The writer never writes numeric counts.
+- **Orchestrator prompt** — instructs the LLM to map user numeric requests to flags before creating write operations (0 → `out_of_stock`, 1–10 → `low_stock`, >10 → `in_stock`).
+- **UI display** — `inventoryLabel()` in `components/workspace/workspace-provider.tsx` handles both: flags → human labels (e.g., `"In Stock"`), numbers → unit display (e.g., `"450 units"`).
+- **Mock data** — `lib/demo/mock-data.ts` intentionally uses a mix of numeric and flag values to mirror production and exercise both `inventoryLabel()` branches.
+
 ## Agent Behavior
 
 - **Read Next.js docs first.** Before modifying Next.js patterns (routing, middleware, data fetching), read the relevant guide in `node_modules/next/dist/docs/`.
