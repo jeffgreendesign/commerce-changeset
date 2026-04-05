@@ -264,12 +264,14 @@ export function useGeminiLive(
       const inputTx = message.serverContent?.inputTranscription;
       if (inputTx?.text) {
         onUserTranscriptRef.current?.(inputTx.text, turnComplete);
+      } else if (turnComplete) {
+        // Turn ended without a final user transcript chunk — finalize the bubble
+        onUserTranscriptRef.current?.("", true);
       }
 
       // Model speech transcript (delta text — each chunk is incremental)
       const outputTx = message.serverContent?.outputTranscription;
       if (outputTx?.text) {
-        console.log("[gemini-live] Model transcript:", JSON.stringify({ text: outputTx.text, turnComplete }));
         onModelTranscriptRef.current?.(outputTx.text, turnComplete);
       } else if (turnComplete) {
         // Turn ended without a final transcript chunk — signal finalization
@@ -495,6 +497,10 @@ export function useGeminiLive(
       // SDK's connect() resolves after setupComplete — session is ready
       primaryReadyRef.current = true;
       console.log("[gemini-live] Primary setup complete — ready for audio");
+
+      // Trigger the model's initial greeting from the system instruction.
+      // sendClientContent with turnComplete signals "your turn" to the model.
+      primarySession.sendClientContent({ turnComplete: true });
 
       // 5. Sidecar disabled temporarily to isolate primary connection issue.
       // TODO: Re-enable once primary voice connection is stable.

@@ -18,6 +18,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { z } from "zod/v4";
 import { useGeminiLive } from "@/lib/hooks/use-gemini-live";
 import type { UseGeminiLiveReturn } from "@/lib/hooks/use-gemini-live";
 import { useLayout } from "@/components/dashboard/layout-shell";
@@ -208,11 +209,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
       // select_product — open a product in the workspace inspector (instant, no API call)
       if (name === "select_product") {
-        const identifier = args.identifier;
-        if (typeof identifier !== "string" || !identifier.trim()) {
+        const parsed = z
+          .object({ identifier: z.string().min(1) })
+          .safeParse(args);
+        if (!parsed.success) {
           return { error: "Missing product identifier (SKU or name)" };
         }
 
+        const identifier = parsed.data.identifier;
         const query = identifier.trim().toLowerCase();
         const allProducts = productsRef.current;
 
@@ -220,20 +224,52 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           return { error: "No products loaded yet. Please wait for the workspace to finish loading." };
         }
 
-        // Match strategy: exact SKU > SKU prefix > exact name > name substring
+        const MAX_PREVIEW = 10;
+
+        // Match strategy: exact SKU > exact name > SKU prefix > name substring
+        // Exact stages use find (unambiguous); fuzzy stages use filter + disambiguate.
         let match = allProducts.find((p) => p.sku.toLowerCase() === query);
-        if (!match) {
-          match = allProducts.find((p) => p.sku.toLowerCase().startsWith(query));
-        }
         if (!match) {
           match = allProducts.find((p) => p.name.toLowerCase() === query);
         }
         if (!match) {
-          match = allProducts.find((p) => p.name.toLowerCase().includes(query));
+          const prefixMatches = allProducts.filter((p) =>
+            p.sku.toLowerCase().startsWith(query),
+          );
+          if (prefixMatches.length === 1) {
+            match = prefixMatches[0];
+          } else if (prefixMatches.length > 1) {
+            const preview = prefixMatches.slice(0, MAX_PREVIEW);
+            const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
+            const suffix =
+              prefixMatches.length > MAX_PREVIEW
+                ? ` and ${prefixMatches.length - MAX_PREVIEW} more`
+                : "";
+            return {
+              error: `Multiple products match SKU prefix "${identifier}": ${skus}${suffix}. Please be more specific.`,
+            };
+          }
+        }
+        if (!match) {
+          const nameMatches = allProducts.filter((p) =>
+            p.name.toLowerCase().includes(query),
+          );
+          if (nameMatches.length === 1) {
+            match = nameMatches[0];
+          } else if (nameMatches.length > 1) {
+            const preview = nameMatches.slice(0, MAX_PREVIEW);
+            const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
+            const suffix =
+              nameMatches.length > MAX_PREVIEW
+                ? ` and ${nameMatches.length - MAX_PREVIEW} more`
+                : "";
+            return {
+              error: `Multiple products match "${identifier}": ${skus}${suffix}. Please be more specific.`,
+            };
+          }
         }
 
         if (!match) {
-          const MAX_PREVIEW = 10;
           const preview = allProducts.slice(0, MAX_PREVIEW);
           const skus = preview.map((p) => `${p.sku} (${p.name})`).join(", ");
           const suffix =
