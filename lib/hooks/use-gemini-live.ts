@@ -34,6 +34,8 @@ export interface UseGeminiLiveOptions {
   onUserTranscript?: (text: string, finished: boolean) => void;
   onModelTranscript?: (text: string, finished: boolean) => void;
   onError?: (error: string) => void;
+  /** When true, includes x-demo-session header on token fetch requests. */
+  isDemo?: boolean;
 }
 
 export interface UseGeminiLiveReturn {
@@ -104,7 +106,7 @@ function int16BufferToBase64(buffer: ArrayBuffer): string {
 export function useGeminiLive(
   options: UseGeminiLiveOptions
 ): UseGeminiLiveReturn {
-  const { onToolCall, onUserTranscript, onModelTranscript, onError } = options;
+  const { onToolCall, onUserTranscript, onModelTranscript, onError, isDemo } = options;
 
   // ── State ────────────────────────────────────────────────────────
   const [connectionState, setConnectionState] =
@@ -421,7 +423,9 @@ export function useGeminiLive(
       mediaStreamRef.current = stream;
 
       // 2. Fetch ephemeral tokens (after mic permission to avoid token expiry)
-      const tokenRes = await fetch("/api/voice/token", { method: "POST" });
+      const tokenHeaders: Record<string, string> = {};
+      if (isDemo) tokenHeaders["x-demo-session"] = "1";
+      const tokenRes = await fetch("/api/voice/token", { method: "POST", headers: tokenHeaders });
       if (!tokenRes.ok) {
         const body = await tokenRes.json().catch(() => ({}));
         throw new Error(
@@ -597,7 +601,7 @@ export function useGeminiLive(
       mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
       mediaStreamRef.current = null;
     }
-  }, [handlePrimaryMessage, handleSidecarMessage]);
+  }, [handlePrimaryMessage, handleSidecarMessage, isDemo]);
 
   // ── Disconnect ───────────────────────────────────────────────────
 
