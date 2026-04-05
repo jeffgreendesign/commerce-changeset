@@ -340,7 +340,7 @@ function MobileVoiceDock({
   isDemo?: boolean;
 }) {
   return (
-    <div className="glass-elevated relative z-10 flex flex-col gap-2 border-t px-4 py-3 pb-safe animate-voice-dock-enter">
+    <div className="glass-elevated relative z-10 flex flex-col gap-2 border-t px-4 pt-3 pb-safe animate-voice-dock-enter">
       <ConnectionIndicator state={connectionState} sidecarStatus={sidecarStatus} mobile />
 
       {/* Compact layout: affect | visualizer | mic | visualizer | volume */}
