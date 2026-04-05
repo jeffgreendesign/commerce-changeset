@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { auth0 } from "@/lib/auth0";
-import { apiError, BAD_REQUEST, TOKEN_EXPIRED, UNAUTHORIZED } from "@/lib/api-error";
+import { apiError, BAD_REQUEST, GOOGLE_CONNECTION_REQUIRED, MISSING_REFRESH_TOKEN, UNAUTHORIZED } from "@/lib/api-error";
 import { setAIContext } from "@auth0/ai-vercel";
 import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
 import { runOrchestratorAgent } from "@/lib/agents/orchestrator";
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   const refreshToken = session.tokenSet.refreshToken;
   if (!refreshToken) {
     return apiError(
-      TOKEN_EXPIRED,
+      MISSING_REFRESH_TOKEN,
       "Session has no refresh token. Re-login with offline_access scope.",
       403,
     );
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     if (err instanceof TokenVaultInterrupt) {
       console.error("[orchestrator] Token Vault interrupt — Google account not connected");
       return apiError(
-        TOKEN_EXPIRED,
+        GOOGLE_CONNECTION_REQUIRED,
         "Connect your Google account before using this feature. " +
           "Visit /api/spike/connect-google to link your account.",
         403,
