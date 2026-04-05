@@ -162,7 +162,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     "Promo Price": "",
     "Promo Active": "FALSE",
     Inventory: "60",
-    "Image URL": "",
+    "Image URL": "https://y3l8rbm69ww9fiju.public.blob.vercel-storage.com/products/str-013-rnO6eSnuuRm4UG21CBnbxoJP4jakyb.jpg",
   },
 ];
 
@@ -214,6 +214,42 @@ export const MOCK_LAUNCHES: MockLaunch[] = [
     Status: "Completed",
     SKUs: "STR-004,STR-011",
     "Discount %": 30,
+  },
+  {
+    "Launch ID": "L005",
+    Name: "Spring Colorway Drop",
+    "Start Date": "2026-04-10",
+    "End Date": "2026-04-30",
+    Status: "Launching",
+    SKUs: "STR-009",
+    "Discount %": 0,
+  },
+  {
+    "Launch ID": "L006",
+    Name: "Winter Trail GTX Launch",
+    "Start Date": "2026-05-15",
+    "End Date": "2026-05-31",
+    Status: "Planned",
+    SKUs: "STR-013",
+    "Discount %": 0,
+  },
+  {
+    "Launch ID": "L007",
+    Name: "Summer Mesh Runner Launch",
+    "Start Date": "2026-06-01",
+    "End Date": "2026-06-30",
+    Status: "Planned",
+    SKUs: "STR-014",
+    "Discount %": 0,
+  },
+  {
+    "Launch ID": "L008",
+    Name: "Recovery Slides Launch",
+    "Start Date": "2026-07-01",
+    "End Date": "2026-07-31",
+    Status: "Pipeline",
+    SKUs: "STR-015",
+    "Discount %": 0,
   },
 ];
 
