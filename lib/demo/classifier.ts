@@ -30,7 +30,7 @@ async function haikuClassify(prompt: string): Promise<DemoScenario | null> {
         scenarioIndex: z
           .number()
           .min(0)
-          .max(6)
+          .max(7)
           .nullable()
           .describe("Index of the best-matching scenario, or null if none fit"),
       }),
@@ -42,7 +42,8 @@ async function haikuClassify(prompt: string): Promise<DemoScenario | null> {
         "3: Rollback or undo a previous change\n" +
         "4: Inventory status change (restock, mark out of stock, pre-order)\n" +
         "5: Deep discount or clearance with proactive warnings\n" +
-        "6: Launch scheduling, campaign planning, or notifications",
+        "6: Launch scheduling, campaign planning, or notifications\n" +
+        "7: Denial flow — Summer Collection large discount denied via CIBA",
       prompt: `User said: "${prompt}"`,
     });
 

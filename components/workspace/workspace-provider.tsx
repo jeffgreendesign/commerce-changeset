@@ -73,6 +73,7 @@ export type ChatActivityPhase =
   | "executing"
   | "rolling_back"
   | "complete"
+  | "denied"
   | "error";
 
 interface WorkspaceContextValue {

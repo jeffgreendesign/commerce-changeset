@@ -39,15 +39,30 @@ export async function POST(request: Request) {
     }
     const cs = parsed.data.changeSet as unknown as ChangeSet;
 
-    // Simulate CIBA approval + execution delay
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-
     // Find matching scenario by changeset ID or prompt
     const scenario = DEMO_SCENARIOS.find(
       (s) =>
         s.changeSet.id === cs.id ||
         s.changeSet.originalPrompt === cs.originalPrompt
     );
+
+    // Simulate denial if the scenario is configured for it
+    if (scenario?.demoOutcome === "denied") {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return NextResponse.json(
+        {
+          changeSet: { ...cs, status: "denied" },
+          error: {
+            code: "access_denied",
+            message: "CIBA approval was denied by the user",
+          },
+        },
+        { headers: { "x-demo-session": "1" } },
+      );
+    }
+
+    // Simulate CIBA approval + execution delay
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
     const executionResult = scenario?.executionResult ?? {
       executedAt: new Date().toISOString(),

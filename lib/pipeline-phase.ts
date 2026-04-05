@@ -11,4 +11,5 @@ export type PipelinePhase =
   | "executing"
   | "rolling_back"
   | "complete"
+  | "denied"
   | "error";

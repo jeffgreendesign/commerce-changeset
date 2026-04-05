@@ -27,6 +27,8 @@ export interface DemoScenario {
   reasoning: string;
   readerText: string;
   executionResult: ChangeSetExecution;
+  /** When set, the demo execute route simulates this outcome instead of success. */
+  demoOutcome?: "denied";
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -771,6 +773,108 @@ function buildScenario7(): DemoScenario {
   };
 }
 
+// ── Scenario 8: Summer Collection deep discount — CIBA denied ──────
+
+function buildScenario8(): DemoScenario {
+  const csId = makeId();
+  const summerSkus = [
+    { sku: "STR-004", name: "Urban Walk", base: 89.99, promo: 53.99 },
+    { sku: "STR-007", name: "Weekend Jogger", base: 79.99, promo: 47.99 },
+    { sku: "STR-009", name: "Performance Hoodie", base: 89.99, promo: 53.99 },
+    { sku: "STR-011", name: "Compression Tights", base: 64.99, promo: 38.99 },
+  ];
+
+  const policyBulk: PolicyDecision = {
+    decision: "ciba-escalated",
+    tier: RiskTier.BULK,
+    reason: "Price change exceeds 25% threshold — escalated to BULK tier",
+    ruleName: "write-large-price-change",
+    scopeRequested: "commerce:bulk-write",
+  };
+
+  const statusOps = summerSkus.map((s) => ({
+    id: makeId(),
+    agent: "writer" as const,
+    action: "set_promo_status",
+    target: `${s.sku} ${s.name}`,
+    tier: RiskTier.BULK,
+    policyExplanation: policyBulk,
+    diff: [{ field: "Promo Active", before: "FALSE" as string, after: "TRUE" as string }],
+    rollback: {
+      action: "set_promo_status",
+      params: { sku: s.sku, value: "FALSE" },
+    },
+  }));
+
+  const priceOp = {
+    id: makeId(),
+    agent: "writer" as const,
+    action: "bulk_price_change",
+    target: `${summerSkus.map((s) => s.sku).join(", ")} (Summer Collection)`,
+    tier: RiskTier.BULK,
+    policyExplanation: policyBulk,
+    diff: summerSkus.map((s) => ({
+      field: `${s.sku} Promo Price`,
+      before: "" as string | number,
+      after: s.promo,
+    })),
+    rollback: {
+      action: "bulk_price_change",
+      params: {
+        skus: summerSkus.map((s) => s.sku),
+        field: "Promo Price",
+        values: summerSkus.map(() => ""),
+      },
+    },
+  };
+
+  const allOps = [...statusOps, priceOp];
+
+  const changeSet: ChangeSet = {
+    id: csId,
+    requestedBy: "auth0|demo-user-001",
+    originalPrompt: "Lower all Summer Collection prices by 40%",
+    createdAt: now(),
+    status: "draft",
+    operations: allOps,
+    riskSummary: {
+      maxTier: RiskTier.BULK,
+      operationsByTier: { 0: 0, 1: 0, 2: 0, 3: allOps.length },
+      requiresCIBA: true,
+      autonomousOps: 0,
+      approvalRequiredOps: allOps.length,
+    },
+  };
+
+  // Execution result is never used (denial prevents execution), but required by interface
+  const results: OperationResult[] = allOps.map((op) => ({
+    operationId: op.id,
+    status: "success" as const,
+    duration: 0,
+  }));
+
+  return {
+    id: "scenario-8",
+    name: "Summer Collection denial",
+    keywords: ["summer collection", "40%", "lower all summer"],
+    changeSet,
+    reasoning:
+      "Lowering all Summer Collection prices by 40% affects 4 products (Urban Walk, Weekend Jogger, Performance Hoodie, Compression Tights). The >25% price reduction escalates this to BULK tier, requiring CIBA push approval.",
+    readerText:
+      "Summer Collection products: Urban Walk ($89.99), Weekend Jogger ($79.99), Performance Hoodie ($89.99), Compression Tights ($64.99). None currently have active promotions.",
+    executionResult: {
+      executedAt: now(),
+      results,
+      receipt: makeReceipt(
+        csId,
+        allOps.map((o) => ({ id: o.id, action: o.action })),
+        []
+      ),
+    },
+    demoOutcome: "denied",
+  };
+}
+
 // ── Exported scenarios ──────────────────────────────────────────────
 
 export const DEMO_SCENARIOS: DemoScenario[] = [
@@ -781,6 +885,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
   buildScenario5(),
   buildScenario6(),
   buildScenario7(),
+  buildScenario8(),
 ];
 
 /** Suggested prompts shown as chips in the demo UI. */
@@ -792,4 +897,5 @@ export const DEMO_SUGGESTIONS = [
   "Restock Trail Blazer and mark it in stock",
   "Apply 90% clearance to Velocity Racer",
   "Schedule a summer launch for training gear",
+  "Lower all Summer Collection prices by 40%",
 ];

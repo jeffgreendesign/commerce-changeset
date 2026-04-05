@@ -271,7 +271,7 @@ export async function executeChangeSet(
       return {
         changeSet: {
           ...cs,
-          status: approvalResult.code === "expired" ? "expired" : "draft",
+          status: approvalResult.code === "expired" ? "expired" : approvalResult.code === "access_denied" ? "denied" : "draft",
         },
         error: {
           code: approvalResult.code,
