@@ -12,6 +12,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { GoogleGenAI } from "@google/genai";
 import type { Session, LiveServerMessage } from "@google/genai";
+import { DEMO_HEADER_NAME } from "@/lib/demo/config";
 import {
   buildPrimarySDKConfig,
   buildSidecarSDKConfig,
@@ -434,7 +435,7 @@ export function useGeminiLive(
 
       // 2. Fetch ephemeral tokens (after mic permission to avoid token expiry)
       const tokenHeaders: Record<string, string> = {};
-      if (isDemo) tokenHeaders["x-demo-session"] = "1";
+      if (isDemo) tokenHeaders[DEMO_HEADER_NAME] = "1";
       const tokenRes = await fetch("/api/voice/token", { method: "POST", headers: tokenHeaders });
       if (!tokenRes.ok) {
         const body = await tokenRes.json().catch(() => ({}));
