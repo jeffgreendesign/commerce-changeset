@@ -2,7 +2,7 @@
 
 Extracted from [`docs/living-workspace-design-spec.md`](docs/living-workspace-design-spec.md).
 
-> **Note:** Last validated against the codebase on 2026-04-05.
+> **Note:** Last validated against the codebase on 2026-04-06.
 
 ## Living Surface Foundation
 
@@ -20,7 +20,7 @@ Extracted from [`docs/living-workspace-design-spec.md`](docs/living-workspace-de
 
 - ~~[ ] Create `components/workspace/changeset-overlay.tsx` — in-place diff overlays on product tiles~~ Never created — diff rendering handled inline in `product-tile.tsx`
 - [x] Create `components/workspace/changeset-summary.tsx` — floating summary panel with operation count, risk, and execute/cancel
-- [ ] Adapt `components/changeset/diff-view.tsx` for tile-based overlays (strikethrough old values, glow new values on product tiles)
+- ~~[ ] Adapt `components/changeset/diff-view.tsx` for tile-based overlays (strikethrough old values, glow new values on product tiles)~~ Never adapted — tile-based diff rendering built directly in `product-tile.tsx` (lines 278–325) with CSS animations in `globals.css`
 - [x] Adapt `components/changeset/risk-badge.tsx` for tile-level risk indicators (inline dots replacing promo dots during draft state) — done in `product-tile.tsx` via `TIER_DOT_STYLE`
 
 ## Inspector & Timeline
@@ -55,7 +55,7 @@ Goal: Keep the voice agent session alive across view navigation so users can con
 - [x] Remove auto-disconnect in `workspace.tsx` — voice persists across view changes
 - [x] Ensure audio context and media stream survive React component unmount/remount cycles — centralized in VoiceProvider
 - [x] Add voice state indicator to `LayoutShell` header so users know voice is active regardless of current view (`VoiceIndicator` in `dashboard-client.tsx:40`)
-- [ ] Handle edge case: switching views mid-tool-call (queue or reject conflicting tools) — partially handled: handler captured at call start completes to end (`voice-provider.tsx:331`), but no explicit queue/reject logic
+- [x] Handle edge case: switching views mid-tool-call — handler captured at call start runs to completion regardless of view change (`voice-provider.tsx:330–331`), no queue/reject needed
 
 ### Demo
 
@@ -66,7 +66,7 @@ Goal: Keep the voice agent session alive across view navigation so users can con
 
 ## Verification
 
-Owner: _unassigned_ | Last verified: _never_
+Owner: _unassigned_ | Last verified: 2026-04-06 (code-level audit, not runtime)
 
 - [ ] `npm run gates` passes with workspace components (lint + typecheck + build)
 - [ ] Desktop: Product tiles render in workspace view, are selectable, Inspector opens on click
