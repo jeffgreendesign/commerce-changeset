@@ -6,13 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Chores
-
-- Sync demo scenario receipts with production executor: add `create_product` to writer toolsGranted, `send_execution_receipt` to notifier toolsGranted
-- Restore production-matching mixed numeric/flag inventory values in mock data
-- Update AGENTS.md file structure to reflect all current app routes, components, and lib modules
-- Update AGENTS.md and llms.txt agent descriptions: add `create_product` (writer) and `send_execution_receipt` (notifier)
-- Document Google Sheets data contract and inventory dual-format model in AGENTS.md
+## [0.2.1] — 2026-04-06
 
 ### Features
 
@@ -76,6 +70,11 @@ All notable changes to this project will be documented in this file.
 
 ### Chores
 
+- Sync demo scenario receipts with production executor: add `create_product` to writer toolsGranted, `send_execution_receipt` to notifier toolsGranted
+- Restore production-matching mixed numeric/flag inventory values in mock data
+- Update AGENTS.md file structure to reflect all current app routes, components, and lib modules
+- Update AGENTS.md and llms.txt agent descriptions: add `create_product` (writer) and `send_execution_receipt` (notifier)
+- Document Google Sheets data contract and inventory dual-format model in AGENTS.md
 - Add policy engine unit tests with vitest (PR `#47`)
 - Add boundary threshold tests for bulk-write and price-change rules (PR `#49`)
 - Add lint-staged; scope security check to staged files only (PR `unavailable`)
