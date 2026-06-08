@@ -174,7 +174,7 @@ Instead of chatting *about* products and prices, users **see and touch** their c
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ◉ Commerce Changeset                          ◐ Session   ☀ ︎ jeff@stride.co │
+│ ◉ Commerce Changeset                          ◐ Session   ☀ ︎ demo@commerce-changeset.local │
 ├──┬───────────────────────────────────────────────────────────────────────────┤
 │  │                                                                          │
 │▦ │   FOOTWEAR                                                               │
@@ -212,7 +212,7 @@ Legend:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ◉ Commerce Changeset                          ◐ Session   ☀ ︎ jeff@stride.co │
+│ ◉ Commerce Changeset                          ◐ Session   ☀ ︎ demo@commerce-changeset.local │
 ├──┬───────────────────────────────────────────────┬───────────────────────────┤
 │  │                                               │                          │
 │▦ │   FOOTWEAR                                    │  Classic Runner          │
@@ -248,7 +248,7 @@ Sparkline (▁▂▃▅▆▅▃▂▁▂▃▅) shows 90-day price history
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ◉ Commerce Changeset                   ◐ 1 draft   ☀ ︎  jeff@stride.co      │
+│ ◉ Commerce Changeset                   ◐ 1 draft   ☀ ︎  demo@commerce-changeset.local      │
 ├──┬───────────────────────────────────────────────────────────────────────────┤
 │  │                                                                          │
 │▦ │   FOOTWEAR                                                               │
