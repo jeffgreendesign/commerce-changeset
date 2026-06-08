@@ -9,11 +9,13 @@
 
 Multi-agent commerce operations — pricing, promotions, inventory, product creation — through auditable, authorization-gated AI workflows. Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.devpost.com/) hackathon.
 
+Demo safety boundary: live API calls are limited to the sample Google Sheet/test connected accounts used for the hackathon; this is not connected to production commerce systems.
+
 **[Live Demo](https://commerce-changeset.vercel.app)** · **[Blog Post](https://commerce-changeset.vercel.app/blog/building-trust-surfaces-for-ai-agents)** · **[Intro Video](https://youtu.be/lAjv0SNoD2M)**
 
 ---
 
-Commerce operations involve real money. When AI agents can modify pricing, toggle promotions, create products, and send notifications on behalf of users, the authorization model can't be an afterthought. Most agentic AI demos treat auth as a checkbox — we built a system where every agent action flows through explicit permission boundaries, risk-gated approval, and cryptographic audit trails.
+Commerce operations involve real money. When AI agents can modify pricing, toggle promotions, create products, and send notifications on behalf of users, the authorization model can't be an afterthought. Most agentic AI demos treat auth as a checkbox — we built a system where every agent action flows through explicit permission boundaries, risk-gated approval, and SHA-256 integrity/audit hashes.
 
 ## What It Does
 
@@ -21,7 +23,7 @@ Four specialized agents decompose a natural language commerce request into discr
 
 - 7-step manual commerce workflow → single natural language request
 - Token management for 3 Google APIs (Sheets read, Sheets write, Gmail send) with zero frontend token exposure
-- 100% of write operations gated by CIBA Guardian push approval
+- All write operations in this implementation gated by CIBA Guardian push approval
 - 7 policy rules evaluated per operation — including 2 voice-aware stress/fatigue escalation rules
 - Per-agent OAuth scope isolation: Reader (readonly), Writer (read-write), Notifier (gmail.send)
 - SHA-256 audit hash over complete OBO delegation chain
@@ -64,8 +66,6 @@ Four specialized agents decompose a natural language commerce request into discr
 
 ## Screenshots
 
-<!-- Replace these with actual screenshots before Devpost submission -->
-
 ![Landing page with login](https://raw.githubusercontent.com/jeffgreendesign/commerce-changeset/main/public/screenshots/landing.png)
 ![Dashboard with changeset draft showing field-level diffs](https://raw.githubusercontent.com/jeffgreendesign/commerce-changeset/main/public/screenshots/dashboard-draft.png)
 ![CIBA Guardian push approval notification](https://raw.githubusercontent.com/jeffgreendesign/commerce-changeset/main/public/screenshots/ciba-approval.png)
@@ -84,7 +84,7 @@ All write operations trigger a CIBA request to Auth0 Guardian. The user receives
 
 ### json-rules-engine Policy Layer
 
-A declarative, auditable policy engine evaluates every operation against 7 rules before execution. The engine considers operation type, affected record count, price change magnitude, and voice-derived stress/fatigue signals. This is the novel contribution — authorization that adapts to cognitive state, not just permission grants.
+A declarative, auditable policy engine evaluates every operation against 7 rules before execution. The engine considers operation type, affected record count, price change magnitude, and synthetic demo affect/session signals. This is the novel contribution — authorization that can adapt to contextual risk signals, not just permission grants.
 
 ## Built With
 
@@ -111,9 +111,9 @@ Transparency for reviewers: this table describes what runs against live APIs vs.
 | Policy engine (7 rules, json-rules-engine) | Live — evaluated on every operation (real-time rules engine) |
 | SHA-256 audit hash | Live — computed over real delegation chain |
 | Verify-after-write read-back | Live — Reader Agent re-reads Sheets post-write |
-| Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values (real voice input not used in demo) |
+| Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values (real voice input not used in demo); the demo does not infer medical, biometric, or psychological state from user audio |
 | Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
-| Product data (Google Sheet) | Reference dataset — [sample commerce catalog](https://docs.google.com/spreadsheets/d/1su_DDvgDeA_B9zb-mc4eGl-tXlSUBS0Qd_bh5T3eLxE/edit?usp=sharing), not production inventory |
+| Product data (Google Sheet) | Reference dataset — [view-only public sample commerce catalog](https://docs.google.com/spreadsheets/d/1su_DDvgDeA_B9zb-mc4eGl-tXlSUBS0Qd_bh5T3eLxE/preview), not production inventory |
 
 ## Production Portability
 
