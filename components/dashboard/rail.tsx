@@ -8,6 +8,7 @@ import {
   ClockIcon,
   LayersIcon,
   ActivityIcon,
+  GitBranchIcon,
   HistoryIcon,
   ZapIcon,
   MenuIcon,
@@ -42,6 +43,7 @@ const NAV_GROUPS = [
   {
     items: [
       { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
+      { icon: GitBranchIcon, label: "Turn Review", id: "turn-review" as const, enabled: true },
       { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
       { icon: ClockIcon, label: "Timeline", id: "timeline" as const, enabled: true },
       { icon: LayersIcon, label: "Drafts", id: "drafts" as const, enabled: true },

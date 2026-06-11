@@ -14,9 +14,11 @@ export default function DemoLoginPage() {
 
   function handleLogin() {
     setLoading(true);
+    const next = new URLSearchParams(window.location.search).get("next");
+    const safeNext = next?.startsWith("/demo/") ? next : "/demo/dashboard";
     // Set demo session cookie (client-side, 1 hour expiry)
     document.cookie = `${DEMO_COOKIE_NAME}=true; path=/; max-age=3600; SameSite=Lax`;
-    router.push("/demo/dashboard");
+    router.push(safeNext);
   }
 
   return (

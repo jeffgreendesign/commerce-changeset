@@ -75,15 +75,16 @@ interface LayoutShellProps {
   children: ReactNode;
   userName: string;
   isDemo?: boolean;
+  initialView?: ActiveView;
 }
 
-export function LayoutShell({ children, userName, isDemo = false }: LayoutShellProps) {
+export function LayoutShell({ children, userName, isDemo = false, initialView = "workspace" }: LayoutShellProps) {
   const [railExpanded, setRailExpanded] = useState(false);
   const [inspectorItem, setInspectorItem] = useState<InspectableItem | null>(
     null,
   );
   const [activeChatId, setActiveChatId] = useState(() => generateChatId());
-  const [activeView, setActiveView] = useState<ActiveView>("workspace");
+  const [activeView, setActiveView] = useState<ActiveView>(initialView);
   const [pendingPrompt, setPendingPromptState] = useState<string | null>(null);
   const pendingPromptRef = useRef<string | null>(null);
   const [pendingAction, setPendingActionState] = useState<ActionDefinition | null>(null);
