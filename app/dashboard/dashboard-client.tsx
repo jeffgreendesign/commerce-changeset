@@ -15,6 +15,9 @@ import { DemoAnnotationProvider } from "@/components/demo/demo-annotation-provid
 import { DemoAnnotationToggle } from "@/components/demo/demo-annotation-toggle";
 import { VoiceProvider } from "@/components/dashboard/voice-provider";
 import { VoiceIndicator } from "@/components/dashboard/voice-indicator";
+import { DEMO_TURN_REVIEW } from "@/lib/turn-review/demo-turn";
+import { TurnReviewBoard } from "@/components/turn-review/turn-review-board";
+import type { ActiveView } from "@/lib/navigation-types";
 
 // ── Inner content that has access to layout context ──────────────────
 
@@ -77,6 +80,8 @@ function DashboardContent({ userName }: { userName: string }) {
       {/* Content area — switches between workspace, chat, actions, and history */}
       {isWorkspaceView(activeView) ? (
         <Workspace />
+      ) : activeView === "turn-review" ? (
+        <TurnReviewBoard scenario={DEMO_TURN_REVIEW} embedded />
       ) : activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />
       ) : activeView === "actions" ? (
@@ -102,7 +107,15 @@ function DashboardContent({ userName }: { userName: string }) {
 
 // ── Main export ──────────────────────────────────────────────────────
 
-export function DashboardClient({ userName, isDemo = false }: { userName: string; isDemo?: boolean }) {
+export function DashboardClient({
+  userName,
+  isDemo = false,
+  initialView,
+}: {
+  userName: string;
+  isDemo?: boolean;
+  initialView?: ActiveView;
+}) {
   const content = (
     <WorkspaceProvider>
       <VoiceProvider>
@@ -113,7 +126,7 @@ export function DashboardClient({ userName, isDemo = false }: { userName: string
 
   const shell = (
     <StatusBarProvider>
-      <LayoutShell userName={userName} isDemo={isDemo}>
+      <LayoutShell userName={userName} isDemo={isDemo} initialView={initialView}>
         {content}
       </LayoutShell>
     </StatusBarProvider>

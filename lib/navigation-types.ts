@@ -10,6 +10,7 @@ export const ACTIVE_VIEWS = [
   "history",
   "actions",
   "workspace",
+  "turn-review",
   "drafts",
   "timeline",
   "activity",
