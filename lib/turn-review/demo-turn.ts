@@ -1,4 +1,4 @@
-import type { TurnReviewScenario } from "./types";
+import type { TurnReviewScenario } from "@/lib/turn-review/types";
 
 export const DEMO_TURN_REVIEW: TurnReviewScenario = {
   id: "turn-review-running-shoe-promo",

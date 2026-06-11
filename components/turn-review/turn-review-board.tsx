@@ -244,6 +244,7 @@ function MoveCard({
     <button
       type="button"
       onClick={onSelect}
+      aria-pressed={isSelected}
       className={`rounded-xl border p-3 text-left shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
         isSelected
           ? "border-primary bg-primary/5 text-foreground ring-2 ring-primary/20"
@@ -340,8 +341,9 @@ function EndTurnReceipt({ move }: { move: TurnMove }) {
 
       <button
         type="button"
-        onClick={() => undefined}
-        className="mt-4 w-full rounded-lg bg-primary px-4 py-3 text-xs font-semibold uppercase tracking-wide text-primary-foreground"
+        disabled
+        aria-disabled="true"
+        className="mt-4 w-full rounded-lg bg-primary px-4 py-3 text-xs font-semibold uppercase tracking-wide text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         End turn: {move.label}
       </button>
