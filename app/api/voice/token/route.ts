@@ -3,9 +3,11 @@
  *
  * POST /api/voice/token
  *
- * Mints two short-lived ephemeral tokens (1-min connection window, 30-min session):
- *   - primaryToken: for gemini-3.1-flash-live-preview (conversation + tools + audio)
- *   - sidecarToken: for gemini-2.5-flash-native-audio (silent affective analysis)
+ * Mints short-lived ephemeral tokens (1-min connection window, 30-min session):
+ *   - primaryToken: for PRIMARY_MODEL (conversation + tools + audio)
+ *   - sidecarToken: for SIDECAR_MODEL (silent affective analysis) — only when
+ *     SIDECAR_ENABLED is true. The sidecar connection is currently disabled, so
+ *     no sidecar token is minted and the response omits the sidecar fields.
  *
  * The GEMINI_API_KEY never leaves the server — clients connect using ephemeral tokens.
  */
@@ -14,7 +16,11 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
 import { auth0 } from "@/lib/auth0";
-import { PRIMARY_MODEL, SIDECAR_MODEL } from "@/lib/voice/gemini-live";
+import {
+  PRIMARY_MODEL,
+  SIDECAR_ENABLED,
+  SIDECAR_MODEL,
+} from "@/lib/voice/gemini-live";
 import { isDemoSession } from "@/lib/demo/config.server";
 
 export async function POST() {
@@ -46,34 +52,34 @@ export async function POST() {
   const expireTime = new Date(Date.now() + sessionMinutes * 60_000).toISOString();
   const newSessionExpireTime = new Date(Date.now() + 60_000).toISOString();
 
-  try {
+  const tokenConfig = {
     // No liveConnectConstraints — keep tokens unlocked for debugging
+    config: {
+      uses: 1,
+      expireTime,
+      newSessionExpireTime,
+    },
+  };
+
+  try {
+    // Only mint what the client will actually connect. Handing out a sidecar
+    // token while the sidecar session is disabled burns a credential nobody
+    // redeems and misrepresents the voice stack as dual-model.
     const [primaryToken, sidecarToken] = await Promise.all([
-      client.authTokens.create({
-        config: {
-          uses: 1,
-          expireTime,
-          newSessionExpireTime,
-        },
-      }),
-      client.authTokens.create({
-        config: {
-          uses: 1,
-          expireTime,
-          newSessionExpireTime,
-        },
-      }),
+      client.authTokens.create(tokenConfig),
+      SIDECAR_ENABLED ? client.authTokens.create(tokenConfig) : null,
     ]);
 
     console.log(
-      `[voice/token] Minted ephemeral tokens (${sessionMinutes}min) for ${isDemo ? "demo user" : "authenticated user"}`
+      `[voice/token] Minted ${SIDECAR_ENABLED ? "primary + sidecar" : "primary"} ephemeral token(s) (${sessionMinutes}min) for ${isDemo ? "demo user" : "authenticated user"}`
     );
 
     return NextResponse.json({
       primaryToken: primaryToken.name,
-      sidecarToken: sidecarToken.name,
       primaryModel: PRIMARY_MODEL,
-      sidecarModel: SIDECAR_MODEL,
+      ...(SIDECAR_ENABLED && sidecarToken
+        ? { sidecarToken: sidecarToken.name, sidecarModel: SIDECAR_MODEL }
+        : {}),
     });
   } catch (err) {
     console.error("[voice/token] Failed to mint ephemeral tokens:", err);

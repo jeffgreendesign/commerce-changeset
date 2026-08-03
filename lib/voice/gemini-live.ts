@@ -29,6 +29,19 @@ export const PRIMARY_MODEL = "gemini-3.1-flash-live-preview";
 export const SIDECAR_MODEL =
   "gemini-2.5-flash-native-audio-preview-12-2025";
 
+/**
+ * Whether the sidecar session is wired up.
+ *
+ * The sidecar connection was disabled while isolating a primary-session 1007
+ * disconnect (see the commented block in `lib/hooks/use-gemini-live.ts`).
+ * Voice currently runs single-model. This flag is the single source of truth:
+ * while it is false the token endpoint does not mint a sidecar token, so the
+ * client is never handed credentials for a session it will not open.
+ *
+ * Flip to true in the same change that re-enables the connection block.
+ */
+export const SIDECAR_ENABLED = false;
+
 // ── Default configuration ────────────────────────────────────────────
 
 const COMMERCE_SYSTEM_INSTRUCTION = `You are a voice assistant for Commerce Changeset, a commerce operations platform.
