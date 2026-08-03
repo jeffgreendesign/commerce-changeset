@@ -5,7 +5,11 @@
 # Design choices:
 # - Uses dorny/paths-filter to skip CI on docs-only changes (saves minutes)
 # - Reads Node version from .node-version (single source of truth for runtime)
-# - Final step runs `npm run verify` for full CI validation
+# - `npm run verify` runs the blocking gate, including the strict version-floor
+#   CVE check (previously pre-commit only, so a --no-verify push went unchecked)
+# - The heuristic security scan runs as a separate advisory job, scoped to the
+#   PR diff: it is pattern-based with known false positives, and a full-tree
+#   scan takes minutes, so it reports without blocking the merge
 # - 10-minute timeout prevents hung processes from burning Actions minutes
 # ============================================================================
 
@@ -74,3 +78,22 @@ jobs:
 
       - name: Run verify gate
         run: npm run verify
+
+  # Advisory only — reports pattern matches on the PR diff without blocking.
+  security-scan:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need the base branch present for the --since diff.
+          fetch-depth: 0
+
+      - name: Scan files changed in this pull request
+        run: |
+          bash scripts/security-check.sh \
+            --since "origin/${{ github.base_ref }}"
