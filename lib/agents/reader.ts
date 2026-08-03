@@ -11,6 +11,8 @@ import {
 } from "@auth0/ai-vercel";
 import { z } from "zod/v4";
 
+import { READER_MODEL } from "@/lib/agents/models";
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface ReaderAgentResult {
@@ -209,7 +211,7 @@ export async function runReaderAgent(
   const readerStart = performance.now();
 
   const result = await generateText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic(READER_MODEL),
     tools,
     system: SYSTEM_PROMPT,
     prompt: message,

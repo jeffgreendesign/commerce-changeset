@@ -1,11 +1,12 @@
 "use client";
 
+import { ORCHESTRATOR_MODEL_LABEL } from "@/lib/agents/models";
 import type { PipelinePhase as Phase } from "@/lib/pipeline-phase";
 import { useDemoAnnotations } from "./demo-annotation-provider";
 
 const PHASE_MESSAGES: Record<string, string> = {
   idle: "Type a commerce change or tap a suggestion to start.",
-  loading: "Orchestrator decomposing your request with Claude Sonnet 4.6...",
+  loading: `Orchestrator decomposing your request with ${ORCHESTRATOR_MODEL_LABEL}...`,
   draft: "Policy engine assigned risk tiers. Tier 2+ operations need phone approval.",
   executing: "Writer executing via Token Vault → Google Sheets API. No raw credentials.",
   rolling_back: "Building reversal changeset through the same policy engine.",

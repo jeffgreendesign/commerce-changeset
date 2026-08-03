@@ -8,6 +8,8 @@ import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod/v4";
 
+import { CLASSIFIER_MODEL } from "@/lib/agents/models";
+
 import { DEMO_SCENARIOS, type DemoScenario } from "./scenarios";
 
 /** Try keyword matching first (instant, free). */
@@ -25,7 +27,7 @@ async function haikuClassify(prompt: string): Promise<DemoScenario | null> {
   try {
     const anthropic = createAnthropic();
     const { object } = await generateObject({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: anthropic(CLASSIFIER_MODEL),
       schema: z.object({
         scenarioIndex: z
           .number()
