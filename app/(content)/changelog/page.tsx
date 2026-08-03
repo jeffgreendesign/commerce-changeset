@@ -14,6 +14,36 @@ interface ChangelogEntry {
 
 const entries: ChangelogEntry[] = [
   {
+    date: "Aug 3",
+    title: "Model Refresh & Release Hygiene",
+    items: [
+      "Reader and Orchestrator agents moved to Claude Sonnet 5; model IDs centralized and env-overridable in lib/agents/models.ts",
+      "Turn Review gated behind demo mode — it renders a fixed synthetic scenario and was previously visible to every user",
+      "Voice token endpoint no longer mints a sidecar credential while the sidecar session is disabled",
+      "Version-floor CVE check moved into the verify gate so it runs in CI, not just pre-commit",
+      "Dependency bumps: Next.js 16.2.12, React 19.2.8; Dependabot split so major upgrades land as separate PRs",
+    ],
+  },
+  {
+    date: "Jun 10",
+    title: "Demo Safety Boundaries",
+    items: [
+      "CIBA gating and audit-trail claims scoped to this implementation rather than stated absolutely",
+      "Voice stress/fatigue signals relabeled as synthetic demo values",
+      "Explicit statement that the demo does not infer medical, biometric, or psychological state",
+      "Synthetic Turn Review board for comparing operator move choices",
+    ],
+  },
+  {
+    date: "Apr 6",
+    title: "Release 0.2.1",
+    items: [
+      "Production Google account connection endpoint at /api/auth/connect-google",
+      "Voice 1007 disconnect fixed by using sendRealtimeInput for the greeting",
+      "Input bar and chat button height/padding fixes across desktop and mobile",
+    ],
+  },
+  {
     date: "Apr 5",
     title: "Polish & Documentation",
     items: [

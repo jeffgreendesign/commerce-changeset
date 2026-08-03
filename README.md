@@ -27,6 +27,7 @@ Four specialized agents decompose a natural language commerce request into discr
 - 7 policy rules evaluated per operation — including 2 voice-aware stress/fatigue escalation rules
 - Per-agent OAuth scope isolation: Reader (readonly), Writer (read-write), Notifier (gmail.send)
 - SHA-256 audit hash over complete OBO delegation chain
+- Turn Review (demo mode only): a side-by-side comparison of operator move choices for a single turn, built on a fixed synthetic scenario — see the real-vs-simulated table below
 
 ## Architecture
 
@@ -93,7 +94,7 @@ A declarative, auditable policy engine evaluates every operation against 7 rules
 - [Tailwind CSS v4](https://tailwindcss.com/) + [Base UI](https://base-ui.com/) + [shadcn/ui](https://ui.shadcn.com/)
 - [Auth0](https://auth0.com/) — `@auth0/nextjs-auth0` v4, Token Vault, CIBA + Guardian
 - [Vercel AI SDK](https://sdk.vercel.ai/) + `@auth0/ai-vercel`
-- [Anthropic Claude Sonnet](https://www.anthropic.com/) — agent LLM
+- [Anthropic Claude Sonnet 5](https://www.anthropic.com/) — agent LLM (Haiku 4.5 for demo intent classification)
 - [Gemini Live API](https://ai.google.dev/) — real-time voice input
 - [json-rules-engine](https://github.com/CacheControl/json-rules-engine) — policy evaluation
 
@@ -113,6 +114,7 @@ Transparency for reviewers: this table describes what runs against live APIs vs.
 | Verify-after-write read-back | Live — Reader Agent re-reads Sheets post-write |
 | Voice stress/fatigue signals | Simulated — demo mode uses synthetic affect values (real voice input not used in demo); the demo does not infer medical, biometric, or psychological state from user audio |
 | Judge mode (/judges) | Simulated — uses demo data to avoid requiring Google account linking |
+| Turn Review | Simulated — a fixed synthetic scenario (`lib/turn-review/demo-turn.ts`) for comparing operator move choices; demo mode only, no live turn capture |
 | Product data (Google Sheet) | Reference dataset — [view-only public sample commerce catalog](https://docs.google.com/spreadsheets/d/1su_DDvgDeA_B9zb-mc4eGl-tXlSUBS0Qd_bh5T3eLxE/preview), not production inventory |
 
 ## Production Portability

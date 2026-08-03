@@ -13,7 +13,15 @@ json-rules-engine for business rule evaluation
 ## Models
 Vercel AI SDK provides the model integration layer.
 @auth0/ai-vercel connects Auth0 sessions to AI interactions.
-An Anthropic API key is configured for Claude model access.
+
+Model IDs are centralized in lib/agents/models.ts and are env-overridable:
+- Orchestrator + Reader agents: claude-sonnet-5 (@ai-sdk/anthropic)
+- Demo scenario classifier: claude-haiku-4-5 (@ai-sdk/anthropic)
+- Voice primary: gemini-3.1-flash-live-preview (@google/genai)
+- Voice sidecar: gemini-2.5-flash-native-audio-preview-12-2025 (@google/genai,
+  currently disabled — see lib/hooks/use-gemini-live.ts)
+
+ANTHROPIC_API_KEY and GEMINI_API_KEY are read server-side only.
 
 ## Agent Architecture
 Four-agent system with OAuth 2.0 On-Behalf-Of (OBO) delegation:
