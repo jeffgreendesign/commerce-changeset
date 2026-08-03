@@ -52,22 +52,35 @@ export async function POST() {
   const expireTime = new Date(Date.now() + sessionMinutes * 60_000).toISOString();
   const newSessionExpireTime = new Date(Date.now() + 60_000).toISOString();
 
-  const tokenConfig = {
-    // No liveConnectConstraints — keep tokens unlocked for debugging
+  /**
+   * Bind each token to the model it is meant to open.
+   *
+   * An ephemeral token with no `liveConnectConstraints` does not restrict the
+   * session at all — the client's setup frame picks the model, so a leaked
+   * token could be redeemed against any Live API model on our quota. Binding
+   * the model closes that. The rest of the session config is deliberately left
+   * unconstrained: locking it means mirroring `buildPrimarySDKConfig()` here,
+   * and a mismatch fails the connection rather than degrading, so that is a
+   * separate change that needs a live voice session to validate.
+   */
+  const tokenConfigFor = (model: string) => ({
     config: {
       uses: 1,
       expireTime,
       newSessionExpireTime,
+      liveConnectConstraints: { model },
     },
-  };
+  });
 
   try {
     // Only mint what the client will actually connect. Handing out a sidecar
     // token while the sidecar session is disabled burns a credential nobody
     // redeems and misrepresents the voice stack as dual-model.
     const [primaryToken, sidecarToken] = await Promise.all([
-      client.authTokens.create(tokenConfig),
-      SIDECAR_ENABLED ? client.authTokens.create(tokenConfig) : null,
+      client.authTokens.create(tokenConfigFor(PRIMARY_MODEL)),
+      SIDECAR_ENABLED
+        ? client.authTokens.create(tokenConfigFor(SIDECAR_MODEL))
+        : null,
     ]);
 
     console.log(

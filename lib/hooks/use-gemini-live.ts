@@ -12,6 +12,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { GoogleGenAI } from "@google/genai";
 import type { Session, LiveServerMessage } from "@google/genai";
+import { z } from "zod/v4";
 import { DEMO_HEADER_NAME } from "@/lib/demo/config";
 import {
   buildPrimarySDKConfig,
@@ -29,6 +30,25 @@ import type {
 } from "@/lib/voice/types";
 
 // ── Types ────────────────────────────────────────────────────────────
+
+/**
+ * Shape of POST /api/voice/token.
+ *
+ * The sidecar pair is all-or-nothing: the endpoint omits both fields while
+ * SIDECAR_ENABLED is false, and a response carrying only one of them means the
+ * two sides have drifted apart.
+ */
+const VoiceTokenResponseSchema = z
+  .object({
+    primaryToken: z.string().min(1),
+    primaryModel: z.string().min(1),
+    sidecarToken: z.string().min(1).optional(),
+    sidecarModel: z.string().min(1).optional(),
+  })
+  .refine(
+    (v) => (v.sidecarToken === undefined) === (v.sidecarModel === undefined),
+    { message: "sidecarToken and sidecarModel must be present together" }
+  );
 
 export interface UseGeminiLiveOptions {
   onToolCall: ToolCallHandler;
@@ -445,13 +465,9 @@ export function useGeminiLive(
         );
       }
       // Sidecar fields are absent while SIDECAR_ENABLED is false — the token
-      // endpoint only mints credentials for sessions it expects us to open.
-      const tokens = (await tokenRes.json()) as {
-        primaryToken: string;
-        primaryModel: string;
-        sidecarToken?: string;
-        sidecarModel?: string;
-      };
+      // endpoint only mints credentials for sessions it expects us to open,
+      // so they must arrive together or not at all.
+      const tokens = VoiceTokenResponseSchema.parse(await tokenRes.json());
 
       // 3. Set up audio capture at 16kHz (required by Gemini Live API)
       const audioCtx = new AudioContext({ sampleRate: 16000 });

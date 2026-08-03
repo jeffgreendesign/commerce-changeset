@@ -22,14 +22,7 @@ import type { ActiveView } from "@/lib/navigation-types";
 // ── Inner content that has access to layout context ──────────────────
 
 function DashboardContent({ userName }: { userName: string }) {
-  const { activeChatId, startNewChat, loadChat, activeView, isDemo } = useLayout();
-
-  // Turn Review renders a fixed synthetic scenario with no live capture behind
-  // it. The rail hides the entry outside demo mode, but a direct link or a
-  // restored history entry can still ask for the view — fall back to the
-  // workspace rather than presenting simulated data as real.
-  const effectiveView =
-    activeView === "turn-review" && !isDemo ? "workspace" : activeView;
+  const { activeChatId, startNewChat, loadChat, activeView } = useLayout();
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -85,13 +78,13 @@ function DashboardContent({ userName }: { userName: string }) {
       </header>
 
       {/* Content area — switches between workspace, chat, actions, and history */}
-      {isWorkspaceView(effectiveView) ? (
+      {isWorkspaceView(activeView) ? (
         <Workspace />
-      ) : effectiveView === "turn-review" ? (
+      ) : activeView === "turn-review" ? (
         <TurnReviewBoard scenario={DEMO_TURN_REVIEW} embedded />
-      ) : effectiveView === "chat" ? (
+      ) : activeView === "chat" ? (
         <Chat key={activeChatId} chatId={activeChatId} />
-      ) : effectiveView === "actions" ? (
+      ) : activeView === "actions" ? (
         <QuickActionsPanel />
       ) : (
         <div className="flex flex-1 flex-col overflow-hidden">

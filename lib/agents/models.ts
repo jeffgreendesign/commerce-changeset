@@ -11,16 +11,48 @@
  *   - README.md, llms.txt
  */
 
+import { z } from "zod/v4";
+
+const ModelIdSchema = z.string().trim().min(1);
+
+/**
+ * Resolve a model ID from its override, falling back to the default.
+ *
+ * `??` alone only catches `undefined`, so `READER_MODEL=""` or a whitespace
+ * value would reach `anthropic(...)` and fail at the first agent request
+ * instead of at boot. Validate here so a misconfigured deployment fails fast
+ * with a clear message.
+ */
+function modelId(name: string, override: string | undefined, fallback: string) {
+  const result = ModelIdSchema.safeParse(override ?? fallback);
+  if (!result.success) {
+    throw new Error(
+      `Invalid ${name}: expected a non-empty model ID, got ${JSON.stringify(override)}`
+    );
+  }
+  return result.data;
+}
+
 /** Reader Agent — read-only Sheets tool loop (generateText). */
-export const READER_MODEL = process.env.READER_MODEL ?? "claude-sonnet-5";
+export const READER_MODEL = modelId(
+  "READER_MODEL",
+  process.env.READER_MODEL,
+  "claude-sonnet-5"
+);
 
 /** Orchestrator Agent — request decomposition into operations (generateObject). */
-export const ORCHESTRATOR_MODEL =
-  process.env.ORCHESTRATOR_MODEL ?? "claude-sonnet-5";
+export const ORCHESTRATOR_MODEL = modelId(
+  "ORCHESTRATOR_MODEL",
+  process.env.ORCHESTRATOR_MODEL,
+  "claude-sonnet-5"
+);
 
 /** Demo scenario classifier — cheap fuzzy intent match (generateObject). */
-export const CLASSIFIER_MODEL =
-  process.env.CLASSIFIER_MODEL ?? "claude-haiku-4-5";
+export const CLASSIFIER_MODEL = modelId(
+  "CLASSIFIER_MODEL",
+  process.env.CLASSIFIER_MODEL,
+  "claude-haiku-4-5"
+);
 
 /**
  * Human-readable name for the model that drives the agents, for UI copy.

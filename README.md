@@ -94,7 +94,7 @@ A declarative, auditable policy engine evaluates every operation against 7 rules
 - [Tailwind CSS v4](https://tailwindcss.com/) + [Base UI](https://base-ui.com/) + [shadcn/ui](https://ui.shadcn.com/)
 - [Auth0](https://auth0.com/) — `@auth0/nextjs-auth0` v4, Token Vault, CIBA + Guardian
 - [Vercel AI SDK](https://sdk.vercel.ai/) + `@auth0/ai-vercel`
-- [Anthropic Claude Sonnet 5](https://www.anthropic.com/) — agent LLM (Haiku 4.5 for demo intent classification)
+- [Anthropic Claude Sonnet 5](https://www.anthropic.com/) — default agent LLM (Haiku 4.5 for demo intent classification). Defaults live in `lib/agents/models.ts`; override per agent with `READER_MODEL`, `ORCHESTRATOR_MODEL`, or `CLASSIFIER_MODEL`
 - [Gemini Live API](https://ai.google.dev/) — real-time voice input
 - [json-rules-engine](https://github.com/CacheControl/json-rules-engine) — policy evaluation
 

@@ -14,12 +14,16 @@ json-rules-engine for business rule evaluation
 Vercel AI SDK provides the model integration layer.
 @auth0/ai-vercel connects Auth0 sessions to AI interactions.
 
-Model IDs are centralized in lib/agents/models.ts and are env-overridable:
+Agent model IDs are centralized in lib/agents/models.ts, env-overridable via
+READER_MODEL, ORCHESTRATOR_MODEL, and CLASSIFIER_MODEL:
 - Orchestrator + Reader agents: claude-sonnet-5 (@ai-sdk/anthropic)
 - Demo scenario classifier: claude-haiku-4-5 (@ai-sdk/anthropic)
+
+Voice model IDs are separate constants in lib/voice/gemini-live.ts, not
+env-overridable:
 - Voice primary: gemini-3.1-flash-live-preview (@google/genai)
 - Voice sidecar: gemini-2.5-flash-native-audio-preview-12-2025 (@google/genai,
-  currently disabled — see lib/hooks/use-gemini-live.ts)
+  currently disabled via SIDECAR_ENABLED — see lib/hooks/use-gemini-live.ts)
 
 ANTHROPIC_API_KEY and GEMINI_API_KEY are read server-side only.
 

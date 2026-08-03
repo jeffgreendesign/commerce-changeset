@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 ### Chores
 
 - Update agent model to Claude Sonnet 5 (Reader and Orchestrator); demo classifier moves to the `claude-haiku-4-5` alias
-- Centralize model IDs in `lib/agents/models.ts` — env-overridable, replacing hardcoded IDs across three call sites and two user-visible UI strings
+- Centralize runtime model IDs in `lib/agents/models.ts`, overridable via `READER_MODEL` / `ORCHESTRATOR_MODEL` / `CLASSIFIER_MODEL` and validated at module load so an empty override fails at boot rather than at the first agent call. The user-facing model label stays a fixed constant — it is imported by client components, where a non-`NEXT_PUBLIC_` env read is inlined as `undefined`.
 - Set an explicit `maxOutputTokens` on the orchestrator decomposition step; Sonnet 5 runs adaptive thinking by default and the output cap covers thinking plus response together
 - Bump `next` 16.2.1 → 16.2.12, `react`/`react-dom` 19.2.4 → 19.2.8, `@auth0/ai-vercel` 5.1.0 → 5.1.1
 - Add Dependabot config (PR `unavailable`)
@@ -36,6 +36,10 @@ All notable changes to this project will be documented in this file.
 
 - Run the version-floor CVE check in `npm run gates`, so it executes in CI. It previously ran only from the pre-commit hook, leaving a `--no-verify` push unchecked.
 - Add an advisory `security-scan` CI job that scans the pull-request diff via a new `--since` mode on `scripts/security-check.sh`. A full-tree scan takes ~5 minutes and reports pre-existing pattern matches, so it reports without blocking the merge.
+- Bind Gemini ephemeral tokens to their intended model via `liveConnectConstraints`. An unconstrained token places no restriction on the session, so the client's setup frame chose the model — a leaked token could be redeemed against any Live API model on our quota. The rest of the session config is still unconstrained; locking it requires mirroring the client config server-side and needs a live voice session to validate.
+- Validate the `/api/voice/token` response with zod in the client hook, requiring the sidecar token and model to be present together so the two sides cannot drift apart silently.
+- Do not persist the checkout credential in the `security-scan` CI job, which executes a script from the pull-request revision.
+- Include renamed files (`--diff-filter=ACMR`) in the pull-request security scan; a file renamed and modified in one PR previously skipped it.
 - Remove three unenforceable `react-server-dom-*` entries from `config/version-floors.json`. The floor check only inspects direct dependencies, and none of those packages are one — the RSC runtime ships inside `next`, so CVE-2025-55182 is now documented against the `next` floor that actually fires.
 
 ## [0.2.1] — 2026-04-06

@@ -3,6 +3,7 @@
 import {
   useState,
   useCallback,
+  useEffect,
   useRef,
   createContext,
   useContext,
@@ -78,13 +79,49 @@ interface LayoutShellProps {
   initialView?: ActiveView;
 }
 
+/**
+ * Views that are only meaningful in demo mode, mapped to their fallback.
+ *
+ * Turn Review renders a fixed synthetic scenario (`lib/turn-review/demo-turn.ts`)
+ * with no live capture behind it. Normalizing here rather than at the render
+ * site keeps `activeView` itself truthful — the Rail highlights from it and
+ * `Workspace` branches on it, so a stale "turn-review" would leave both in an
+ * inconsistent state.
+ */
+const DEMO_ONLY_VIEW_FALLBACK: Partial<Record<ActiveView, ActiveView>> = {
+  "turn-review": "workspace",
+};
+
+function normalizeView(view: ActiveView, isDemo: boolean): ActiveView {
+  if (isDemo) return view;
+  return DEMO_ONLY_VIEW_FALLBACK[view] ?? view;
+}
+
 export function LayoutShell({ children, userName, isDemo = false, initialView = "workspace" }: LayoutShellProps) {
   const [railExpanded, setRailExpanded] = useState(false);
   const [inspectorItem, setInspectorItem] = useState<InspectableItem | null>(
     null,
   );
   const [activeChatId, setActiveChatId] = useState(() => generateChatId());
-  const [activeView, setActiveView] = useState<ActiveView>(initialView);
+  const [activeView, setActiveViewState] = useState<ActiveView>(() =>
+    normalizeView(initialView, isDemo),
+  );
+
+  // Read isDemo through a ref so setActiveView keeps a stable identity. It is
+  // a dependency of several downstream callbacks, and making it change with
+  // isDemo would break their memoization for a prop that never changes for a
+  // mounted shell.
+  const isDemoRef = useRef(isDemo);
+  useEffect(() => {
+    isDemoRef.current = isDemo;
+  }, [isDemo]);
+
+  // Every write to activeView goes through here, including browser back/forward
+  // restores, so a demo-only view can never enter state outside demo mode.
+  const setActiveView = useCallback(
+    (view: ActiveView) => setActiveViewState(normalizeView(view, isDemoRef.current)),
+    [],
+  );
   const [pendingPrompt, setPendingPromptState] = useState<string | null>(null);
   const pendingPromptRef = useRef<string | null>(null);
   const [pendingAction, setPendingActionState] = useState<ActionDefinition | null>(null);
@@ -114,20 +151,20 @@ export function LayoutShell({ children, userName, isDemo = false, initialView = 
     setActiveChatId(id);
     setActiveView("chat");
     pushView("chat", id);
-  }, [pushView]);
+  }, [pushView, setActiveView]);
 
   const loadChat = useCallback((id: string) => {
     setActiveChatId(id);
     setActiveView("chat");
     pushView("chat", id);
-  }, [pushView]);
+  }, [pushView, setActiveView]);
 
   const setPendingPrompt = useCallback((prompt: string) => {
     pendingPromptRef.current = prompt;
     setPendingPromptState(prompt);
     setActiveView("chat");
     pushView("chat");
-  }, [pushView]);
+  }, [pushView, setActiveView]);
 
   const consumePendingPrompt = useCallback(() => {
     const p = pendingPromptRef.current;
@@ -155,7 +192,7 @@ export function LayoutShell({ children, userName, isDemo = false, initialView = 
   const navigateToView = useCallback((view: ActiveView) => {
     setActiveView(view);
     pushView(view);
-  }, [pushView]);
+  }, [pushView, setActiveView]);
 
   const ctx = useMemo<LayoutContextValue>(
     () => ({

@@ -92,6 +92,10 @@ jobs:
         with:
           # Need the base branch present for the --since diff.
           fetch-depth: 0
+          # This job runs a script from the PR revision. Don't leave the
+          # checkout token readable in .git/config — the scan only reads
+          # local history, so it never needs credentials.
+          persist-credentials: false
 
       - name: Scan files changed in this pull request
         run: |

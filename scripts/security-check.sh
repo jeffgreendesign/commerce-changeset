@@ -64,7 +64,9 @@ warn() {
 
 # Get files to check: --since REF diff, staged files, or the whole tree
 if [ -n "$SINCE_REF" ]; then
-  FILES=$(git diff --name-only --diff-filter=ACM "$SINCE_REF"...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' 2>/dev/null || true)
+  # Includes R (renamed): a file that is renamed and modified in the same PR
+  # would otherwise skip the scan entirely.
+  FILES=$(git diff --name-only --diff-filter=ACMR "$SINCE_REF"...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' 2>/dev/null || true)
 elif [ "$SCAN_ALL" = false ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.tsx' '*.js' '*.jsx' 2>/dev/null || true)
 else
