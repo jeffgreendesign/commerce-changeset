@@ -189,9 +189,13 @@ export function LayoutShell({ children, userName, isDemo = false, initialView = 
   }, [setPendingPrompt]);
 
   // Wrap setActiveView so external consumers (Rail, etc.) push history.
+  // Normalize before pushing, not just before setting state — otherwise a
+  // demo-only view can land in window.history.state even though setActiveView
+  // never lets it into React state, and the next popstate restores it.
   const navigateToView = useCallback((view: ActiveView) => {
-    setActiveView(view);
-    pushView(view);
+    const normalized = normalizeView(view, isDemoRef.current);
+    setActiveView(normalized);
+    pushView(normalized);
   }, [pushView, setActiveView]);
 
   const ctx = useMemo<LayoutContextValue>(
