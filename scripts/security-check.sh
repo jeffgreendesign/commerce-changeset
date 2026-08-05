@@ -3,7 +3,9 @@
 # Security Check — Pre-commit Security Scanner
 # ============================================================================
 # Scans staged files for common security issues. Non-blocking by default
-# (exits 0 with warnings). Use --strict to fail on any finding.
+# (exits 0 with warnings). Use --strict to fail on any finding, and --all to
+# scan the whole source tree instead of the staged set (CI has nothing staged,
+# so without --all the scan silently checks zero files there).
 #
 # What it catches:
 # - Path traversal: user input flowing into filesystem operations
@@ -13,15 +15,34 @@
 # - SQL string interpolation: SQL injection risk
 #
 # Usage:
-#   ./scripts/security-check.sh              # Warn only (exit 0)
+#   ./scripts/security-check.sh              # Staged files, warn only (exit 0)
 #   ./scripts/security-check.sh --strict     # Fail on findings (exit 1)
+#   ./scripts/security-check.sh --all        # Scan all of app/, lib/, components/
+#   ./scripts/security-check.sh --since REF  # Scan files changed vs REF (CI)
+#
+# Note: a full --all scan takes several minutes on this codebase, so CI uses
+# --since to scan only what the pull request touched.
 # ============================================================================
 set -euo pipefail
 
 STRICT=false
-if [ "${1:-}" = "--strict" ]; then
-  STRICT=true
-fi
+SCAN_ALL=false
+SINCE_REF=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --strict) STRICT=true ;;
+    --all) SCAN_ALL=true ;;
+    --since)
+      shift
+      SINCE_REF="${1:-}"
+      if [ -z "$SINCE_REF" ]; then
+        echo "--since requires a git ref" >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
 
 WARNINGS=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,8 +62,12 @@ warn() {
   WARNINGS=$((WARNINGS + 1))
 }
 
-# Get files to check (staged files, or all source files if not in a git context)
-if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+# Get files to check: --since REF diff, staged files, or the whole tree
+if [ -n "$SINCE_REF" ]; then
+  # Includes R (renamed): a file that is renamed and modified in the same PR
+  # would otherwise skip the scan entirely.
+  FILES=$(git diff --name-only --diff-filter=ACMR "$SINCE_REF"...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' 2>/dev/null || true)
+elif [ "$SCAN_ALL" = false ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.tsx' '*.js' '*.jsx' 2>/dev/null || true)
 else
   FILES=$(find "$PROJECT_DIR/app" "$PROJECT_DIR/lib" "$PROJECT_DIR/components" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) 2>/dev/null || true)

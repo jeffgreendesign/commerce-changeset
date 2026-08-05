@@ -7,6 +7,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { ORCHESTRATOR_MODEL_LABEL } from "@/lib/agents/models";
 import type { PipelinePhase as Phase } from "@/lib/pipeline-phase";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -44,8 +45,8 @@ export const ANNOTATIONS: AnnotationDef[] = [
     id: "loading-orchestrator",
     phase: "loading",
     category: "agent",
-    text: "Claude Sonnet 4.6 decomposes your request into discrete operations with structured output.",
-    tags: ["Claude Sonnet 4.6", "Vercel AI SDK"],
+    text: `${ORCHESTRATOR_MODEL_LABEL} decomposes your request into discrete operations with structured output.`,
+    tags: [ORCHESTRATOR_MODEL_LABEL, "Vercel AI SDK"],
   },
   {
     id: "draft-policy",

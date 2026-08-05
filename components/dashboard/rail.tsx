@@ -14,6 +14,7 @@ import {
   MenuIcon,
   XIcon,
   PlusIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,30 +34,57 @@ import { Separator } from "@/components/ui/separator";
 import { ChatHistoryPanel } from "./chat-history-panel";
 import { useLayout } from "./layout-shell";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import type { ActiveView } from "@/lib/navigation-types";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DemoAnnotationToggle } from "@/components/demo/demo-annotation-toggle";
 
 // ── Nav items ────────────────────────────────────────────────────────
 
-const NAV_GROUPS = [
+interface NavItem {
+  icon: LucideIcon;
+  label: string;
+  id: ActiveView;
+  enabled: boolean;
+  /**
+   * Hidden outside demo mode. Turn Review renders a fixed synthetic scenario
+   * (`lib/turn-review/demo-turn.ts`) with no live capture behind it, so showing
+   * it to real users would present simulated data as real.
+   */
+  demoOnly?: boolean;
+}
+
+interface NavGroup {
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { icon: LayoutGridIcon, label: "Workspace", id: "workspace" as const, enabled: true },
-      { icon: GitBranchIcon, label: "Turn Review", id: "turn-review" as const, enabled: true },
-      { icon: MessageSquareIcon, label: "Chat", id: "chat" as const, enabled: true },
-      { icon: ClockIcon, label: "Timeline", id: "timeline" as const, enabled: true },
-      { icon: LayersIcon, label: "Drafts", id: "drafts" as const, enabled: true },
-      { icon: ActivityIcon, label: "Activity", id: "activity" as const, enabled: true },
+      { icon: LayoutGridIcon, label: "Workspace", id: "workspace", enabled: true },
+      { icon: GitBranchIcon, label: "Turn Review", id: "turn-review", enabled: true, demoOnly: true },
+      { icon: MessageSquareIcon, label: "Chat", id: "chat", enabled: true },
+      { icon: ClockIcon, label: "Timeline", id: "timeline", enabled: true },
+      { icon: LayersIcon, label: "Drafts", id: "drafts", enabled: true },
+      { icon: ActivityIcon, label: "Activity", id: "activity", enabled: true },
     ],
   },
   {
     items: [
-      { icon: HistoryIcon, label: "History", id: "history" as const, enabled: true },
-      { icon: ZapIcon, label: "Quick Actions", id: "actions" as const, enabled: true },
+      { icon: HistoryIcon, label: "History", id: "history", enabled: true },
+      { icon: ZapIcon, label: "Quick Actions", id: "actions", enabled: true },
     ],
   },
 ];
+
+/** Drop demo-only entries (and any group left empty) outside demo mode. */
+function visibleNavGroups(isDemo: boolean): NavGroup[] {
+  if (isDemo) return NAV_GROUPS;
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.demoOnly),
+  })).filter((group) => group.items.length > 0);
+}
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -72,15 +100,17 @@ function RailNav({
   expanded,
   activeItem,
   onSelect,
+  groups,
 }: {
   expanded: boolean;
   activeItem: string;
   onSelect: (id: string) => void;
+  groups: NavGroup[];
 }) {
   return (
     <nav className="flex flex-col gap-1.5 px-2.5 py-3">
       <TooltipProvider>
-        {NAV_GROUPS.map((group, gi) => (
+        {groups.map((group, gi) => (
           <div key={gi} className="flex flex-col gap-1.5">
             {gi > 0 && <Separator className="my-1" />}
             {group.items.map((item) => {
@@ -139,9 +169,10 @@ function RailNav({
 // ── Main export ──────────────────────────────────────────────────────
 
 export function Rail({ expanded, onToggle, userName }: RailProps) {
-  const { activeChatId, startNewChat, loadChat, activeView, setActiveView } = useLayout();
+  const { activeChatId, startNewChat, loadChat, activeView, setActiveView, isDemo } = useLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const navGroups = useMemo(() => visibleNavGroups(isDemo), [isDemo]);
   const activeItem = activeView;
 
   const handleSelect = (id: string) => {
@@ -198,6 +229,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
 
           <RailNav
             expanded
+            groups={navGroups}
             activeItem={activeItem}
             onSelect={(id) => {
               handleSelect(id);
@@ -289,6 +321,7 @@ export function Rail({ expanded, onToggle, userName }: RailProps) {
         <ScrollArea className="flex-1">
           <RailNav
             expanded={expanded}
+            groups={navGroups}
             activeItem={activeItem}
             onSelect={handleSelect}
           />

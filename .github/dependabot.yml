@@ -4,12 +4,24 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
     groups:
-      npm-dependencies:
+      # Patch and minor bumps are routine — batch them into one reviewable PR.
+      # Majors are deliberately left ungrouped so each gets its own PR: the AI
+      # stack (`ai`, `@ai-sdk/anthropic`, `@google/genai`) has breaking changes
+      # across major lines, and bundling them makes a regression un-bisectable.
+      npm-patch-and-minor:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

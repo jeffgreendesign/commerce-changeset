@@ -12,6 +12,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { GoogleGenAI } from "@google/genai";
 import type { Session, LiveServerMessage } from "@google/genai";
+import { z } from "zod/v4";
 import { DEMO_HEADER_NAME } from "@/lib/demo/config";
 import {
   buildPrimarySDKConfig,
@@ -29,6 +30,25 @@ import type {
 } from "@/lib/voice/types";
 
 // ── Types ────────────────────────────────────────────────────────────
+
+/**
+ * Shape of POST /api/voice/token.
+ *
+ * The sidecar pair is all-or-nothing: the endpoint omits both fields while
+ * SIDECAR_ENABLED is false, and a response carrying only one of them means the
+ * two sides have drifted apart.
+ */
+const VoiceTokenResponseSchema = z
+  .object({
+    primaryToken: z.string().min(1),
+    primaryModel: z.string().min(1),
+    sidecarToken: z.string().min(1).optional(),
+    sidecarModel: z.string().min(1).optional(),
+  })
+  .refine(
+    (v) => (v.sidecarToken === undefined) === (v.sidecarModel === undefined),
+    { message: "sidecarToken and sidecarModel must be present together" }
+  );
 
 export interface UseGeminiLiveOptions {
   onToolCall: ToolCallHandler;
@@ -444,12 +464,10 @@ export function useGeminiLive(
             "Failed to get voice tokens"
         );
       }
-      const tokens = (await tokenRes.json()) as {
-        primaryToken: string;
-        sidecarToken: string;
-        primaryModel: string;
-        sidecarModel: string;
-      };
+      // Sidecar fields are absent while SIDECAR_ENABLED is false — the token
+      // endpoint only mints credentials for sessions it expects us to open,
+      // so they must arrive together or not at all.
+      const tokens = VoiceTokenResponseSchema.parse(await tokenRes.json());
 
       // 3. Set up audio capture at 16kHz (required by Gemini Live API)
       const audioCtx = new AudioContext({ sampleRate: 16000 });
@@ -512,8 +530,12 @@ export function useGeminiLive(
       primaryReadyRef.current = true;
       console.log("[gemini-live] Primary setup complete — ready for audio");
 
-      // 5. Sidecar disabled temporarily to isolate primary connection issue.
-      // TODO: Re-enable once primary voice connection is stable.
+      // 5. Sidecar disabled while isolating a primary-session 1007 disconnect.
+      // Voice runs single-model until this is restored. Re-enabling means
+      // uncommenting the block below AND flipping SIDECAR_ENABLED in
+      // lib/voice/gemini-live.ts, which is what makes the token endpoint mint
+      // the sidecar credential these lines need.
+      // TODO: Re-enable once the primary voice connection is stable.
       // try {
       //   const sidecarAI = new GoogleGenAI({
       //     apiKey: tokens.sidecarToken,
@@ -548,7 +570,7 @@ export function useGeminiLive(
       //   console.warn("[gemini-live] Sidecar failed to connect:", sidecarErr);
       //   setSidecarStatus({ connected: false, receiving: false });
       // }
-      console.log("[gemini-live] Sidecar disabled for debugging — primary only");
+      console.log("[gemini-live] Sidecar disabled — running primary session only");
 
       // 6. Wire audio worklet → both sessions
       let chunkCount = 0;

@@ -8,7 +8,39 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
-- Add synthetic Turn Review demo for comparing operator move choices inside the demo dashboard.
+- Add synthetic Turn Review demo for comparing operator move choices inside the demo dashboard (PR `#72`)
+
+### Fixes
+
+- Gate Turn Review behind demo mode. The rail entry shipped `enabled: true` for every user and the dashboard rendered the hardcoded `DEMO_TURN_REVIEW` scenario unconditionally, presenting synthetic data to real users with no label. Non-demo sessions now fall back to the workspace even when the view is requested by direct link or restored history.
+- Stop minting a Gemini sidecar ephemeral token while the sidecar session is disabled. `use-gemini-live.ts` has had the sidecar connection commented out since the 1007-disconnect investigation, but `/api/voice/token` still issued a second token and advertised `sidecarModel` to the browser. A new `SIDECAR_ENABLED` flag in `lib/voice/gemini-live.ts` is now the single source of truth, and the response omits the sidecar fields while it is false.
+
+### Chores
+
+- Update agent model to Claude Sonnet 5 (Reader and Orchestrator); demo classifier moves to the `claude-haiku-4-5` alias
+- Centralize runtime model IDs in `lib/agents/models.ts`, overridable via `READER_MODEL` / `ORCHESTRATOR_MODEL` / `CLASSIFIER_MODEL` and validated at module load so an empty override fails at boot rather than at the first agent call. The user-facing model label stays a fixed constant — it is imported by client components, where a non-`NEXT_PUBLIC_` env read is inlined as `undefined`.
+- Set an explicit `maxOutputTokens` on the orchestrator decomposition step; Sonnet 5 runs adaptive thinking by default and the output cap covers thinking plus response together
+- Bump `next` 16.2.1 → 16.2.12, `react`/`react-dom` 19.2.4 → 19.2.8, `@auth0/ai-vercel` 5.1.0 → 5.1.1
+- Add Dependabot config (PR `unavailable`)
+- Split the Dependabot npm group so patch/minor batch into one PR and majors each get their own — the previous `"*"` group would have bundled the pending `ai` v7, `@ai-sdk/anthropic` v4, `@google/genai` v2, and `lucide-react` v1 majors into a single un-bisectable PR
+- Add five screenshots to `public/screenshots/` for the Devpost submission (PR `unavailable`)
+
+### Docs
+
+- Clarify demo safety boundaries in README and the design spec: scope CIBA gating and audit-trail claims to this implementation, relabel voice stress/fatigue signals as synthetic demo values, add an explicit no-medical/biometric/psychological-inference statement, and scrub a sample email from the archived design spec (PR `#71`)
+- Add Turn Review to the README "What Is Real vs. Simulated" table as simulated
+- Add intro video link to README (PR `unavailable`)
+- Document the actual model IDs and their env overrides in `llms.txt`, which previously named no model and omitted Gemini entirely
+
+### Security
+
+- Run the version-floor CVE check in `npm run gates`, so it executes in CI. It previously ran only from the pre-commit hook, leaving a `--no-verify` push unchecked.
+- Add an advisory `security-scan` CI job that scans the pull-request diff via a new `--since` mode on `scripts/security-check.sh`. A full-tree scan takes ~5 minutes and reports pre-existing pattern matches, so it reports without blocking the merge.
+- Bind Gemini ephemeral tokens to their intended model via `liveConnectConstraints`. An unconstrained token places no restriction on the session, so the client's setup frame chose the model — a leaked token could be redeemed against any Live API model on our quota. The rest of the session config is still unconstrained; locking it requires mirroring the client config server-side and needs a live voice session to validate.
+- Validate the `/api/voice/token` response with zod in the client hook, requiring the sidecar token and model to be present together so the two sides cannot drift apart silently.
+- Do not persist the checkout credential in the `security-scan` CI job, which executes a script from the pull-request revision.
+- Include renamed files (`--diff-filter=ACMR`) in the pull-request security scan; a file renamed and modified in one PR previously skipped it.
+- Remove three unenforceable `react-server-dom-*` entries from `config/version-floors.json`. The floor check only inspects direct dependencies, and none of those packages are one — the RSC runtime ships inside `next`, so CVE-2025-55182 is now documented against the `next` floor that actually fires.
 
 ## [0.2.1] — 2026-04-06
 

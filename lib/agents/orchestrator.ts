@@ -13,6 +13,10 @@ import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod/v4";
 
+import {
+  ORCHESTRATOR_MAX_OUTPUT_TOKENS,
+  ORCHESTRATOR_MODEL,
+} from "@/lib/agents/models";
 import { runReaderAgent } from "@/lib/agents/reader";
 import { buildChangeSet } from "@/lib/changeset/builder";
 import type { ParsedOperation } from "@/lib/changeset/builder";
@@ -183,7 +187,8 @@ export async function runOrchestratorAgent(
   // Wrapped in an object because Anthropic requires top-level type: 'object'.
   const decompStart = performance.now();
   const { object: decomposition } = await generateObject({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic(ORCHESTRATOR_MODEL),
+    maxOutputTokens: ORCHESTRATOR_MAX_OUTPUT_TOKENS,
     schema: z.object({
       operations: z.array(ParsedOperationSchema),
       reasoning: z.string().describe(
