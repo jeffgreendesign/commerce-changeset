@@ -25,6 +25,11 @@ All notable changes to this project will be documented in this file.
 - Split the Dependabot npm group so patch/minor batch into one PR and majors each get their own — the previous `"*"` group would have bundled the pending `ai` v7, `@ai-sdk/anthropic` v4, `@google/genai` v2, and `lucide-react` v1 majors into a single un-bisectable PR
 - Add five screenshots to `public/screenshots/` for the Devpost submission (PR `unavailable`)
 
+### Security
+
+- Bump `next` 16.2.12 → 16.4.2 for the Oct 14 2026 Next.js advisories (GHSA-2464-fhr4-w9xw / CVE-2026-96889, GHSA-p3m5-59mp-jv5r, GHSA-673q-mjm6-r5xr) and the earlier Image Optimization ones (GHSA-2xp9-vwfh-vxw4, GHSA-cjq9-62q9-8jv4); transitive `sharp` 0.34.5 → 0.35.5
+- Refresh transitive deps in the lockfile: `@modelcontextprotocol/sdk` 1.27.1 → 1.32.1 (GHSA-46jr-4wx8-v453 and related), `protobufjs` 7.5.4 → 7.6.6 (GHSA-xq3m-2v4x-88gg), `proxy-addr` 2.0.7 → 2.0.8 (GHSA-jqcg-44mw-7w3h), `axios` 1.13.6 → 1.20.0 (GHSA-3pq3-5fj3-cg6v, GHSA-542g-h47m-68v8)
+
 ### Docs
 
 - Clarify demo safety boundaries in README and the design spec: scope CIBA gating and audit-trail claims to this implementation, relabel voice stress/fatigue signals as synthetic demo values, add an explicit no-medical/biometric/psychological-inference statement, and scrub a sample email from the archived design spec (PR `#71`)
