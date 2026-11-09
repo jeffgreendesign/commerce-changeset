@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixes
 
-- Keep lint passing on `eslint-plugin-react-hooks` 7.1, which `eslint-config-next` 16.4.1 requires. `isBusy` is declared before `handleRollback` closes over it, the submit-message ref is updated in an effect, and the Gemini Live connect call no longer casts its config with `typeof` on the local client. That cast made the new React compiler rule drop the `connect` memoization.
+- Keep lint passing on `eslint-plugin-react-hooks` 7.1, which `eslint-config-next` 16.4.1 requires. `isBusy` is declared before `handleRollback` closes over it, the submit-message ref is updated in an effect, and the Gemini Live connect call no longer casts its config with `typeof` on the local client. That cast made the new React compiler rule drop the `connect` memoization. (PR `#92`)
 - Gate Turn Review behind demo mode. The rail entry shipped `enabled: true` for every user and the dashboard rendered the hardcoded `DEMO_TURN_REVIEW` scenario unconditionally, presenting synthetic data to real users with no label. Non-demo sessions now fall back to the workspace even when the view is requested by direct link or restored history.
 - Stop minting a Gemini sidecar ephemeral token while the sidecar session is disabled. `use-gemini-live.ts` has had the sidecar connection commented out since the 1007-disconnect investigation, but `/api/voice/token` still issued a second token and advertised `sidecarModel` to the browser. A new `SIDECAR_ENABLED` flag in `lib/voice/gemini-live.ts` is now the single source of truth, and the response omits the sidecar fields while it is false.
 
@@ -35,7 +35,7 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
-- Patch `next` and `eslint-config-next` 16.2.12 → 16.4.1 for GHSA-673q-mjm6-r5xr (unauthenticated RCE), GHSA-2464-fhr4-w9xw (SVG image-optimization RCE), and GHSA-p3m5-59mp-jv5r (Server Actions DoS). The Next.js 16.4.1 optional dependency range pulls `sharp` 0.34.5 → 0.35.5. Override the transitive `@modelcontextprotocol/sdk` 1.27.1 → 1.32.2 for GHSA-f897-62hf-6gxq, GHSA-46jr-4wx8-v453, and GHSA-22jm-h49p-29qw. Raise the 16.4 version floor to 16.4.1.
+- Patch `next` and `eslint-config-next` 16.2.12 → 16.4.1 for GHSA-673q-mjm6-r5xr (unauthenticated RCE), GHSA-2464-fhr4-w9xw (SVG image-optimization RCE), and GHSA-p3m5-59mp-jv5r (Server Actions DoS). The Next.js 16.4.1 optional dependency range pulls `sharp` 0.34.5 → 0.35.5. Override the transitive `@modelcontextprotocol/sdk` 1.27.1 → 1.32.2 for GHSA-f897-62hf-6gxq, GHSA-46jr-4wx8-v453, and GHSA-22jm-h49p-29qw. Raise the 16.4 version floor to 16.4.1. (PR `#92`)
 - Run the version-floor CVE check in `npm run gates`, so it executes in CI. It previously ran only from the pre-commit hook, leaving a `--no-verify` push unchecked.
 - Add an advisory `security-scan` CI job that scans the pull-request diff via a new `--since` mode on `scripts/security-check.sh`. A full-tree scan takes ~5 minutes and reports pre-existing pattern matches, so it reports without blocking the merge.
 - Bind Gemini ephemeral tokens to their intended model via `liveConnectConstraints`. An unconstrained token places no restriction on the session, so the client's setup frame chose the model — a leaked token could be redeemed against any Live API model on our quota. The rest of the session config is still unconstrained; locking it requires mirroring the client config server-side and needs a live voice session to validate.
