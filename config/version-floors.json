@@ -3,7 +3,7 @@
   "_updated": "2026-11-09",
   "floors": {
     "next": {
-      "reason": "CVE-2025-66478 (RCE), CVE-2025-29927 (auth bypass), CVE-2025-55184 (DoS), CVE-2026-23864 (DoS). Also covers the React Server Components RCE (CVE-2025-55182, CVSS 10.0): the react-server-dom-* runtime ships inside next, so it is not a direct dependency and must be enforced through the next floor. November 2026: GHSA-673q-mjm6-r5xr (unauthenticated RCE), GHSA-2464-fhr4-w9xw (SVG image-optimization RCE), and GHSA-p3m5-59mp-jv5r (Server Actions DoS) are fixed in 16.4.1.",
+      "reason": "CVE-2025-66478 (RCE), CVE-2025-29927 (auth bypass), CVE-2025-55184 (DoS), CVE-2026-23864 (DoS). Also covers the React Server Components RCE (CVE-2025-55182, CVSS 10.0): the react-server-dom-* runtime ships inside next, so it is not a direct dependency and must be enforced through the next floor. November 2026: GHSA-673q-mjm6-r5xr (unauthenticated RCE), GHSA-2464-fhr4-w9xw (SVG image-optimization RCE), and GHSA-p3m5-59mp-jv5r (Server Actions DoS) are fixed in 16.4.1. Cache-component advisories GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8, GHSA-rhh4-g77r-r9qj, GHSA-vvgp-ww4w-46vf, GHSA-pc58-hwjq-p385, GHSA-7qx7-33qx-rqx2, and GHSA-f3mh-rxg3-f5g2 are fixed in 16.4.5.",
       "minimums": {
         "14": "14.2.35",
         "15.0": "15.0.8",
@@ -15,7 +15,7 @@
         "16.0": "16.0.11",
         "16.1": "16.1.5",
         "16.2": "16.2.1",
-        "16.4": "16.4.1"
+        "16.4": "16.4.5"
       }
     }
   }
