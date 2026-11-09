@@ -619,6 +619,8 @@ export function Chat({ chatId }: ChatProps) {
     }
   };
 
+  const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
+
   const handleRollback = async (messageIndex: number) => {
     if (isBusy) return;
 
@@ -779,8 +781,6 @@ export function Chat({ chatId }: ChatProps) {
     if (lastUserMsg) setInput(lastUserMsg.content);
   };
 
-  const isBusy = phase === "loading" || phase === "executing" || phase === "rolling_back";
-
   const handleVoiceActivate = useCallback(async () => {
     await voice.handleVoiceActivate();
     haptic(50);
@@ -879,32 +879,38 @@ export function Chat({ chatId }: ChatProps) {
     [isBusy, scrollToBottom, voiceActive, voice, fetchHeaders],
   );
 
+  // Keep submitMessage in a ref so the pending-prompt effect does not re-run
+  // when its identity changes (voice context returns a new object each render,
+  // making submitMessage unstable). Re-running would clear the timer before it
+  // fires. The ref is updated in its own effect so the timer effect's cleanup
+  // stays independent. Later callbacks call the ref: the React compiler treats
+  // a memoized function stored on a ref as mutated, and will not preserve a
+  // useCallback that lists that function as a dependency.
+  const submitMessageRef = useRef(submitMessage);
+  useEffect(() => {
+    submitMessageRef.current = submitMessage;
+  }, [submitMessage]);
+
   const handleApplyFix = useCallback(
     (issue: ProactiveIssue) => {
       if (isBusy || !issue.suggestedFix) return;
       const { action, target, field, suggestedValue } = issue.suggestedFix;
-      submitMessage(
+      submitMessageRef.current(
         `Apply fix: ${action} on ${target} — set ${field} to ${String(suggestedValue)}`
       );
     },
-    [submitMessage, isBusy]
+    [isBusy]
   );
 
   const handleBulkAccept = useCallback(
     (selectedRows: { sku: string; productName: string; currentPrice: string | number; proposedPrice: string | number; field: string }[]) => {
       if (isBusy) return;
       const skuList = selectedRows.map((r) => r.sku).join(", ");
-      submitMessage(`Apply bulk price change to: ${skuList}`);
+      submitMessageRef.current(`Apply bulk price change to: ${skuList}`);
     },
-    [submitMessage, isBusy]
+    [isBusy]
   );
 
-  // Consume pending prompt from Quick Actions panel.
-  // Use a ref for submitMessage so the effect doesn't re-run when its identity
-  // changes (voice context returns a new object each render, making submitMessage
-  // unstable). Without this, the cleanup would cancel the timer before it fires.
-  const submitMessageRef = useRef(submitMessage);
-  submitMessageRef.current = submitMessage;
   const { consumePendingPrompt } = useLayout();
   useEffect(() => {
     const prompt = consumePendingPrompt();
