@@ -499,9 +499,7 @@ export function useGeminiLive(
         });
       const primarySession = await primaryAI.live.connect({
         model: tokens.primaryModel,
-        config: buildPrimarySDKConfig() as Parameters<
-          typeof primaryAI.live.connect
-        >[0]["config"],
+        config: buildPrimarySDKConfig(),
         callbacks: {
           onopen: () => {
             console.log("[gemini-live] Primary connected");
@@ -543,9 +541,7 @@ export function useGeminiLive(
       //   });
       //   const sidecarSession = await sidecarAI.live.connect({
       //     model: tokens.sidecarModel,
-      //     config: buildSidecarSDKConfig() as Parameters<
-      //       typeof sidecarAI.live.connect
-      //     >[0]["config"],
+      //     config: buildSidecarSDKConfig(),
       //     callbacks: {
       //       onopen: () => {
       //         console.log("[gemini-live] Sidecar connected");
